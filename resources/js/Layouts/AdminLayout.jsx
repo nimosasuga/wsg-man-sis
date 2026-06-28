@@ -1,6 +1,6 @@
 // resources/js/Layouts/AdminLayout.jsx
+import { Link, router } from "@inertiajs/react";
 import React, { useState } from "react";
-import { Link } from "@inertiajs/react";
 import {
     LayoutDashboard,
     DollarSign,
@@ -17,6 +17,7 @@ import {
     Bell,
     ChevronLeft,
     ChevronRight,
+    LogOut,
 } from "lucide-react";
 
 export default function AdminLayout({ children }) {
@@ -126,7 +127,8 @@ export default function AdminLayout({ children }) {
                             <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
                         </button>
                         <div className="h-8 w-px bg-gray-200"></div>
-                        <div className="flex items-center gap-3 cursor-pointer group">
+                        {/* Bagian Profil & Tombol Logout di Topbar */}
+                        <div className="ml-4 flex items-center gap-3 cursor-pointer group relative">
                             <div className="text-right hidden sm:block">
                                 <p className="text-sm font-bold text-gray-700 leading-tight">
                                     Admin System
@@ -135,9 +137,15 @@ export default function AdminLayout({ children }) {
                                     Washeng ID
                                 </p>
                             </div>
-                            <div className="w-9 h-9 rounded-full bg-gray-900 flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-transform">
-                                A
-                            </div>
+
+                            {/* Tombol Logout (Mengeksekusi endpoint /logout via Inertia POST) */}
+                            <button
+                                onClick={() => router.post("/logout")}
+                                title="Keluar dari Sistem"
+                                className="w-9 h-9 rounded-full bg-slate-900 flex items-center justify-center text-white shadow-md group-hover:scale-105 group-hover:bg-rose-600 transition-all cursor-pointer"
+                            >
+                                <LogOut size={18} />
+                            </button>
                         </div>
                     </div>
                 </header>

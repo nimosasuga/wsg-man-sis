@@ -1,30 +1,25 @@
-// resources/js/Pages/Inventori/Pajak/Index.jsx
-import React from "react";
-import AdminLayout from "../../../Layouts/AdminLayout"; // Path disesuaikan
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
+import React, { useState, useMemo } from "react";
+import AdminLayout from "../../../Layouts/AdminLayout";
 import {
     ChevronRight,
     ChevronDown,
     Filter,
-    ChevronLeft,
     Image as ImageIcon,
+    PanelLeftClose,
+    PanelLeftOpen,
+    SearchX,
 } from "lucide-react";
 
 export default function Index() {
-    // Dummy Data Area Filter (Mirip Sidebar AppSheet)
-    const areas = [
-        { name: "AIR MOLEK", count: 4 },
-        { name: "AMBON", count: 4 },
-        { name: "BALIKPAPAN", count: 4 },
-        { name: "BANDUNG", count: 20 },
-        { name: "BANYUWANGI", count: 2 },
-        { name: "BATAM", count: 2 },
-        { name: "KUPANG", count: 53, active: true },
-        { name: "MAKASSAR", count: 6 },
-    ];
+    // 1. STATE MANAGEMENT (Menyimpan status interaksi UI)
+    const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
+    const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(true);
+    const [activeStatus, setActiveStatus] = useState("ALL"); // 'ALL', 'AKTIF', 'EXPIRED'
+    const [activeArea, setActiveArea] = useState("ALL");
 
-    // Dummy Data Table (Berdasarkan gambar)
-    const tableData = [
+    // 2. DUMMY DATA (Ditambahkan variasi status dan area untuk uji coba filter)
+    const rawTableData = [
         {
             id: 1,
             stnk: "14 Okt 2030",
@@ -35,7 +30,8 @@ export default function Index() {
             pabrikan: "HINO",
             model: "HEAD",
             mesin: "J08EUGJ41831",
-            rangka: "MJEFC8JJKEJT16680",
+            rangka: "MJEFC8",
+            status: "AKTIF",
             imgStnk: true,
             imgPajak: true,
         },
@@ -49,21 +45,23 @@ export default function Index() {
             pabrikan: "HINO",
             model: "HEAD",
             mesin: "J08EUGJ41829",
-            rangka: "MJEFC8JJKEJT16678",
+            rangka: "MJEFC8",
+            status: "AKTIF",
             imgStnk: true,
             imgPajak: true,
         },
         {
             id: 3,
-            stnk: "31 Des 2030",
-            pajak: "31 Des 2030",
-            area: "KUPANG",
-            nopol: "EC.01.10.10974",
-            tipe: "CHASSIS HEAD",
-            pabrikan: "NN",
-            model: "CHASSIS HEAD",
-            mesin: "011010974",
-            rangka: "011010974",
+            stnk: "10 Jan 2024",
+            pajak: "10 Jan 2024",
+            area: "BANDUNG",
+            nopol: "D-1234-XYZ",
+            tipe: "WINGBOX",
+            pabrikan: "ISUZU",
+            model: "GIGA",
+            mesin: "6HK1T",
+            rangka: "JAL6H",
+            status: "EXPIRED",
             imgStnk: false,
             imgPajak: false,
         },
@@ -72,30 +70,62 @@ export default function Index() {
             stnk: "31 Des 2030",
             pajak: "31 Des 2030",
             area: "KUPANG",
-            nopol: "EC.01.10.10975",
+            nopol: "EC.01.10.10974",
             tipe: "CHASSIS HEAD",
             pabrikan: "NN",
             model: "CHASSIS HEAD",
-            mesin: "011010975",
-            rangka: "011010975",
+            mesin: "011010974",
+            rangka: "01101",
+            status: "AKTIF",
             imgStnk: false,
             imgPajak: false,
         },
         {
             id: 5,
-            stnk: "31 Des 2030",
-            pajak: "31 Des 2030",
-            area: "KUPANG",
-            nopol: "EKOR-10",
-            tipe: "CHASSIS HEAD",
-            pabrikan: "NN",
-            model: "CHASSIS HEAD",
-            mesin: "",
-            rangka: "",
-            imgStnk: false,
+            stnk: "15 Feb 2024",
+            pajak: "15 Feb 2024",
+            area: "MAKASSAR",
+            nopol: "DD-9999-AA",
+            tipe: "DUMP TRUCK",
+            pabrikan: "MITSUBISHI",
+            model: "FUSO",
+            mesin: "6D16",
+            rangka: "MHM6D",
+            status: "EXPIRED",
+            imgStnk: true,
             imgPajak: false,
         },
     ];
+
+    // Dummy Area List
+    const areaList = [
+        { name: "AIR MOLEK" },
+        { name: "AMBON" },
+        { name: "BALIKPAPAN" },
+        { name: "BANDUNG" },
+        { name: "BANYUWANGI" },
+        { name: "BATAM" },
+        { name: "KUPANG" },
+        { name: "MAKASSAR" },
+    ];
+
+    // 3. LOGIKA FILTER REAL-TIME
+    const filteredData = useMemo(() => {
+        return rawTableData.filter((item) => {
+            const matchStatus =
+                activeStatus === "ALL" || item.status === activeStatus;
+            const matchArea = activeArea === "ALL" || item.area === activeArea;
+            return matchStatus && matchArea;
+        });
+    }, [activeStatus, activeArea, rawTableData]);
+
+    // Kalkulasi jumlah data untuk indikator angka di sidebar
+    const countStatus = (status) =>
+        rawTableData.filter((item) =>
+            status === "ALL" ? true : item.status === status,
+        ).length;
+    const countArea = (areaName) =>
+        rawTableData.filter((item) => item.area === areaName).length;
 
     return (
         <AdminLayout>
@@ -111,11 +141,30 @@ export default function Index() {
                         <ChevronRight size={14} className="mx-1" />
                         <span className="text-gray-800">PAJAK STNK</span>
                     </div>
-                    <h1 className="text-2xl font-black text-gray-800 tracking-tight">
-                        Data Pajak & STNK
-                    </h1>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl font-black text-gray-800 tracking-tight">
+                            Data Pajak & STNK
+                        </h1>
+                        {/* Tombol Toggle Sidebar Filter */}
+                        <button
+                            onClick={() =>
+                                setIsFilterSidebarOpen(!isFilterSidebarOpen)
+                            }
+                            className="text-gray-400 hover:text-blue-600 bg-white border border-gray-200 p-1.5 rounded-md shadow-sm transition-colors"
+                            title={
+                                isFilterSidebarOpen
+                                    ? "Sembunyikan Filter"
+                                    : "Tampilkan Filter"
+                            }
+                        >
+                            {isFilterSidebarOpen ? (
+                                <PanelLeftClose size={18} />
+                            ) : (
+                                <PanelLeftOpen size={18} />
+                            )}
+                        </button>
+                    </div>
                 </div>
-                {/* Tombol Aksi CRUD */}
                 <div className="flex items-center gap-2">
                     <button className="px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 shadow-sm transition-all flex items-center">
                         <Filter size={16} className="mr-2" /> Filter Lanjutan
@@ -126,151 +175,217 @@ export default function Index() {
                 </div>
             </div>
 
-            {/* Layout Mirip AppSheet (Sidebar Filter Kiri + Table Kanan) */}
-            <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-180px)]">
-                {/* Sidebar Filter Area */}
-                <div className="w-full md:w-64 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden shrink-0">
-                    <div className="p-3 bg-blue-50 border-b border-blue-100 flex justify-between items-center cursor-pointer">
-                        <span className="font-bold text-blue-800 text-sm">
-                            All
+            {/* Layout Utama */}
+            <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-180px)] overflow-hidden">
+                {/* SIDEBAR FILTER (Interaktif: Hide/Show) */}
+                <div
+                    className={`bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col shrink-0 transition-all duration-300 ease-in-out origin-left ${isFilterSidebarOpen ? "w-full md:w-64 opacity-100" : "w-0 opacity-0 border-0 overflow-hidden"}`}
+                >
+                    {/* Header Filter (ALL Status) */}
+                    <div
+                        onClick={() => {
+                            setActiveStatus("ALL");
+                            setActiveArea("ALL");
+                            setIsStatusMenuOpen(!isStatusMenuOpen);
+                        }}
+                        className={`p-3 border-b border-gray-100 flex justify-between items-center cursor-pointer transition-colors ${activeStatus === "ALL" && activeArea === "ALL" ? "bg-blue-50 border-blue-100" : "hover:bg-gray-50"}`}
+                    >
+                        <span
+                            className={`font-bold text-sm ${activeStatus === "ALL" && activeArea === "ALL" ? "text-blue-800" : "text-gray-700"}`}
+                        >
+                            Semua Data
                         </span>
-                        <ChevronDown size={16} className="text-blue-600" />
-                    </div>
-                    <div className="p-2 border-b border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-50">
-                        <div className="flex items-center">
-                            <ChevronDown
-                                size={14}
-                                className="text-gray-400 mr-1"
-                            />
-                            <span className="font-semibold text-gray-700 text-xs">
-                                AKTIF
-                            </span>
-                        </div>
-                        <span className="bg-gray-200 text-gray-600 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                            259
-                        </span>
+                        <ChevronDown
+                            size={16}
+                            className={`transition-transform duration-200 ${isStatusMenuOpen ? "rotate-0" : "rotate-180"} ${activeStatus === "ALL" ? "text-blue-600" : "text-gray-400"}`}
+                        />
                     </div>
 
-                    {/* List Area Scrollable */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-                        {areas.map((area, idx) => (
+                    {/* Collapse Menu Status */}
+                    <div
+                        className={`overflow-hidden transition-all duration-300 ${isStatusMenuOpen ? "max-h-40 border-b border-gray-100" : "max-h-0"}`}
+                    >
+                        {["AKTIF", "EXPIRED"].map((status) => (
                             <div
-                                key={idx}
-                                className={`flex justify-between items-center px-6 py-1.5 rounded-md cursor-pointer transition-colors ${area.active ? "bg-blue-50 border border-blue-100" : "hover:bg-gray-50"}`}
+                                key={status}
+                                onClick={() => {
+                                    setActiveStatus(status);
+                                    setActiveArea("ALL");
+                                }}
+                                className={`p-2 flex justify-between items-center cursor-pointer transition-colors ${activeStatus === status ? "bg-blue-50/50" : "hover:bg-gray-50"}`}
                             >
-                                <span
-                                    className={`text-[11px] font-bold ${area.active ? "text-blue-700" : "text-gray-600"}`}
-                                >
-                                    {area.name}
-                                </span>
-                                <span
-                                    className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${area.active ? "bg-blue-200 text-blue-800" : "bg-gray-100 text-gray-500"}`}
-                                >
-                                    {area.count}
+                                <div className="flex items-center pl-2">
+                                    <span
+                                        className={`w-2 h-2 rounded-full mr-2 ${status === "AKTIF" ? "bg-green-500" : "bg-red-500"}`}
+                                    ></span>
+                                    <span
+                                        className={`font-semibold text-xs ${activeStatus === status ? "text-blue-700" : "text-gray-600"}`}
+                                    >
+                                        {status}
+                                    </span>
+                                </div>
+                                <span className="bg-gray-100 text-gray-500 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                    {countStatus(status)}
                                 </span>
                             </div>
                         ))}
                     </div>
+
+                    {/* List Area Scrollable */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                        <div className="px-3 py-2 text-[10px] font-black text-gray-400 uppercase tracking-wider">
+                            Filter Area
+                        </div>
+                        {areaList.map((area, idx) => {
+                            const count = countArea(area.name);
+                            const isActive = activeArea === area.name;
+                            return (
+                                <div
+                                    key={idx}
+                                    onClick={() =>
+                                        setActiveArea(
+                                            isActive ? "ALL" : area.name,
+                                        )
+                                    } // Klik ulang untuk membatalkan filter area
+                                    className={`flex justify-between items-center px-4 py-2 rounded-md cursor-pointer transition-colors ${isActive ? "bg-blue-50 border border-blue-100" : "hover:bg-gray-50"}`}
+                                >
+                                    <span
+                                        className={`text-[11px] font-bold ${isActive ? "text-blue-700" : "text-gray-600"}`}
+                                    >
+                                        {area.name}
+                                    </span>
+                                    <span
+                                        className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isActive ? "bg-blue-200 text-blue-800" : "bg-gray-100 text-gray-400"}`}
+                                    >
+                                        {count}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
 
-                {/* Main Data Table */}
-                <div className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col relative">
+                {/* MAIN DATA TABLE */}
+                <div className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col relative overflow-hidden transition-all duration-300">
                     <div className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1">
-                        <table className="w-full text-left border-collapse whitespace-nowrap">
-                            <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200 shadow-sm">
-                                <tr>
-                                    {[
-                                        "JATUH TEMPO STNK",
-                                        "JATUH TEMPO PAJAK",
-                                        "AREA",
-                                        "NOPOL",
-                                        "TIPE",
-                                        "PABRIKAN",
-                                        "MODEL",
-                                        "NO. MESIN",
-                                        "NO.RANGKA",
-                                        "FOTO STNK",
-                                        "FOTO PAJAK",
-                                    ].map((col, idx) => (
-                                        <th
-                                            key={idx}
-                                            className="px-4 py-3 text-[10px] font-black text-gray-500 uppercase tracking-wider border-r border-gray-100 last:border-r-0"
-                                        >
-                                            {col}
-                                        </th>
-                                    ))}
-                                    <th className="px-3 py-3 w-10 sticky right-0 bg-gray-50 shadow-[-4px_0_10px_rgba(0,0,0,0.02)]"></th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {tableData.map((row) => (
-                                    <tr
-                                        key={row.id}
-                                        className="hover:bg-blue-50/50 transition-colors group cursor-pointer"
-                                    >
-                                        <td className="px-4 py-2.5 text-xs text-gray-700 font-medium border-r border-gray-50">
-                                            {row.stnk}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-xs text-gray-700 font-medium border-r border-gray-50">
-                                            {row.pajak}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-xs text-gray-700 font-medium border-r border-gray-50">
-                                            {row.area}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-xs text-gray-900 font-bold border-r border-gray-50">
-                                            {row.nopol}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-xs text-gray-600 border-r border-gray-50">
-                                            {row.tipe}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-xs text-gray-600 border-r border-gray-50">
-                                            {row.pabrikan}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-xs text-gray-600 border-r border-gray-50">
-                                            {row.model}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-xs text-gray-500 font-mono border-r border-gray-50">
-                                            {row.mesin}
-                                        </td>
-                                        <td className="px-4 py-2.5 text-xs text-gray-500 font-mono border-r border-gray-50">
-                                            {row.rangka}
-                                        </td>
-                                        <td className="px-4 py-2.5 border-r border-gray-50">
-                                            {row.imgStnk ? (
-                                                <div className="w-10 h-6 bg-blue-100 rounded border border-blue-200 flex items-center justify-center text-blue-600">
-                                                    <ImageIcon size={14} />
-                                                </div>
-                                            ) : (
-                                                <span className="text-xs text-gray-400 font-bold">
-                                                    N/A
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-2.5 border-r border-gray-50">
-                                            {row.imgPajak ? (
-                                                <div className="w-10 h-6 bg-green-100 rounded border border-green-200 flex items-center justify-center text-green-600">
-                                                    <ImageIcon size={14} />
-                                                </div>
-                                            ) : (
-                                                <span className="text-xs text-gray-400 font-bold">
-                                                    N/A
-                                                </span>
-                                            )}
-                                        </td>
-                                        {/* Action Icon (Mirip > di AppSheet) */}
-                                        <td className="px-3 py-2.5 sticky right-0 bg-white group-hover:bg-blue-50/50 transition-colors shadow-[-4px_0_10px_rgba(0,0,0,0.02)] text-center">
-                                            <button className="text-gray-400 hover:text-blue-600 hover:bg-white p-1 rounded transition-all shadow-sm border border-transparent hover:border-gray-200">
-                                                <ChevronRight size={16} />
-                                            </button>
-                                        </td>
+                        {filteredData.length > 0 ? (
+                            <table className="w-full text-left border-collapse whitespace-nowrap">
+                                <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200 shadow-sm">
+                                    <tr>
+                                        {[
+                                            "STATUS",
+                                            "JATUH TEMPO STNK",
+                                            "JATUH TEMPO PAJAK",
+                                            "AREA",
+                                            "NOPOL",
+                                            "TIPE",
+                                            "PABRIKAN",
+                                            "MODEL",
+                                            "FOTO STNK",
+                                        ].map((col, idx) => (
+                                            <th
+                                                key={idx}
+                                                className="px-4 py-3 text-[10px] font-black text-gray-500 uppercase tracking-wider border-r border-gray-100 last:border-r-0"
+                                            >
+                                                {col}
+                                            </th>
+                                        ))}
+                                        <th className="px-3 py-3 w-10 sticky right-0 bg-gray-50 shadow-[-4px_0_10px_rgba(0,0,0,0.02)]"></th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {filteredData.map((row) => (
+                                        <tr
+                                            key={row.id}
+                                            // Fungsi ini akan dieksekusi saat baris mana saja diklik
+                                            onClick={() =>
+                                                router.get(
+                                                    `/inventori/pajak/${row.nopol}`,
+                                                )
+                                            }
+                                            className="hover:bg-blue-50/50 transition-colors group cursor-pointer"
+                                        >
+                                            <td className="px-4 py-2.5 border-r border-gray-50">
+                                                <span
+                                                    className={`text-[10px] font-bold px-2 py-1 rounded-md ${row.status === "AKTIF" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                                                >
+                                                    {row.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-2.5 text-xs text-gray-700 font-medium border-r border-gray-50">
+                                                {row.stnk}
+                                            </td>
+                                            <td className="px-4 py-2.5 text-xs text-gray-700 font-medium border-r border-gray-50">
+                                                {row.pajak}
+                                            </td>
+                                            <td className="px-4 py-2.5 text-xs text-gray-700 font-medium border-r border-gray-50">
+                                                {row.area}
+                                            </td>
+
+                                            {/* Nopol sekarang hanya text biasa karena satu baris sudah clickable */}
+                                            <td className="px-4 py-2.5 text-xs text-gray-900 font-bold border-r border-gray-50">
+                                                <span className="group-hover:text-blue-600 transition-colors">
+                                                    {row.nopol}
+                                                </span>
+                                            </td>
+
+                                            <td className="px-4 py-2.5 text-xs text-gray-600 border-r border-gray-50">
+                                                {row.tipe}
+                                            </td>
+                                            <td className="px-4 py-2.5 text-xs text-gray-600 border-r border-gray-50">
+                                                {row.pabrikan}
+                                            </td>
+                                            <td className="px-4 py-2.5 text-xs text-gray-600 border-r border-gray-50">
+                                                {row.model}
+                                            </td>
+                                            <td className="px-4 py-2.5 border-r border-gray-50 text-center">
+                                                {row.imgStnk ? (
+                                                    <div className="inline-flex w-8 h-6 bg-blue-100 rounded border border-blue-200 items-center justify-center text-blue-600">
+                                                        <ImageIcon size={14} />
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[10px] text-gray-400 font-bold">
+                                                        N/A
+                                                    </span>
+                                                )}
+                                            </td>
+
+                                            {/* Icon Chevron tetap di kanan sebagai penanda visual UX (pointer-events-none agar tidak memblokir klik baris) */}
+                                            <td className="px-3 py-2.5 sticky right-0 bg-white group-hover:bg-blue-50/50 transition-colors shadow-[-4px_0_10px_rgba(0,0,0,0.02)] text-center">
+                                                <div className="inline-flex text-gray-300 group-hover:text-blue-600 group-hover:bg-white p-1 rounded transition-all shadow-sm border border-transparent group-hover:border-gray-200 pointer-events-none">
+                                                    <ChevronRight size={16} />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        ) : (
+                            // Tampilan jika filter tidak menemukan data
+                            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                                <SearchX
+                                    size={48}
+                                    className="mb-4 text-gray-300"
+                                />
+                                <p className="font-semibold text-sm">
+                                    Tidak ada data ditemukan
+                                </p>
+                                <p className="text-xs mt-1">
+                                    Coba sesuaikan filter status atau area Anda.
+                                </p>
+                            </div>
+                        )}
                     </div>
-                    {/* Fake Scrollbar / Footer indikator */}
-                    <div className="h-4 bg-gray-100 border-t border-gray-200 w-full flex items-center justify-center">
-                        <div className="w-1/2 h-1.5 bg-gray-300 rounded-full"></div>
+                    {/* Status Bar / Footer Table */}
+                    <div className="h-10 bg-gray-50 border-t border-gray-200 w-full flex items-center justify-between px-4">
+                        <span className="text-xs font-bold text-gray-500">
+                            Menampilkan {filteredData.length} baris data
+                        </span>
+                        <div className="flex gap-1">
+                            <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                            <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+                        </div>
                     </div>
                 </div>
             </div>
