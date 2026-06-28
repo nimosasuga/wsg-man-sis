@@ -11,91 +11,12 @@ import {
     SearchX,
 } from "lucide-react";
 
-export default function Index() {
+export default function Index({ rawTableData }) {
     // 1. STATE MANAGEMENT (Menyimpan status interaksi UI)
     const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
     const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(true);
     const [activeStatus, setActiveStatus] = useState("ALL"); // 'ALL', 'AKTIF', 'EXPIRED'
     const [activeArea, setActiveArea] = useState("ALL");
-
-    // 2. DUMMY DATA (Ditambahkan variasi status dan area untuk uji coba filter)
-    const rawTableData = [
-        {
-            id: 1,
-            stnk: "14 Okt 2030",
-            pajak: "14 Okt 2026",
-            area: "KUPANG",
-            nopol: "DH-9709-AJ",
-            tipe: "HEAD",
-            pabrikan: "HINO",
-            model: "HEAD",
-            mesin: "J08EUGJ41831",
-            rangka: "MJEFC8",
-            status: "AKTIF",
-            imgStnk: true,
-            imgPajak: true,
-        },
-        {
-            id: 2,
-            stnk: "17 Okt 2030",
-            pajak: "17 Okt 2026",
-            area: "KUPANG",
-            nopol: "DH-9708-AJ",
-            tipe: "HEAD",
-            pabrikan: "HINO",
-            model: "HEAD",
-            mesin: "J08EUGJ41829",
-            rangka: "MJEFC8",
-            status: "AKTIF",
-            imgStnk: true,
-            imgPajak: true,
-        },
-        {
-            id: 3,
-            stnk: "10 Jan 2024",
-            pajak: "10 Jan 2024",
-            area: "BANDUNG",
-            nopol: "D-1234-XYZ",
-            tipe: "WINGBOX",
-            pabrikan: "ISUZU",
-            model: "GIGA",
-            mesin: "6HK1T",
-            rangka: "JAL6H",
-            status: "EXPIRED",
-            imgStnk: false,
-            imgPajak: false,
-        },
-        {
-            id: 4,
-            stnk: "31 Des 2030",
-            pajak: "31 Des 2030",
-            area: "KUPANG",
-            nopol: "EC.01.10.10974",
-            tipe: "CHASSIS HEAD",
-            pabrikan: "NN",
-            model: "CHASSIS HEAD",
-            mesin: "011010974",
-            rangka: "01101",
-            status: "AKTIF",
-            imgStnk: false,
-            imgPajak: false,
-        },
-        {
-            id: 5,
-            stnk: "15 Feb 2024",
-            pajak: "15 Feb 2024",
-            area: "MAKASSAR",
-            nopol: "DD-9999-AA",
-            tipe: "DUMP TRUCK",
-            pabrikan: "MITSUBISHI",
-            model: "FUSO",
-            mesin: "6D16",
-            rangka: "MHM6D",
-            status: "EXPIRED",
-            imgStnk: true,
-            imgPajak: false,
-        },
-    ];
 
     // Dummy Area List
     const areaList = [
@@ -296,8 +217,7 @@ export default function Index() {
                                 <tbody className="divide-y divide-gray-100">
                                     {filteredData.map((row) => (
                                         <tr
-                                            key={row.id}
-                                            // Fungsi ini akan dieksekusi saat baris mana saja diklik
+                                            key={row.id_key} // Gunakan id_key asli dari MySQL
                                             onClick={() =>
                                                 router.get(
                                                     `/inventori/pajak/${row.nopol}`,
@@ -306,29 +226,27 @@ export default function Index() {
                                             className="hover:bg-blue-50/50 transition-colors group cursor-pointer"
                                         >
                                             <td className="px-4 py-2.5 border-r border-gray-50">
+                                                {/* Contoh penggunaan kolom asli 'status_stnk' atau 'status_pajak' */}
                                                 <span
-                                                    className={`text-[10px] font-bold px-2 py-1 rounded-md ${row.status === "AKTIF" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                                                    className={`text-[10px] font-bold px-2 py-1 rounded-md ${row.status_stnk === "AKTIF" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
                                                 >
-                                                    {row.status}
+                                                    {row.status_stnk || "N/A"}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-2.5 text-xs text-gray-700 font-medium border-r border-gray-50">
-                                                {row.stnk}
+                                                {row.jatuh_tempo_stnk}
                                             </td>
                                             <td className="px-4 py-2.5 text-xs text-gray-700 font-medium border-r border-gray-50">
-                                                {row.pajak}
+                                                {row.jatuh_tempo_pajak}
                                             </td>
                                             <td className="px-4 py-2.5 text-xs text-gray-700 font-medium border-r border-gray-50">
                                                 {row.area}
                                             </td>
-
-                                            {/* Nopol sekarang hanya text biasa karena satu baris sudah clickable */}
                                             <td className="px-4 py-2.5 text-xs text-gray-900 font-bold border-r border-gray-50">
                                                 <span className="group-hover:text-blue-600 transition-colors">
                                                     {row.nopol}
                                                 </span>
                                             </td>
-
                                             <td className="px-4 py-2.5 text-xs text-gray-600 border-r border-gray-50">
                                                 {row.tipe}
                                             </td>
@@ -338,8 +256,9 @@ export default function Index() {
                                             <td className="px-4 py-2.5 text-xs text-gray-600 border-r border-gray-50">
                                                 {row.model}
                                             </td>
+
                                             <td className="px-4 py-2.5 border-r border-gray-50 text-center">
-                                                {row.imgStnk ? (
+                                                {row.foto_stnk ? (
                                                     <div className="inline-flex w-8 h-6 bg-blue-100 rounded border border-blue-200 items-center justify-center text-blue-600">
                                                         <ImageIcon size={14} />
                                                     </div>
@@ -349,8 +268,6 @@ export default function Index() {
                                                     </span>
                                                 )}
                                             </td>
-
-                                            {/* Icon Chevron tetap di kanan sebagai penanda visual UX (pointer-events-none agar tidak memblokir klik baris) */}
                                             <td className="px-3 py-2.5 sticky right-0 bg-white group-hover:bg-blue-50/50 transition-colors shadow-[-4px_0_10px_rgba(0,0,0,0.02)] text-center">
                                                 <div className="inline-flex text-gray-300 group-hover:text-blue-600 group-hover:bg-white p-1 rounded transition-all shadow-sm border border-transparent group-hover:border-gray-200 pointer-events-none">
                                                     <ChevronRight size={16} />

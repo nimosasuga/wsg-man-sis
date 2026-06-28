@@ -2,29 +2,23 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\Inventori\PajakController; // 1. Pastikan import ini ditambahkan
 
-// 1. Root URL diarahkan ke dashboard (Nanti middleware akan melempar ke Login jika belum masuk)
 Route::get('/', function () {
     return redirect('/dashboard');
 });
 
-// 2. Kumpulan Route yang DILINDUNGI (Hanya bisa diakses jika sudah Login)
 Route::middleware(['auth'])->group(function () {
 
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
+    // 2. Ubah struktur route ini menggunakan Controller
     Route::prefix('inventori')->name('inventori.')->group(function () {
-        Route::get('/pajak', function () {
-            return Inertia::render('Inventori/Pajak/Index');
-        })->name('pajak.index');
-
-        Route::get('/pajak/{id}', function ($id) {
-            return Inertia::render('Inventori/Pajak/Detail', ['id' => $id]);
-        })->name('pajak.detail');
+        Route::get('/pajak', [PajakController::class, 'index'])->name('pajak.index');
+        Route::get('/pajak/{id}', [PajakController::class, 'show'])->name('pajak.detail');
     });
 });
 
-// 3. Panggil kumpulan Route Autentikasi bawaan Breeze (Termasuk /login, /register, /logout)
 require __DIR__ . '/auth.php';
