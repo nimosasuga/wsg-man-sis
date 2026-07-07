@@ -95,8 +95,11 @@ export default function Detail({
             <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <div className="flex items-center text-[10px] font-bold text-gray-500 tracking-widest uppercase mb-2">
-                        <Link href="/dashboard" className="hover:text-blue-600">
-                            DASHBOARD
+                        <Link
+                            href="/inventori/stnk"
+                            className="hover:text-blue-600"
+                        >
+                            STATUS STNK
                         </Link>
                         <ChevronRight size={12} className="mx-1" />
                         <Link

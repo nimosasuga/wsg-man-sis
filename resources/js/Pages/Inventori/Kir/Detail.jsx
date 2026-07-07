@@ -1,4 +1,4 @@
-// resources/js/Pages/Inventori/Pajak/Detail.jsx
+// resources/js/Pages/Inventori/Kir/Detail.jsx
 import React, { useState } from "react";
 import AdminLayout from "../../../Layouts/AdminLayout";
 import { Head, Link } from "@inertiajs/react";
@@ -95,15 +95,18 @@ export default function Detail({
             <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <div className="flex items-center text-[10px] font-bold text-gray-500 tracking-widest uppercase mb-2">
-                        <Link href="/dashboard" className="hover:text-blue-600">
-                            DASHBOARD
+                        <Link
+                            href="/inventori/kir"
+                            className="hover:text-blue-600"
+                        >
+                            STATUS KIR
                         </Link>
                         <ChevronRight size={12} className="mx-1" />
                         <Link
                             href="/inventori/pajak"
                             className="hover:text-blue-600"
                         >
-                            PAJAK STNK
+                            DAFTAR KIR
                         </Link>
                         <ChevronRight size={12} className="mx-1" />
                         <span className="text-gray-800">DETAIL UNIT</span>
@@ -491,3 +494,4 @@ export default function Detail({
         </AdminLayout>
     );
 }
+

@@ -1,3 +1,37 @@
+@import '@fontsource/figtree/400.css';
+@import '@fontsource/figtree/500.css';
+@import '@fontsource/figtree/600.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.recharts-wrapper:focus,
+.recharts-wrapper *:focus,
+.recharts-surface:focus {
+    outline: none;
+}
+
+@keyframes washeng-loading-bar {
+    0% {
+        transform: scaleX(0.08);
+    }
+    45% {
+        transform: scaleX(0.72);
+    }
+    100% {
+        transform: scaleX(1);
+    }
+}
+
+@keyframes washeng-truck-drive {
+    0% {
+        transform: translateX(-120%);
+    }
+    70% {
+        transform: translateX(calc(100vw - 120px));
+    }
+    100% {
+        transform: translateX(calc(100vw - 120px));
+    }
+}

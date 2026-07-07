@@ -1,4 +1,4 @@
-// resources/js/Pages/Inventori/Pajak/Index.jsx
+// resources/js/Pages/Inventori/Stnk/Index.jsx
 import React, { useState, useMemo } from "react";
 import AdminLayout from "../../../Layouts/AdminLayout";
 import { Head, Link, router } from "@inertiajs/react";
@@ -35,11 +35,11 @@ export default function Index({ rawTableData = [] }) {
             .map((area) => ({ name: area }));
     }, [rawTableData]);
 
-    // FILTER DATA
+    // FILTER DATA (Fokus pada status_stnk)
     const filteredData = useMemo(() => {
         return rawTableData.filter((item) => {
             const matchStatus =
-                activeStatus === "ALL" || item.status_pajak === activeStatus;
+                activeStatus === "ALL" || item.status_stnk === activeStatus;
             const matchArea = activeArea === "ALL" || item.area === activeArea;
             return matchStatus && matchArea;
         });
@@ -76,14 +76,14 @@ export default function Index({ rawTableData = [] }) {
 
     const countStatus = (status) =>
         rawTableData.filter((item) =>
-            status === "ALL" ? true : item.status_pajak === status,
+            status === "ALL" ? true : item.status_stnk === status,
         ).length;
     const countArea = (areaName) =>
         rawTableData.filter((item) => item.area === areaName).length;
 
     // DEFINISI KOLOM UNTUK DILOOP
     const columns = [
-        { label: "STATUS PAJAK", key: "status_pajak" },
+        { label: "STATUS STNK", key: "status_stnk" },
         { label: "JATUH TEMPO STNK", key: "jatuh_tempo_stnk" },
         { label: "JATUH TEMPO PAJAK", key: "jatuh_tempo_pajak" },
         { label: "AREA", key: "area" },
@@ -95,7 +95,7 @@ export default function Index({ rawTableData = [] }) {
 
     return (
         <AdminLayout>
-            <Head title="Pajak STNK - Detail" />
+            <Head title="Status STNK - Detail" />
 
             <div className="mb-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
@@ -104,11 +104,11 @@ export default function Index({ rawTableData = [] }) {
                             DASHBOARD
                         </Link>
                         <ChevronRight size={14} className="mx-1" />
-                        <span className="text-gray-800">PAJAK STNK</span>
+                        <span className="text-gray-800">STATUS STNK</span>
                     </div>
                     <div className="flex items-center gap-3">
                         <h1 className="text-2xl font-black text-gray-800 tracking-tight">
-                            Data Pajak & STNK
+                            Data STNK Unit
                         </h1>
                         <button
                             onClick={() =>
@@ -268,16 +268,16 @@ export default function Index({ rawTableData = [] }) {
                                             key={row.id_key}
                                             onClick={() =>
                                                 router.get(
-                                                    `/inventori/pajak/${row.nopol}`,
+                                                    `/inventori/stnk/${row.nopol}`,
                                                 )
                                             }
                                             className="hover:bg-blue-50/50 transition-colors group cursor-pointer"
                                         >
                                             <td className="px-4 py-2.5 border-r border-gray-50">
                                                 <span
-                                                    className={`text-[10px] font-bold px-2 py-1 rounded-md ${row.status_pajak === "AKTIF" ? "bg-green-100 text-green-700" : row.status_pajak === "EXPIRED" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}
+                                                    className={`text-[10px] font-bold px-2 py-1 rounded-md ${row.status_stnk === "AKTIF" ? "bg-green-100 text-green-700" : row.status_stnk === "EXPIRED" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}
                                                 >
-                                                    {row.status_pajak || "N/A"}
+                                                    {row.status_stnk || "N/A"}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-2.5 text-xs text-gray-700 font-medium border-r border-gray-50">
