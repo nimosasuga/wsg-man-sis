@@ -12,9 +12,7 @@ use App\Http\Controllers\Finance\DokumenInvoiceController;
 use App\Http\Controllers\Biaya\BiayaController;
 use App\Http\Controllers\ProfitUnit\ProfitUnitController;
 
-Route::get('/', function () {
-    return redirect('/dashboard');
-});
+Route::redirect('/', '/dashboard');
 
 Route::middleware(['auth'])->group(function () {
 
