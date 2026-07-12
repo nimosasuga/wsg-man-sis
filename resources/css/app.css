@@ -1,10 +1,197 @@
-@import '@fontsource/figtree/400.css';
-@import '@fontsource/figtree/500.css';
-@import '@fontsource/figtree/600.css';
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+        text-rendering: optimizeLegibility;
+    }
+
+    body {
+        min-width: 320px;
+        overflow: hidden;
+    }
+
+    *,
+    *::before,
+    *::after {
+        min-width: 0;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+        font: inherit;
+    }
+}
+
+@layer components {
+    .app-main {
+        font-size: 13px;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+    }
+
+    .app-main h1 {
+        font-size: 1.375rem;
+        line-height: 1.2;
+    }
+
+    .app-main h2 {
+        font-size: 0.95rem;
+        line-height: 1.35;
+    }
+
+    .app-main h3 {
+        font-size: 0.9rem;
+        line-height: 1.35;
+    }
+
+    .app-main .text-3xl {
+        font-size: 1.55rem;
+        line-height: 1.15;
+    }
+
+    .app-main .text-2xl {
+        font-size: 1.25rem;
+        line-height: 1.2;
+    }
+
+    .app-main .text-xl {
+        font-size: 1.05rem;
+        line-height: 1.3;
+    }
+
+    .app-main .text-lg {
+        font-size: 0.95rem;
+        line-height: 1.35;
+    }
+
+    .app-main input,
+    .app-main select,
+    .app-main textarea,
+    .app-main button {
+        font-size: 0.8125rem;
+    }
+
+    .app-main section,
+    .app-main article,
+    .app-main [class*="rounded-xl"] {
+        border-radius: 0.625rem;
+    }
+
+    .app-main table {
+        width: 100%;
+        min-width: max-content;
+    }
+
+    .app-main th,
+    .app-main td {
+        vertical-align: top;
+    }
+
+    .app-main table {
+        font-size: 0.8125rem;
+    }
+
+    .app-main table th,
+    .app-main table td {
+        padding-top: 0.625rem;
+        padding-bottom: 0.625rem;
+    }
+
+    .app-main img,
+    .app-main svg,
+    .app-main canvas {
+        max-width: 100%;
+    }
+
+    .custom-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        border: 3px solid transparent;
+        border-radius: 999px;
+        background: #cbd5e1;
+        background-clip: padding-box;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+}
+
+@layer utilities {
+    .safe-bottom {
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+}
+
+@media (max-width: 767px) {
+    .app-main {
+        padding: 0.75rem;
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    .app-main h1 {
+        overflow-wrap: anywhere;
+        font-size: 1.375rem;
+        line-height: 1.2;
+    }
+
+    .app-main h2,
+    .app-main h3,
+    .app-main p,
+    .app-main span {
+        overflow-wrap: anywhere;
+    }
+
+    .app-main [class*="h-[calc(100vh-180px)]"],
+    .app-main [class*="h-[calc(100vh-132px)]"] {
+        height: auto;
+        min-height: calc(100dvh - 9rem);
+        overflow: visible;
+    }
+
+    .app-main [class*="md:flex-row"] > [class*="md:w-64"],
+    .app-main [class*="md:flex-row"] > [class*="w-full"][class*="md:w-64"] {
+        max-height: 42dvh;
+    }
+
+    .app-main [class*="rounded-xl"] {
+        border-radius: 0.625rem;
+    }
+
+    .app-main table th,
+    .app-main table td {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .app-main .recharts-wrapper {
+        max-width: 100%;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+    .app-main {
+        padding: 1.25rem;
+    }
+
+    .app-main [class*="h-[calc(100vh-180px)]"],
+    .app-main [class*="h-[calc(100vh-132px)]"] {
+        min-height: 520px;
+    }
+}
 
 .recharts-wrapper:focus,
 .recharts-wrapper *:focus,
@@ -34,4 +221,55 @@
     100% {
         transform: translateX(calc(100vw - 120px));
     }
+}
+
+@keyframes login-card-enter {
+    from {
+        opacity: 0;
+        transform: translateY(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes login-badge-pop {
+    from {
+        opacity: 0;
+        transform: scale(0.72);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes login-orb-float {
+    0%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.45;
+    }
+    50% {
+        transform: translateY(-18px);
+        opacity: 0.75;
+    }
+}
+
+.login-card {
+    animation: login-card-enter 520ms ease-out both;
+}
+
+.login-badge {
+    animation: login-badge-pop 420ms ease-out 120ms both;
+}
+
+.login-orb {
+    animation: login-orb-float 7s ease-in-out infinite;
+    will-change: transform, opacity;
+}
+
+.login-orb-b {
+    animation-delay: -2.5s;
 }

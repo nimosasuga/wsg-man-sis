@@ -10,13 +10,13 @@ use Inertia\Inertia;
 class BiayaController extends Controller
 {
     private array $categories = [
+        'operasional-prim' => ['title' => 'Operasional Prim.', 'source' => 'primary', 'amount' => 'total_biaya', 'date' => 'tanggal_muat'],
+        'operasional-sec' => ['title' => 'Operasional Sec.', 'source' => 'secondary', 'amount' => 'total_biaya_operasional', 'date' => 'tanggal'],
         'pajak-1-tahun' => ['title' => 'Pajak 1 tahun', 'source' => 'inventori', 'amount' => 'biaya_pajak', 'date' => 'jatuh_tempo_pajak'],
+        'biaya-kir' => ['title' => 'Biaya KIR', 'source' => 'inventori', 'amount' => 'biaya_kir', 'date' => 'jatuh_tempo_kir'],
         'pajak-5-tahun' => ['title' => 'Pajak 5 tahun', 'source' => 'inventori', 'amount' => 'biaya_stnk', 'date' => 'jatuh_tempo_stnk'],
         'service-ban' => ['title' => 'Service Ban', 'source' => 'ban', 'amount' => 'total_harga', 'date' => 'tanggal_ganti_ban'],
         'service-umum' => ['title' => 'Service umum', 'source' => 'service', 'amount' => 'total_biaya_service', 'date' => 'tanggal_services'],
-        'operasional-sec' => ['title' => 'Operasional Sec.', 'source' => 'secondary', 'amount' => 'total_biaya_operasional', 'date' => 'tanggal'],
-        'operasional-prim' => ['title' => 'Operasional Prim.', 'source' => 'primary', 'amount' => 'total_biaya', 'date' => 'tanggal_muat'],
-        'biaya-kir' => ['title' => 'Biaya KIR', 'source' => 'inventori', 'amount' => 'biaya_kir', 'date' => 'jatuh_tempo_kir'],
     ];
 
     public function index()
@@ -26,6 +26,7 @@ class BiayaController extends Controller
                 'slug' => $slug,
                 'title' => $category['title'],
                 'amount' => $this->sumCategory($category),
+                'actionLabel' => 'LIHAT RINCIAN BIAYA',
             ];
         })->values();
 
@@ -45,6 +46,7 @@ class BiayaController extends Controller
                 'slug' => $slug,
                 'title' => $category['title'],
                 'amount' => $this->sumCategory($category),
+                'source' => $category['source'],
             ],
             'rawTableData' => $this->rowsForCategory($slug, $category),
         ]);
@@ -99,25 +101,86 @@ class BiayaController extends Controller
                 'model',
                 DB::raw("$date as tanggal"),
                 DB::raw("$amount as nominal")
-            )->orderBy('area')->get(),
+            )
+                ->orderByRaw("STR_TO_DATE(NULLIF($date, ''), '%d/%m/%Y') asc")
+                ->orderBy('area')
+                ->get()
+                ->map(fn ($row) => $this->withDateGroups($row)),
             'service' => DB::table('maintenance_input_maintenance')
                 ->select('id_key', 'nopol', 'area', 'driver', 'tipe_service as keterangan', DB::raw("$date as tanggal"), DB::raw("$amount as nominal"))
                 ->orderByDesc($date)
-                ->get(),
+                ->get()
+                ->map(fn ($row) => $this->withDateGroups($row)),
             'ban' => DB::table('maintenance_monitoring_ban')
                 ->select('id_key', 'nopol', 'area', 'driver', 'jenis_pengerjaan as keterangan', DB::raw("$date as tanggal"), DB::raw("$amount as nominal"))
                 ->orderByDesc($date)
-                ->get(),
+                ->get()
+                ->map(fn ($row) => $this->withDateGroups($row)),
             'primary' => DB::table('operasional_primary_input')
                 ->select('id_key', 'nopol_driver as nopol', 'area', 'vendor as driver', 'rute_tujuan as keterangan', DB::raw("$date as tanggal"), DB::raw("$amount as nominal"))
                 ->orderByDesc('create_data')
-                ->get(),
+                ->get()
+                ->map(fn ($row) => $this->withDateGroups($row)),
             'secondary' => DB::table('operasional_secondary_input')
                 ->select('id_key', 'nopol', 'area', 'driver', 'order_type as keterangan', DB::raw("$date as tanggal"), DB::raw("$amount as nominal"))
                 ->orderByDesc('crosscek_date')
-                ->get(),
+                ->get()
+                ->map(fn ($row) => $this->withDateGroups($row)),
             default => collect(),
         };
+    }
+
+    private function withDateGroups(object $row): object
+    {
+        [$year, $month] = $this->dateGroups($row->tanggal ?? null);
+        $row->groupYear = $year;
+        $row->groupMonth = $month;
+        $row->groupArea = $row->area ?: 'TIDAK DIKETAHUI';
+
+        return $row;
+    }
+
+    private function dateGroups(?string $date): array
+    {
+        $date = trim((string) $date);
+
+        if ($date === '' || $date === '0000-00-00') {
+            return ['0', '0'];
+        }
+
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date, $matches)) {
+            return [$matches[3], $this->monthLabel((int) $matches[2])];
+        }
+
+        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $date, $matches)) {
+            return [$matches[1], $this->monthLabel((int) $matches[2])];
+        }
+
+        if (preg_match('/(\d{4})/', $date, $matches)) {
+            return [$matches[1], '0'];
+        }
+
+        return ['0', '0'];
+    }
+
+    private function monthLabel(int $month): string
+    {
+        $labels = [
+            1 => 'A Januari',
+            2 => 'B Februari',
+            3 => 'C Maret',
+            4 => 'D April',
+            5 => 'E Mei',
+            6 => 'F Juni',
+            7 => 'G Juli',
+            8 => 'H Agustus',
+            9 => 'I September',
+            10 => 'J Oktober',
+            11 => 'K November',
+            12 => 'L Desember',
+        ];
+
+        return $labels[$month] ?? '0';
     }
 
     private function recordForCategory(array $category, string $id): ?object

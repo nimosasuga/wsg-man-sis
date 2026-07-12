@@ -18,6 +18,24 @@ Stack utama:
 - Vite
 - MySQL/AppSheet style schema
 
+Repository GitHub:
+
+```text
+https://github.com/nimosasuga/wsg-man-sis.git
+```
+
+Branch utama:
+
+```text
+main
+```
+
+Railway prototype:
+
+```text
+https://wsg-man-sis-production.up.railway.app
+```
+
 Instruksi utama proyek ada di:
 
 ```text
@@ -54,6 +72,26 @@ Font:
 
 - Menggunakan `@fontsource/figtree`.
 - Bunny font link sudah dihilangkan.
+
+## Status Deploy
+
+Project sudah disiapkan dan berhasil deploy ke Railway.
+
+File deploy:
+
+```text
+railway.json
+nixpacks.toml
+.node-version
+```
+
+Catatan penting:
+
+- Node dipin ke major `22`.
+- Vite React plugin memakai `@vitejs/plugin-react`.
+- Production memaksa HTTPS untuk mencegah mixed content asset.
+- App di Railway harus memakai database `u495297697_appsheet`.
+- Deploy tidak mengubah `.env` lokal.
 
 ## Modul Yang Sudah Dikerjakan
 
@@ -241,3 +279,8 @@ Untuk cek data cepat:
 php artisan tinker
 ```
 
+Untuk cek database Railway dari local via public TCP proxy:
+
+```bash
+mysql -h PUBLIC_HOST -P PUBLIC_PORT -u root -p -D u495297697_appsheet -e "SELECT COUNT(*) FROM hr_manager_db_inventori;"
+```

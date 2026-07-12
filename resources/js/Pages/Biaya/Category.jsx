@@ -11,11 +11,12 @@ const formatRp = (value) =>
 
 export default function Category({ category, rawTableData = [] }) {
     const [activeYear, setActiveYear] = useState("ALL");
+    const [activeMonth, setActiveMonth] = useState("ALL");
+    const [activeArea, setActiveArea] = useState("ALL");
 
     const yearGroups = useMemo(() => {
         const groups = rawTableData.reduce((acc, row) => {
-            const match = String(row.tanggal || "").match(/\d{4}/);
-            const year = match ? match[0] : "0";
+            const year = row.groupYear || "0";
             acc[year] = (acc[year] || 0) + Number(row.nominal || 0);
             return acc;
         }, {});
@@ -25,11 +26,49 @@ export default function Category({ category, rawTableData = [] }) {
             .sort((a, b) => Number(b.year) - Number(a.year));
     }, [rawTableData]);
 
-    const filteredData = useMemo(() => {
-        if (activeYear === "ALL") return rawTableData;
+    const monthGroups = useMemo(() => {
+        const groups = rawTableData.reduce((acc, row) => {
+            if (activeYear !== "ALL" && row.groupYear !== activeYear) return acc;
 
-        return rawTableData.filter((row) => String(row.tanggal || "").includes(activeYear));
-    }, [activeYear, rawTableData]);
+            const month = row.groupMonth || "0";
+            acc[month] = (acc[month] || 0) + Number(row.nominal || 0);
+            return acc;
+        }, {});
+
+        return Object.entries(groups)
+            .map(([month, amount]) => ({ month, amount }))
+            .sort((a, b) => String(a.month).localeCompare(String(b.month)));
+    }, [rawTableData, activeYear]);
+
+    const areaGroups = useMemo(() => {
+        const groups = rawTableData.reduce((acc, row) => {
+            if (activeYear !== "ALL" && row.groupYear !== activeYear) return acc;
+            if (activeMonth !== "ALL" && row.groupMonth !== activeMonth) return acc;
+
+            const area = row.groupArea || "TIDAK DIKETAHUI";
+            acc[area] = (acc[area] || 0) + Number(row.nominal || 0);
+            return acc;
+        }, {});
+
+        return Object.entries(groups)
+            .map(([area, amount]) => ({ area, amount }))
+            .sort((a, b) => String(a.area).localeCompare(String(b.area)));
+    }, [rawTableData, activeYear, activeMonth]);
+
+    const filteredData = useMemo(() => {
+        return rawTableData.filter((row) => {
+            return (
+                (activeYear === "ALL" || row.groupYear === activeYear) &&
+                (activeMonth === "ALL" || row.groupMonth === activeMonth) &&
+                (activeArea === "ALL" || row.groupArea === activeArea)
+            );
+        });
+    }, [activeYear, activeMonth, activeArea, rawTableData]);
+
+    const filteredTotal = useMemo(
+        () => filteredData.reduce((total, row) => total + Number(row.nominal || 0), 0),
+        [filteredData],
+    );
 
     return (
         <AdminLayout>
@@ -46,10 +85,82 @@ export default function Category({ category, rawTableData = [] }) {
                 <Filter size={17} className="text-slate-400" />
             </div>
 
-            <div className="flex h-[calc(100vh-132px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:grid-cols-3">
+                <label>
+                    <span className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-400">
+                        Tahun
+                    </span>
+                    <select
+                        value={activeYear}
+                        onChange={(event) => {
+                            setActiveYear(event.target.value);
+                            setActiveMonth("ALL");
+                            setActiveArea("ALL");
+                        }}
+                        className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                    >
+                        <option value="ALL">Semua Tahun</option>
+                        {yearGroups.map((item) => (
+                            <option key={item.year} value={item.year}>
+                                {item.year} - {formatRp(item.amount)}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <label>
+                    <span className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-400">
+                        Bulan
+                    </span>
+                    <select
+                        value={activeMonth}
+                        onChange={(event) => {
+                            setActiveMonth(event.target.value);
+                            setActiveArea("ALL");
+                        }}
+                        className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                    >
+                        <option value="ALL">Semua Bulan</option>
+                        {monthGroups.map((item) => (
+                            <option key={item.month} value={item.month}>
+                                {item.month} - {formatRp(item.amount)}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <label>
+                    <span className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-400">
+                        Area
+                    </span>
+                    <select
+                        value={activeArea}
+                        onChange={(event) => setActiveArea(event.target.value)}
+                        className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                    >
+                        <option value="ALL">Semua Area</option>
+                        {areaGroups.map((item) => (
+                            <option key={item.area} value={item.area}>
+                                {item.area} - {formatRp(item.amount)}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+            </div>
+
+            <div className="mb-3 rounded-xl border border-slate-200 bg-slate-950 px-4 py-3 text-white shadow-sm">
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                    Total Filter
+                </p>
+                <p className="mt-1 text-lg font-black">{formatRp(filteredTotal)}</p>
+            </div>
+
+            <div className="flex h-[calc(100vh-180px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-slate-50 p-2 md:block">
                     <button
-                        onClick={() => setActiveYear("ALL")}
+                        onClick={() => {
+                            setActiveYear("ALL");
+                            setActiveMonth("ALL");
+                            setActiveArea("ALL");
+                        }}
                         className={`mb-2 flex w-full items-center rounded-xl px-4 py-2 text-left text-sm font-bold ${activeYear === "ALL" ? "bg-blue-100 text-blue-700" : "text-slate-600 hover:bg-white"}`}
                     >
                         All
@@ -58,7 +169,11 @@ export default function Category({ category, rawTableData = [] }) {
                         {yearGroups.map((item) => (
                             <button
                                 key={item.year}
-                                onClick={() => setActiveYear(item.year)}
+                                onClick={() => {
+                                    setActiveYear(item.year);
+                                    setActiveMonth("ALL");
+                                    setActiveArea("ALL");
+                                }}
                                 className={`flex w-full items-center justify-between rounded-lg px-4 py-2 text-left text-sm font-semibold ${activeYear === item.year ? "bg-white text-blue-700 shadow-sm" : "text-slate-600 hover:bg-white"}`}
                             >
                                 <span>{item.year}</span>
@@ -83,9 +198,9 @@ export default function Category({ category, rawTableData = [] }) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
-                            {filteredData.map((row) => (
+                            {filteredData.map((row, index) => (
                                 <tr
-                                    key={row.id_key}
+                                    key={`${category.slug}-${row.id_key || "row"}-${index}`}
                                     onClick={() => router.get(`/biaya/${category.slug}/${row.id_key}`)}
                                     className="cursor-pointer transition-colors hover:bg-blue-50/50"
                                 >

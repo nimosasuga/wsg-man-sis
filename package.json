@@ -27,6 +27,7 @@
     },
     "dependencies": {
         "@fontsource/figtree": "^5.2.10",
+        "chart.js": "^4.5.1",
         "framer-motion": "^12.41.0",
         "lucide-react": "^1.21.0",
         "react-is": "^19.2.7",

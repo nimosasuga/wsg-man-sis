@@ -123,3 +123,16 @@ Catatan:
 - Build menampilkan peringatan `@vitejs/plugin-react-oxc is deprecated`, tetapi build tetap sukses.
 - Build juga menampilkan info plugin timing dari Laravel/Vite, bukan error.
 
+## 10. Deploy Railway
+
+- Project dipush ke GitHub repository `nimosasuga/wsg-man-sis`.
+- Railway digunakan untuk prototype client.
+- SQL dump `u495297697_appsheet.sql` diimport ke MySQL Railway.
+- Dump membuat database `u495297697_appsheet`, sehingga Laravel production harus memakai database itu, bukan `railway`.
+- Railway build awal gagal karena konflik `@vitejs/plugin-react-oxc` dengan `vite@8`.
+- Plugin diganti ke `@vitejs/plugin-react`.
+- Railway build berikutnya gagal karena Nixpacks mencoba `nodejs_24`.
+- Node dipin ke `22`.
+- Setelah deploy, halaman sempat blank karena mixed content asset HTTP di halaman HTTPS.
+- Ditambahkan TrustProxies dan force HTTPS saat production.
+- Deploy berhasil dan URL prototype bisa dibagikan ke client.

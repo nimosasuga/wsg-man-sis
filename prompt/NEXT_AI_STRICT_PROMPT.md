@@ -27,13 +27,34 @@ Stack:
 Instruksi pendukung:
 
 ```text
+prompt\README.md
 prompt\AI_CODEX.md
 prompt\PROJECT_HANDOFF.md
 prompt\WORK_HISTORY.md
 prompt\TECHNICAL_NOTES.md
+prompt\RAILWAY_DEPLOY.md
 ```
 
 Baca file-file tersebut sebelum melakukan perubahan besar.
+
+## Status Deployment Terbaru
+
+Project sudah dipush ke GitHub dan disiapkan untuk Railway.
+
+```text
+Repository: https://github.com/nimosasuga/wsg-man-sis.git
+Branch: main
+Railway URL: https://wsg-man-sis-production.up.railway.app
+```
+
+Catatan penting:
+
+- Railway database yang berisi data adalah `u495297697_appsheet`, bukan default `railway`.
+- Railway app harus memakai `DB_HOST=mysql.railway.internal`.
+- Local development tetap memakai `.env` lokal dan tidak perlu mengikuti env Railway.
+- Node dipin ke major `22` untuk Railway.
+- Vite React plugin memakai `@vitejs/plugin-react`, bukan `@vitejs/plugin-react-oxc`.
+- Production memaksa HTTPS dan mempercayai proxy Railway untuk mencegah mixed content.
 
 ## Tujuan Utama
 
@@ -70,6 +91,9 @@ Fokus utama project saat ini:
 18. Jangan membuat chart atau tabel yang merender ribuan DOM node sekaligus jika bisa dipaginasi.
 19. Jangan menambahkan dependency baru kecuali benar-benar diperlukan.
 20. Jangan melanjutkan asumsi lama jika user baru saja mengoreksi arah. Instruksi terbaru user selalu menang.
+21. Jangan mengganti kembali `@vitejs/plugin-react` ke `@vitejs/plugin-react-oxc`; sebelumnya menyebabkan build Railway gagal.
+22. Jangan mengubah Node engine dari `22` ke range longgar seperti `>=22.12.0`; sebelumnya Nixpacks mencoba `nodejs_24` dan build gagal.
+23. Jangan menghapus `trustProxies` atau force HTTPS production; sebelumnya asset terblokir mixed content di Railway.
 
 ## Aturan Coding Ketat
 
@@ -91,6 +115,7 @@ app\Http\Controllers
 - Hindari logic query berat di React.
 - Untuk detail row, gunakan `abort_if(!$data, 404)`.
 - Untuk tabel legacy, cek nama kolom nyata sebelum query.
+- Setelah perubahan route/cache-sensitive, cek apakah route masih aman untuk `php artisan route:cache`.
 
 ### React/Inertia
 
@@ -116,6 +141,7 @@ encodeURIComponent(id)
 
 - Jangan render semua row jika data ribuan. Gunakan pagination.
 - Hindari state yang menyebabkan rerender besar tanpa perlu.
+- Jangan memakai URL asset hardcoded `http://` di production.
 
 ### Tailwind/UI
 
@@ -128,6 +154,14 @@ encodeURIComponent(id)
 - Tombol/icon harus jelas dan tidak overlap.
 
 ## Database Notes
+
+Database production Railway:
+
+```text
+DB_DATABASE=u495297697_appsheet
+```
+
+Railway UI bisa menampilkan database default `railway` kosong. Itu bukan berarti import gagal. Cek tabel dengan database `u495297697_appsheet`.
 
 ### Tabel Penting
 
@@ -320,6 +354,69 @@ atau gunakan query aman read-only untuk cek sample.
 
 ## Catatan Bug Yang Pernah Terjadi
 
+### Railway Build: Vite React Plugin Conflict
+
+Masalah:
+
+`npm ci` di Railway gagal dengan `ERESOLVE` karena `@vitejs/plugin-react-oxc@0.4.3` tidak cocok dengan `vite@8`.
+
+Status:
+
+Sudah diganti ke `@vitejs/plugin-react`.
+
+Golden rule:
+
+Jangan pakai kembali `@vitejs/plugin-react-oxc` kecuali seluruh Vite stack ikut disesuaikan.
+
+### Railway Build: Nodejs 24 Undefined
+
+Masalah:
+
+Nixpacks mencoba memasang `nodejs_24`, lalu gagal karena paket tidak tersedia.
+
+Status:
+
+`package.json` memakai:
+
+```json
+"engines": {
+    "node": "22",
+    "npm": ">=10"
+}
+```
+
+Ada juga `.node-version` berisi:
+
+```text
+22
+```
+
+### Railway Mixed Content
+
+Masalah:
+
+Halaman Railway HTTPS blank karena asset dimuat dari `http://.../build/assets/...`.
+
+Status:
+
+Sudah ditambah:
+
+```php
+$middleware->trustProxies(at: '*');
+```
+
+dan:
+
+```php
+if ($this->app->environment('production')) {
+    URL::forceScheme('https');
+}
+```
+
+Golden rule:
+
+Jangan hapus konfigurasi ini selama deploy berada di balik proxy Railway.
+
 ### Sidebar Hide Bug
 
 Masalah:
@@ -419,4 +516,3 @@ Perubahan utama:
 
 Verifikasi: npm run build berhasil.
 ```
-

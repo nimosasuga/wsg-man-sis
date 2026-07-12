@@ -58,6 +58,8 @@ const fallbackInvoiceTotal = chartData.docInv.reduce(
     0,
 );
 
+const totalOf = (items = []) => items.reduce((total, item) => total + Number(item.value || 0), 0);
+
 const complianceItems = [
     { label: "Pajak aktif", value: "259", helper: "15 unit perlu tindakan", tone: "blue" },
     { label: "STNK aktif", value: "262", helper: "15 dokumen expired", tone: "emerald" },
@@ -68,7 +70,7 @@ const complianceItems = [
 const workQueue = [
     { task: "Validasi legalitas kendaraan", owner: "Inventori", due: "Hari ini", status: "Prioritas" },
     { task: "Follow up KIR hampir expired", owner: "Operasional", due: "7 hari", status: "Aktif" },
-    { task: "Rekonsiliasi FAT Doc Primary", owner: "Finance", due: "Bulan ini", status: "Monitoring" },
+    { task: "Rekonsiliasi FAT Doc Primary", owner: "Finance", due: "Bulan ini", status: "Dipantau" },
     { task: "Audit dokumen invoice kosong", owner: "Admin Area", due: "Minggu ini", status: "Backlog" },
 ];
 
@@ -150,8 +152,8 @@ const ComplianceCard = memo(function ComplianceCard() {
     return (
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <SectionHeader
-                title="Compliance Snapshot"
-                description="Pantauan singkat legalitas armada dan kelengkapan dokumen."
+                title="Kondisi Dokumen Hari Ini"
+                description="Bagian yang sudah aman, yang mendekati jatuh tempo, dan yang perlu dibereskan dulu."
             />
             <div className="space-y-3">
                 {complianceItems.map((item) => (
@@ -174,8 +176,8 @@ const WorkQueueCard = memo(function WorkQueueCard() {
     return (
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <SectionHeader
-                title="Operational Work Queue"
-                description="Daftar pekerjaan lintas modul yang perlu dipantau."
+                title="Pekerjaan Yang Perlu Dikejar"
+                description="Daftar kecil supaya follow up tidak tercecer di tengah operasional."
             />
             <div className="overflow-hidden rounded-lg border border-slate-100">
                 {workQueue.map((item) => (
@@ -314,17 +316,17 @@ export default function Dashboard({ dbChartData }) {
                     <div>
                         <div className="mb-4 flex flex-wrap items-center gap-2">
                             <span className="rounded-lg bg-cyan-400/15 px-3 py-1 text-xs font-black uppercase tracking-wider text-cyan-200">
-                                ERP Command Center
+                                Pusat Kendali
                             </span>
                             <span className="rounded-lg bg-white/10 px-3 py-1 text-xs font-bold text-slate-300">
                                 Periode berjalan
                             </span>
                         </div>
                         <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
-                            Executive Dashboard
+                            Dashboard Operasional
                         </h1>
                         <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-300">
-                            Ringkasan performa armada, kepatuhan legalitas, kelengkapan dokumen, dan antrean pekerjaan operasional Washeng.
+                            Gambaran cepat kondisi armada, dokumen, finance, dan pekerjaan yang perlu dikejar hari ini.
                         </p>
                         <div className="mt-5 grid gap-3 sm:grid-cols-3">
                             <div className="rounded-lg border border-white/10 bg-white/5 p-3">
@@ -333,26 +335,26 @@ export default function Dashboard({ dbChartData }) {
                             </div>
                             <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Prioritas</p>
-                                <p className="mt-1 text-sm font-black text-white">Expired & dokumen kosong</p>
+                                <p className="mt-1 text-sm font-black text-white">Yang expired dan yang belum lengkap</p>
                             </div>
                             <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Status sistem</p>
-                                <p className="mt-1 text-sm font-black text-emerald-300">Operasional aktif</p>
+                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Status kerja</p>
+                                <p className="mt-1 text-sm font-black text-emerald-300">Data siap dipantau</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                         <SummaryCard
-                            title="Fleet Coverage"
+                            title="Unit Terpantau"
                             value="262"
-                            helper="Unit aktif dalam pemantauan operasional."
+                            helper="Unit aktif yang masuk pantauan harian."
                             icon={Gauge}
                         />
                         <SummaryCard
-                            title="Finance Docs"
+                            title="Dokumen Finance"
                             value="7,625"
-                            helper="Total FAT primary dan secondary tercatat."
+                            helper="FAT primary dan secondary yang sudah tercatat."
                             icon={WalletCards}
                         />
                     </div>
@@ -368,7 +370,7 @@ export default function Dashboard({ dbChartData }) {
                     trend="up"
                     trendLabel="4.2%"
                     colorClass="bg-blue-50 text-blue-600"
-                    description="Jumlah unit aktif yang menjadi basis monitoring operasional harian."
+                    description="Unit aktif yang menjadi dasar pengecekan operasional harian."
                 />
                 <KpiCard
                     title="Dokumen Lengkap"
@@ -377,7 +379,7 @@ export default function Dashboard({ dbChartData }) {
                     trend="up"
                     trendLabel="12.5%"
                     colorClass="bg-emerald-50 text-emerald-600"
-                    description="Dokumen invoice yang sudah lengkap dan siap untuk proses lanjutan."
+                    description="Invoice yang sudah lengkap dan aman untuk proses berikutnya."
                 />
                 <KpiCard
                     title="Pajak Expired"
@@ -386,7 +388,7 @@ export default function Dashboard({ dbChartData }) {
                     trend="down"
                     trendLabel="2.1%"
                     colorClass="bg-rose-50 text-rose-600"
-                    description="Unit dengan pajak melewati masa berlaku dan perlu follow up segera."
+                    description="Unit yang pajaknya lewat masa berlaku dan perlu segera dicek."
                 />
                 <KpiCard
                     title="KIR Hampir Expired"
@@ -395,7 +397,7 @@ export default function Dashboard({ dbChartData }) {
                     trend="up"
                     trendLabel="8.4%"
                     colorClass="bg-amber-50 text-amber-600"
-                    description="Dokumen KIR yang mendekati jatuh tempo untuk jadwal perpanjangan."
+                    description="KIR yang sudah dekat jatuh tempo, bagusnya mulai dijadwalkan."
                 />
             </div>
 
@@ -405,8 +407,8 @@ export default function Dashboard({ dbChartData }) {
             </div>
 
             <SectionHeader
-                title="Analitik Modul"
-                description="Distribusi status tiap modul untuk membantu pengecekan detail dan prioritas tindakan."
+                title="Bacaan Per Modul"
+                description="Lihat pola data per bagian, lalu masuk ke detail kalau ada angka yang terasa tidak wajar."
             />
 
             {/* Charts Section */}
@@ -467,30 +469,54 @@ export default function Dashboard({ dbChartData }) {
                 <DonutCard
                     title="AKTIFITAS PRIMARY"
                     subtitle="Distribusi Bulanan"
-                    data={chartData.aktifitasPrimary}
+                    data={dbChartData?.activityPrimary?.length ? dbChartData.activityPrimary : chartData.aktifitasPrimary}
                     colors={cActivity}
-                    centerText={{ label: "Total", value: 290 }}
+                    centerText={{
+                        label: "Total",
+                        value: dbChartData?.activityPrimary?.length
+                            ? dbChartData.totalActivityPrimary
+                            : totalOf(chartData.aktifitasPrimary),
+                    }}
+                    detailLink="/profit-unit/primary"
                 />
                 <DonutCard
                     title="AKTIFITAS SECONDARY"
                     subtitle="Distribusi Bulanan"
-                    data={chartData.aktifitasSecondary}
+                    data={dbChartData?.activitySecondary?.length ? dbChartData.activitySecondary : chartData.aktifitasSecondary}
                     colors={cOrange}
-                    centerText={{ label: "Total", value: 45 }}
+                    centerText={{
+                        label: "Total",
+                        value: dbChartData?.activitySecondary?.length
+                            ? dbChartData.totalActivitySecondary
+                            : totalOf(chartData.aktifitasSecondary),
+                    }}
+                    detailLink="/profit-unit/secondary"
                 />
                 <DonutCard
                     title="FAT DOC PRIMARY"
                     subtitle="Finance & Tax"
-                    data={chartData.fatDocPrimary}
+                    data={dbChartData?.fatDocPrimary?.length ? dbChartData.fatDocPrimary : chartData.fatDocPrimary}
                     colors={cFinance}
-                    centerText={{ label: "Total", value: 2904 }}
+                    centerText={{
+                        label: "Total",
+                        value: dbChartData?.fatDocPrimary?.length
+                            ? dbChartData.totalFatDocPrimary
+                            : totalOf(chartData.fatDocPrimary),
+                    }}
+                    detailLink="/finance/dokumen-invoice"
                 />
                 <DonutCard
                     title="FAT DOC SECONDARY"
                     subtitle="Finance & Tax"
-                    data={chartData.fatDocSecondary}
+                    data={dbChartData?.fatDocSecondary?.length ? dbChartData.fatDocSecondary : chartData.fatDocSecondary}
                     colors={cFinance}
-                    centerText={{ label: "Total", value: 4721 }}
+                    centerText={{
+                        label: "Total",
+                        value: dbChartData?.fatDocSecondary?.length
+                            ? dbChartData.totalFatDocSecondary
+                            : totalOf(chartData.fatDocSecondary),
+                    }}
+                    detailLink="/finance/dokumen-invoice"
                 />
             </div>
         </AdminLayout>

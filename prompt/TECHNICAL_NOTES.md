@@ -6,6 +6,14 @@ Dokumen ini berisi catatan teknis, bug yang pernah muncul, dan area yang perlu h
 
 Project memakai tabel lama dari AppSheet. Jangan mengubah schema sembarangan.
 
+Production Railway database:
+
+```text
+u495297697_appsheet
+```
+
+Jangan pakai database default `railway` untuk Laravel app, karena dump SQL membuat dan memakai `u495297697_appsheet`.
+
 Tabel yang sering dipakai:
 
 ```text
@@ -214,6 +222,45 @@ Peringatan yang pernah muncul dan tidak menghentikan build:
 [PLUGIN_TIMINGS] build spent significant time in plugin `laravel`
 ```
 
+## Railway Notes
+
+File deploy:
+
+```text
+railway.json
+nixpacks.toml
+.node-version
+```
+
+Node:
+
+```text
+22
+```
+
+Frontend plugin:
+
+```text
+@vitejs/plugin-react
+```
+
+Jangan pakai:
+
+```text
+@vitejs/plugin-react-oxc
+```
+
+karena pernah menyebabkan `npm ci` Railway gagal.
+
+Railway HTTPS fix:
+
+```text
+bootstrap\app.php
+app\Providers\AppServiceProvider.php
+```
+
+Kedua file tersebut menangani proxy dan force HTTPS di production. Ini penting agar asset Vite tidak dimuat lewat HTTP di halaman HTTPS.
+
 ## Hal Yang Perlu Dilanjutkan
 
 Kemungkinan pekerjaan selanjutnya:
@@ -233,4 +280,3 @@ Kemungkinan pekerjaan selanjutnya:
 - Jangan mengubah route lama tanpa cek menu yang sudah memakai route tersebut.
 - Jangan mengubah total layout global ketika user hanya meminta perbaikan modul tertentu.
 - Jangan rework Profit Primary kecuali user minta eksplisit, karena bagian itu sudah berkali-kali direvisi dan restore.
-
