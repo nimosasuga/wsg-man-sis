@@ -121,8 +121,16 @@ class OnTheRoadController extends Controller
         abort_unless($category === 'standby' || isset($this->groups[$category]), 404);
 
         if ($category === 'standby') {
-            $row = DB::table('hr_manager_db_inventori')->where('id_key', $id)->first();
+            $decodedId = urldecode($id);
+            $row = DB::table('hr_manager_db_inventori')
+                ->where('id_key', $decodedId)
+                ->orWhere('nopol', $decodedId)
+                ->first();
             abort_if(! $row, 404);
+            $row->tipe_unit = $row->tipe ?? null;
+            $row->tagihan = 0;
+            $row->total_biaya_operasional = 0;
+            $row->profit_trip = 0;
 
             return Inertia::render('Operations/OnTheRoad/Detail', [
                 'category' => $category,
@@ -169,11 +177,19 @@ class OnTheRoadController extends Controller
             ->whereNotIn('nopol', $runningNopols)
             ->get()
             ->map(function ($row) {
+                $identifier = trim((string) ($row->id_key ?? '')) !== ''
+                    ? (string) $row->id_key
+                    : (string) $row->nopol;
+
                 $row->tipe_unit = $row->tipe;
                 $row->tagihan = 0;
                 $row->total_biaya_operasional = 0;
                 $row->profit_trip = 0;
                 $row->tanggal_normalized = null;
+                $row->detail_href = route('on-the-road.detail', [
+                    'category' => 'standby',
+                    'id' => $identifier,
+                ]);
 
                 return $row;
             })

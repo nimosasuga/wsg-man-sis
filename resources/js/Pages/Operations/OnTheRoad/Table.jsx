@@ -26,6 +26,7 @@ export default function Table({ category, title, date, dateOptions = [], rows = 
     const changeDate = (value) => router.get(tablePath || `/on-the-road/${category}`, { tanggal: value }, { preserveScroll: true });
     const visitRow = (row) => {
         const href = row.detail_href || `/on-the-road/${category}/${row.id_key}`;
+        if (!href || href.endsWith("/undefined") || href.endsWith("/null")) return;
         router.visit(href);
     };
 
@@ -72,9 +73,9 @@ export default function Table({ category, title, date, dateOptions = [], rows = 
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {rows.length ? rows.map((row) => (
+                                {rows.length ? rows.map((row, index) => (
                                     <tr
-                                        key={row.id_key}
+                                        key={row.id_key || row.nopol || index}
                                         onClick={() => visitRow(row)}
                                         onKeyDown={(event) => {
                                             if (!["Enter", " "].includes(event.key)) return;
