@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Inventori;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inventori;
+use App\Support\VehicleCostSummary;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 
@@ -56,7 +57,8 @@ class StnkController extends Controller
             'unitData' => $unit,
             'riwayatService' => $riwayatService,
             'riwayatBan' => $riwayatBan,
-            'aggregates' => $aggregates
+            'aggregates' => $aggregates,
+            'vehicleCost' => VehicleCostSummary::forNopol((string) $unit->nopol),
         ]);
     }
 }

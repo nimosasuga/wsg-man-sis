@@ -64,6 +64,7 @@ export default function Detail({
     riwayatService = [],
     riwayatBan = [],
     aggregates = {},
+    vehicleCost = {},
 }) {
     const [activeTab, setActiveTab] = useState("spesifikasi");
 
@@ -127,25 +128,25 @@ export default function Detail({
                 </div>
             </div>
 
-            {/* Kumpulan KPI Atas menggunakan Data Aggregates dari DB */}
+            {/* Kumpulan KPI Atas menggunakan data unit dan biaya kendaraan */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <StatCard
-                    title="Tarif Unit (Per Trip)"
-                    value={formatRp(unitData.tarif_unit)}
+                    title="Total Biaya Kendaraan"
+                    value={formatRp(vehicleCost.total)}
                     icon={DollarSign}
                     colorClass="bg-emerald-50 text-emerald-600"
+                />
+                <StatCard
+                    title="Biaya Legalitas"
+                    value={formatRp(vehicleCost.legalitasTotal)}
+                    icon={Calendar}
+                    colorClass="bg-cyan-50 text-cyan-600"
                 />
                 <StatCard
                     title="Total Biaya Service"
                     value={formatRp(aggregates.biayaService)}
                     icon={Wrench}
                     colorClass="bg-amber-50 text-amber-600"
-                />
-                <StatCard
-                    title="Qty Ganti Ban"
-                    value={`${aggregates.qtyBan} Ban`}
-                    icon={PenTool}
-                    colorClass="bg-blue-50 text-blue-600"
                 />
                 <StatCard
                     title="Total Biaya Ban"
@@ -354,6 +355,43 @@ export default function Detail({
                 </div>
 
                 <div className="flex flex-col gap-6">
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                        <h3 className="font-black text-gray-800 text-sm mb-4 flex items-center gap-2">
+                            <DollarSign size={16} className="text-emerald-500" />{" "}
+                            BIAYA KENDARAAN INI
+                        </h3>
+                        <p className="text-xs font-semibold leading-5 text-gray-500 mb-4">
+                            Semua biaya diikat ke nopol unit ini, bukan dibaca sebagai kategori terpisah.
+                        </p>
+                        <div className="divide-y divide-gray-100">
+                            {(vehicleCost.items || []).map((item) => (
+                                <div key={item.key} className="py-3">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-xs font-black text-gray-800">
+                                                {item.label}
+                                            </p>
+                                            <p className="mt-0.5 text-[10px] font-semibold text-gray-400">
+                                                {item.count ? `${item.count} data` : "Belum ada biaya"}{item.date ? ` | ${item.date}` : ""}
+                                            </p>
+                                        </div>
+                                        <p className="text-right text-xs font-black text-blue-600">
+                                            {formatRp(item.amount)}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-4 rounded-lg bg-slate-950 px-4 py-3 text-white">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                Total beban unit
+                            </p>
+                            <p className="mt-1 text-lg font-black">
+                                {formatRp(vehicleCost.total)}
+                            </p>
+                        </div>
+                    </div>
+
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 h-full">
                         <h3 className="font-black text-gray-800 text-sm mb-4 flex items-center gap-2">
                             <MapPin size={16} className="text-emerald-500" />{" "}

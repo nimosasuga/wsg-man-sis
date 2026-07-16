@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Inventori;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inventori;
+use App\Support\VehicleCostSummary;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -60,7 +61,8 @@ class KirController extends Controller
             'unitData' => $unit,
             'riwayatService' => $riwayatService,
             'riwayatBan' => $riwayatBan,
-            'aggregates' => $aggregates
+            'aggregates' => $aggregates,
+            'vehicleCost' => VehicleCostSummary::forNopol((string) $unit->nopol),
         ]);
     }
 }

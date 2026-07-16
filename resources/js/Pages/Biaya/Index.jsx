@@ -1,7 +1,7 @@
-import React, { memo, useMemo } from "react";
+import React, { memo, useMemo, useState } from "react";
 import AdminLayout from "../../Layouts/AdminLayout";
 import { Head, router } from "@inertiajs/react";
-import { AlertTriangle, ChevronRight, Eye, Lightbulb, TrendingUp } from "lucide-react";
+import { AlertTriangle, ChevronRight, Filter, Lightbulb, RotateCcw, TrendingUp } from "lucide-react";
 
 const formatRp = (value) =>
     `Rp${Number(value || 0).toLocaleString("id-ID", {
@@ -9,48 +9,230 @@ const formatRp = (value) =>
         maximumFractionDigits: 2,
     })}`;
 
-const SummaryChart = memo(function SummaryChart({ data }) {
-    const maxAmount = Math.max(
-        ...data.map((item) => Number(item.amount || 0)),
-        1,
-    );
+const MONTHS = [
+    "A Januari",
+    "B Februari",
+    "C Maret",
+    "D April",
+    "E Mei",
+    "F Juni",
+    "G Juli",
+    "H Agustus",
+    "I September",
+    "J Oktober",
+    "K November",
+    "L Desember",
+];
+
+const shortMonth = (month) => String(month || "").replace(/^[A-L]\s+/, "").slice(0, 3);
+
+const FlowChart = memo(function FlowChart({ data = [], filters = {} }) {
+    const chartData = data.map((item) => ({
+        ...item,
+        key: item.key || item.year || item.label,
+        label: item.label || item.year || item.key,
+    }));
+    const chartWidth = Math.max((chartData.length || 1) * 92, 680);
+    const chartHeight = 260;
+    const padding = { top: 26, right: 28, bottom: 42, left: 72 };
+    const maxAmount = Math.max(...chartData.flatMap((item) => [Number(item.primary || 0), Number(item.secondary || 0), Number(item.total || 0)]), 1);
+    const xFor = (index) => chartData.length <= 1
+        ? chartWidth / 2
+        : padding.left + (index * (chartWidth - padding.left - padding.right)) / (chartData.length - 1);
+    const yFor = (value) => padding.top + ((maxAmount - Number(value || 0)) / maxAmount) * (chartHeight - padding.top - padding.bottom);
+    const pointsFor = (key) => chartData.map((item, index) => `${xFor(index)},${yFor(item[key])}`).join(" ");
+    const modeText = filters.TAHUN !== "ALL"
+        ? filters.BULAN !== "ALL"
+            ? `Menampilkan ${filters.BULAN.replace(/^[A-L]\s+/, "")} ${filters.TAHUN}.`
+            : `Menampilkan alur bulanan tahun ${filters.TAHUN}, dari Januari sampai Desember.`
+        : "Rekomendasi tampilan semua tahun: lihat tren per tahun dulu, baru pilih tahun tertentu untuk membaca gerak bulanan.";
+    const series = [
+        ["primary", "Primary", "#2563eb"],
+        ["secondary", "Secondary", "#06b6d4"],
+        ["total", "Total", "#0f172a"],
+    ];
 
     return (
         <div className="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-4">
+            <div className="mb-5">
                 <h2 className="text-sm font-black uppercase tracking-wider text-slate-800">
                     Statistik Biaya
                 </h2>
                 <p className="mt-1 text-sm font-medium text-slate-500">
-                    Lihat biaya terbesar dulu, lalu turun ke rinciannya kalau ada angka yang terasa janggal.
+                    {modeText}
                 </p>
             </div>
-            <div className="space-y-3">
-                {data.map((item) => {
-                    const amount = Number(item.amount || 0);
-                    const width = Math.max((amount / maxAmount) * 100, amount > 0 ? 4 : 0);
-
-                    return (
-                        <div key={item.slug} className="grid gap-2 sm:grid-cols-[150px_1fr_170px] sm:items-center">
-                            <p className="truncate text-xs font-black text-slate-700">
-                                {item.title}
-                            </p>
-                            <div className="h-8 overflow-hidden rounded-lg bg-slate-100">
-                                <div
-                                    className="h-full rounded-lg bg-cyan-500 shadow-[inset_0_-8px_18px_rgba(14,116,144,0.22)] transition-[width] duration-500"
-                                    style={{ width: `${width}%` }}
-                                />
+            {chartData.length ? (
+                <div>
+                    <div className="mb-4 flex flex-wrap gap-3">
+                        {series.map(([key, label, color]) => (
+                            <div key={key} className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-600">
+                                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+                                {label}
                             </div>
-                            <p className="text-xs font-black text-slate-900 sm:text-right">
-                                {formatRp(amount)}
-                            </p>
-                        </div>
-                    );
-                })}
-            </div>
+                        ))}
+                    </div>
+                    <div className="overflow-x-auto rounded-xl border border-slate-100 bg-slate-50 p-3">
+                        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width={chartWidth} height={chartHeight} className="min-w-full">
+                            {[0, 0.25, 0.5, 0.75, 1].map((step) => {
+                                const value = maxAmount * (1 - step);
+                                const y = padding.top + step * (chartHeight - padding.top - padding.bottom);
+
+                                return (
+                                    <g key={step}>
+                                        <line x1={padding.left} x2={chartWidth - padding.right} y1={y} y2={y} stroke="#e2e8f0" strokeWidth="1" />
+                                        <text x={padding.left - 12} y={y + 4} textAnchor="end" className="fill-slate-400 text-[10px] font-bold">
+                                            {Number(value || 0).toLocaleString("id-ID", { notation: "compact" })}
+                                        </text>
+                                    </g>
+                                );
+                            })}
+                            {series.map(([key, label, color]) => (
+                                <g key={key}>
+                                    <polyline fill="none" stroke={color} strokeWidth={key === "total" ? 4 : 3} strokeLinecap="round" strokeLinejoin="round" points={pointsFor(key)} />
+                                    {chartData.map((item, index) => (
+                                        <circle key={`${key}-${item.key}`} cx={xFor(index)} cy={yFor(item[key])} r={key === "total" ? 4.5 : 3.5} fill={color}>
+                                            <title>{`${label} ${item.label}: ${formatRp(item[key])}`}</title>
+                                        </circle>
+                                    ))}
+                                </g>
+                            ))}
+                            {chartData.map((item, index) => (
+                                <text key={item.key} x={xFor(index)} y={chartHeight - 14} textAnchor="middle" className="fill-slate-500 text-[11px] font-black">
+                                    {item.label}
+                                </text>
+                            ))}
+                        </svg>
+                    </div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        {chartData.map((item) => (
+                            <div key={item.key} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+                                <p className="text-sm font-black text-slate-950">{item.label}</p>
+                                <div className="mt-2 space-y-1 text-xs font-semibold text-slate-600">
+                                    <div className="flex justify-between gap-3"><span>Primary</span><span>{formatRp(item.primary)}</span></div>
+                                    <div className="flex justify-between gap-3"><span>Secondary</span><span>{formatRp(item.secondary)}</span></div>
+                                    <div className="flex justify-between gap-3 font-black text-slate-950"><span>Total</span><span>{formatRp(item.total)}</span></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <p className="rounded-lg bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-500">
+                    Belum ada biaya operasional Primary atau Secondary untuk filter ini.
+                </p>
+            )}
         </div>
     );
 });
+
+function SearchableSelect({ label, value, options = [], onChange }) {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+    const selectedLabel = value === "ALL" ? "Semua" : value;
+    const filteredOptions = options.filter((option) => {
+        const text = option === "ALL" ? "Semua" : option;
+
+        return text.toLowerCase().includes(search.trim().toLowerCase());
+    });
+
+    return (
+        <div className="relative">
+            <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</span>
+            <button
+                type="button"
+                onClick={() => {
+                    setOpen((current) => !current);
+                    setSearch("");
+                }}
+                className="flex h-10 w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 text-left text-sm font-bold text-slate-700 outline-none transition hover:border-cyan-300"
+            >
+                <span className="truncate">{selectedLabel || "Semua"}</span>
+                <ChevronRight size={15} className={`shrink-0 transition ${open ? "rotate-90 text-cyan-600" : "text-slate-400"}`} />
+            </button>
+            {open && (
+                <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-200/70">
+                    <div className="border-b border-slate-100 p-2">
+                        <input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            autoFocus
+                            placeholder={`Cari ${label.toLowerCase()}...`}
+                            className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                        />
+                    </div>
+                    <div className="custom-scrollbar max-h-64 overflow-auto p-1">
+                        {filteredOptions.length ? filteredOptions.map((option) => (
+                            <button
+                                key={option}
+                                type="button"
+                                onClick={() => {
+                                    onChange(option);
+                                    setOpen(false);
+                                    setSearch("");
+                                }}
+                                className={`block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold transition ${option === value ? "bg-cyan-50 text-cyan-700" : "text-slate-700 hover:bg-slate-50"}`}
+                            >
+                                {option === "ALL" ? "Semua" : option}
+                            </button>
+                        )) : (
+                            <p className="px-3 py-4 text-center text-sm font-semibold text-slate-400">Tidak ditemukan.</p>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function FilterPanel({ filters = {}, options = {}, onChange, onReset }) {
+    const applyFilter = (key, value) => {
+        onChange({ ...filters, [key]: value });
+    };
+
+    const resetFilters = () => {
+        onReset();
+    };
+
+    const fields = [
+        ["TAHUN", "Tahun"],
+        ["BULAN", "Bulan"],
+        ["AREA", "Area"],
+        ["TIPE", "Tipe Unit"],
+        ["NOPOL", "Nopol"],
+    ];
+
+    return (
+        <section className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <div className="grid h-9 w-9 place-items-center rounded-lg bg-cyan-50 text-cyan-700">
+                        <Filter size={17} />
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Saring Data Biaya</h2>
+                        <p className="text-xs font-semibold text-slate-500">Default menampilkan semua data.</p>
+                    </div>
+                </div>
+                <button onClick={resetFilters} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-600 transition hover:bg-slate-50">
+                    <RotateCcw size={14} />
+                    Reset
+                </button>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                {fields.map(([key, label]) => (
+                    <SearchableSelect
+                        key={key}
+                        label={label}
+                        value={filters[key] || "ALL"}
+                        options={options[key] && options[key].length ? options[key] : ["ALL"]}
+                        onChange={(value) => applyFilter(key, value)}
+                    />
+                ))}
+            </div>
+        </section>
+    );
+}
 
 function SmartAnalysis({ summaryData, totalBiaya }) {
     const analysis = useMemo(() => {
@@ -163,11 +345,99 @@ function SmartAnalysis({ summaryData, totalBiaya }) {
     );
 }
 
-export default function Index({ summaryData = [] }) {
+const isAll = (value) => !value || value === "ALL";
+
+const matchesActiveFilter = (row, filters) =>
+    (isAll(filters.AREA) || String(row.area || "") === filters.AREA)
+    && (isAll(filters.TIPE) || String(row.tipe || "") === filters.TIPE)
+    && (isAll(filters.NOPOL) || String(row.nopol || "") === filters.NOPOL);
+
+const buildOperationFlow = (rows = [], filters = {}) => {
+    const filteredRows = rows.filter((row) =>
+        (isAll(filters.TAHUN) || String(row.year || "") === filters.TAHUN)
+        && (isAll(filters.BULAN) || String(row.month || "") === filters.BULAN)
+        && matchesActiveFilter(row, filters)
+    );
+    const groupByMonth = !isAll(filters.TAHUN);
+    const timeline = groupByMonth
+        ? (isAll(filters.BULAN) ? MONTHS : MONTHS.filter((month) => month === filters.BULAN))
+        : [...new Set(filteredRows.map((row) => String(row.year || "")).filter((year) => year && year !== "0"))].sort();
+
+    const grouped = filteredRows.reduce((carry, row) => {
+        const key = groupByMonth ? String(row.month || "") : String(row.year || "");
+        if (!key || key === "0") return carry;
+
+        if (!carry[key]) {
+            carry[key] = {
+                key,
+                label: groupByMonth ? shortMonth(key) : key,
+                primary: 0,
+                secondary: 0,
+                total: 0,
+            };
+        }
+
+        const amount = Number(row.nominal || 0);
+        if (row.source === "primary") carry[key].primary += amount;
+        if (row.source === "secondary") carry[key].secondary += amount;
+        carry[key].total += amount;
+
+        return carry;
+    }, {});
+
+    return timeline.map((key) => grouped[key] || {
+        key,
+        label: groupByMonth ? shortMonth(key) : key,
+        primary: 0,
+        secondary: 0,
+        total: 0,
+    });
+};
+
+export default function Index({ summaryData = [], vehicleCosts = [], vehicleCostRows = [], operationFlow = [], operationRows = [], filters = {}, filterOptions = {} }) {
+    const [activeFilters, setActiveFilters] = useState({
+        TAHUN: filters.TAHUN || "ALL",
+        BULAN: filters.BULAN || "ALL",
+        AREA: filters.AREA || "ALL",
+        TIPE: filters.TIPE || "ALL",
+        NOPOL: filters.NOPOL || "ALL",
+    });
     const totalBiaya = useMemo(
         () => summaryData.reduce((total, item) => total + Number(item.amount || 0), 0),
         [summaryData],
     );
+    const normalizedFilterOptions = useMemo(() => {
+        const fromRows = (key) => [
+            "ALL",
+            ...[...new Set(vehicleCosts.map((row) => row[key]).filter(Boolean).map(String))].sort(),
+        ];
+
+        return {
+            TAHUN: filterOptions.TAHUN?.length ? filterOptions.TAHUN : ["ALL", ...[...new Set(operationFlow.map((row) => row.year).filter(Boolean).map(String))].sort().reverse()],
+            BULAN: filterOptions.BULAN?.length ? filterOptions.BULAN : ["ALL"],
+            AREA: filterOptions.AREA?.length ? filterOptions.AREA : fromRows("area"),
+            TIPE: filterOptions.TIPE?.length ? filterOptions.TIPE : fromRows("tipe"),
+            NOPOL: filterOptions.NOPOL?.length ? filterOptions.NOPOL : fromRows("nopol"),
+        };
+    }, [filterOptions, operationFlow, vehicleCosts]);
+    const instantVehicleCosts = useMemo(() => {
+        const sourceRows = vehicleCostRows.length ? vehicleCostRows : vehicleCosts;
+
+        return sourceRows
+            .filter((row) => matchesActiveFilter(row, activeFilters))
+            .slice(0, 300);
+    }, [activeFilters, vehicleCostRows, vehicleCosts]);
+    const normalizedFlow = useMemo(() => {
+        if (operationRows.length) return buildOperationFlow(operationRows, activeFilters);
+
+        if (operationFlow.length) return operationFlow;
+
+        const primary = summaryData.find((item) => item.slug === "operasional-prim")?.amount || 0;
+        const secondary = summaryData.find((item) => item.slug === "operasional-sec")?.amount || 0;
+        const total = Number(primary || 0) + Number(secondary || 0);
+
+        return total > 0 ? [{ year: "Semua", primary, secondary, total }] : [];
+    }, [activeFilters, operationFlow, operationRows, summaryData]);
 
     return (
         <AdminLayout>
@@ -187,61 +457,73 @@ export default function Index({ summaryData = [] }) {
 
             <SmartAnalysis summaryData={summaryData} totalBiaya={totalBiaya} />
 
-            <SummaryChart data={summaryData} />
+            <FilterPanel
+                filters={activeFilters}
+                options={normalizedFilterOptions}
+                onChange={setActiveFilters}
+                onReset={() => setActiveFilters({ TAHUN: "ALL", BULAN: "ALL", AREA: "ALL", TIPE: "ALL", NOPOL: "ALL" })}
+            />
 
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <table className="w-full border-collapse text-left">
-                    <thead className="bg-slate-50">
-                        <tr>
-                            <th className="border-r border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-700">
-                                Sub Menu
-                            </th>
-                            <th className="border-r border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-700">
-                                Nominal Biaya
-                            </th>
-                            <th className="w-16 px-4 py-3" />
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                        {summaryData.map((item) => {
-                            const href = `/biaya/${item.slug}`;
+            <FlowChart data={normalizedFlow} filters={activeFilters} />
 
-                            return (
-                            <tr
-                                key={item.slug}
-                                onClick={() => router.visit(href)}
-                                onKeyDown={(event) => {
-                                    if (!["Enter", " "].includes(event.key)) return;
-                                    event.preventDefault();
-                                    router.visit(href);
-                                }}
-                                role="button"
-                                tabIndex={0}
-                                className="group cursor-pointer transition-colors hover:bg-blue-50/50 focus:bg-blue-50/60 focus:outline-none"
-                            >
-                                <td className="border-r border-slate-100 px-4 py-3 text-sm font-medium text-slate-800">
-                                    {item.title}
-                                </td>
-                                <td className="border-r border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
-                                    {formatRp(item.amount)}
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                    <span
-                                        className="inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-black text-slate-600 transition group-hover:text-blue-600"
-                                        title={`Lihat ${item.title}`}
-                                    >
-                                        <Eye size={17} />
-                                        <span className="hidden whitespace-nowrap xl:inline">
-                                            {item.actionLabel || "LIHAT RINCIAN"}
-                                        </span>
-                                    </span>
-                                </td>
+            <section className="mb-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="border-b border-slate-100 px-4 py-4">
+                    <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">
+                        Beban Biaya per Kendaraan
+                    </h2>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">
+                        Pajak, KIR, pajak 5 tahun, service umum, dan service ban digabung ke nopol yang sama.
+                    </p>
+                </div>
+                <div className="custom-scrollbar max-h-[520px] overflow-auto">
+                    <table className="w-full min-w-[900px] border-collapse text-left">
+                        <thead className="sticky top-0 z-10 bg-slate-50">
+                            <tr>
+                                {["Nopol", "Area", "Tipe", "Unit", "Legalitas", "Maintenance", "Total", "Riwayat"].map((head) => (
+                                    <th key={head} className="border-b border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                                        {head}
+                                    </th>
+                                ))}
                             </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {instantVehicleCosts.map((row) => (
+                                <tr
+                                    key={row.nopol}
+                                    onClick={() => router.visit(`/inventori/pajak/${encodeURIComponent(row.nopol)}`)}
+                                    onKeyDown={(event) => {
+                                        if (!["Enter", " "].includes(event.key)) return;
+                                        event.preventDefault();
+                                        router.visit(`/inventori/pajak/${encodeURIComponent(row.nopol)}`);
+                                    }}
+                                    role="button"
+                                    tabIndex={0}
+                                    className="cursor-pointer hover:bg-cyan-50/40 focus:bg-cyan-50/60 focus:outline-none"
+                                >
+                                    <td className="px-4 py-3 text-xs font-black text-slate-950">{row.nopol || "-"}</td>
+                                    <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.area || "-"}</td>
+                                    <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.tipe || "-"}</td>
+                                    <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.unit || "-"}</td>
+                                    <td className="px-4 py-3 text-xs font-black text-cyan-700">{formatRp(row.legalitasTotal)}</td>
+                                    <td className="px-4 py-3 text-xs font-black text-amber-700">{formatRp(row.maintenanceTotal)}</td>
+                                    <td className="px-4 py-3 text-xs font-black text-blue-700">{formatRp(row.total)}</td>
+                                    <td className="px-4 py-3 text-xs font-semibold text-slate-500">
+                                        Service {row.serviceCount || 0}x, Ban {row.banCount || 0}x
+                                    </td>
+                                </tr>
+                            ))}
+                            {!instantVehicleCosts.length && (
+                                <tr>
+                                    <td colSpan={8} className="px-4 py-8 text-center text-sm font-semibold text-slate-500">
+                                        Belum ada biaya kendaraan yang bisa dibaca.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
         </AdminLayout>
     );
 }

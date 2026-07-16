@@ -21,6 +21,7 @@ class BiayaController extends Controller
 
     public function index()
     {
+        $filters = $this->filters();
         $summary = collect($this->categories)->map(function ($category, $slug) {
             return [
                 'slug' => $slug,
@@ -32,6 +33,12 @@ class BiayaController extends Controller
 
         return Inertia::render('Biaya/Index', [
             'summaryData' => $summary,
+            'vehicleCosts' => $this->vehicleCosts($filters),
+            'vehicleCostRows' => $this->vehicleCosts($this->emptyFilters())->values(),
+            'operationFlow' => $this->operationFlow($filters),
+            'operationRows' => $this->operationRows()->values(),
+            'filters' => $filters,
+            'filterOptions' => $this->filterOptions(),
         ]);
     }
 
@@ -219,5 +226,264 @@ class BiayaController extends Controller
             'secondary' => (clone $secondary)->count(),
             'total_biaya_operasional' => (clone $primary)->sum('total_biaya') + (clone $secondary)->sum('total_biaya_operasional'),
         ];
+    }
+
+    private function vehicleCosts(array $filters)
+    {
+        return Inventori::select('nopol', 'area', 'tipe', 'pabrikan', 'model')
+            ->whereNotNull('nopol')
+            ->where('nopol', '!=', '')
+            ->when($filters['AREA'] !== 'ALL', fn ($query) => $query->where('area', $filters['AREA']))
+            ->when($filters['TIPE'] !== 'ALL', fn ($query) => $query->where('tipe', $filters['TIPE']))
+            ->when($filters['NOPOL'] !== 'ALL', fn ($query) => $query->where('nopol', $filters['NOPOL']))
+            ->get()
+            ->map(function ($unit) use ($filters) {
+                $summary = $this->vehicleCostForFilters($unit, $filters);
+
+                return [
+                    'nopol' => $unit->nopol,
+                    'area' => $unit->area,
+                    'tipe' => $unit->tipe,
+                    'unit' => trim(implode(' ', array_filter([$unit->pabrikan, $unit->model]))),
+                    'total' => $summary['total'],
+                    'legalitasTotal' => $summary['legalitasTotal'],
+                    'maintenanceTotal' => $summary['maintenanceTotal'],
+                    'serviceCount' => $summary['serviceCount'],
+                    'banCount' => $summary['banCount'],
+                ];
+            })
+            ->filter(function ($row) use ($filters) {
+                return $filters['TAHUN'] === 'ALL' && $filters['BULAN'] === 'ALL'
+                    ? true
+                    : $row['total'] > 0;
+            })
+            ->sortByDesc('total')
+            ->values()
+            ->take(300);
+    }
+
+    private function operationFlow(array $filters): array
+    {
+        $rows = $this->operationRows()
+            ->filter(fn ($row) => $this->matchesOperationFilters((object) $row, $filters));
+
+        $primaryRows = $rows->where('source', 'primary');
+        $secondaryRows = $rows->where('source', 'secondary');
+
+        $years = $primaryRows
+            ->pluck('year')
+            ->merge($secondaryRows->pluck('year'))
+            ->filter(fn ($year) => $year && $year !== '0')
+            ->unique()
+            ->sort()
+            ->values();
+
+        return $years->map(function ($year) use ($primaryRows, $secondaryRows) {
+            $primary = (float) $primaryRows->where('year', $year)->sum('nominal');
+            $secondary = (float) $secondaryRows->where('year', $year)->sum('nominal');
+
+            return [
+                'year' => $year,
+                'primary' => $primary,
+                'secondary' => $secondary,
+                'total' => $primary + $secondary,
+            ];
+        })->values()->all();
+    }
+
+    private function filters(): array
+    {
+        return [
+            'TAHUN' => (string) request()->query('TAHUN', 'ALL'),
+            'BULAN' => (string) request()->query('BULAN', 'ALL'),
+            'AREA' => (string) request()->query('AREA', 'ALL'),
+            'TIPE' => (string) request()->query('TIPE', 'ALL'),
+            'NOPOL' => (string) request()->query('NOPOL', 'ALL'),
+        ];
+    }
+
+    private function emptyFilters(): array
+    {
+        return [
+            'TAHUN' => 'ALL',
+            'BULAN' => 'ALL',
+            'AREA' => 'ALL',
+            'TIPE' => 'ALL',
+            'NOPOL' => 'ALL',
+        ];
+    }
+
+    private function operationRows()
+    {
+        $primaryRows = DB::table('operasional_primary_input')
+            ->select('tanggal_muat as tanggal', 'area', 'nopol_driver as nopol', 'jenis as tipe', 'total_biaya as nominal')
+            ->get()
+            ->map(fn ($row) => $this->operationPayload($this->withDateGroups($row), 'primary'));
+
+        $secondaryRows = DB::table('operasional_secondary_input')
+            ->select('tanggal', 'area', 'nopol', 'tipe_unit as tipe', 'total_biaya_operasional as nominal')
+            ->get()
+            ->map(fn ($row) => $this->operationPayload($this->withDateGroups($row), 'secondary'));
+
+        return $primaryRows->merge($secondaryRows);
+    }
+
+    private function operationPayload(object $row, string $source): array
+    {
+        return [
+            'source' => $source,
+            'year' => $row->groupYear,
+            'month' => $row->groupMonth,
+            'area' => $row->area,
+            'nopol' => $row->nopol,
+            'tipe' => $row->tipe,
+            'nominal' => (float) ($row->nominal ?? 0),
+        ];
+    }
+
+    private function filterOptions(): array
+    {
+        $inventory = Inventori::select('nopol', 'area', 'tipe')
+            ->whereNotNull('nopol')
+            ->where('nopol', '!=', '')
+            ->get();
+
+        $years = DB::table('operasional_primary_input')
+            ->select('tanggal_muat as tanggal')
+            ->whereNotNull('tanggal_muat')
+            ->get()
+            ->merge(DB::table('operasional_secondary_input')->select('tanggal')->whereNotNull('tanggal')->get())
+            ->map(fn ($row) => $this->dateGroups($row->tanggal ?? null)[0])
+            ->filter(fn ($year) => $year && $year !== '0')
+            ->unique()
+            ->sortDesc()
+            ->values();
+
+        return [
+            'TAHUN' => $this->optionList($years),
+            'BULAN' => $this->optionList([
+                'A Januari',
+                'B Februari',
+                'C Maret',
+                'D April',
+                'E Mei',
+                'F Juni',
+                'G Juli',
+                'H Agustus',
+                'I September',
+                'J Oktober',
+                'K November',
+                'L Desember',
+            ]),
+            'AREA' => $this->optionList($inventory->pluck('area')),
+            'TIPE' => $this->optionList($inventory->pluck('tipe')),
+            'NOPOL' => $this->optionList($inventory->pluck('nopol')),
+        ];
+    }
+
+    private function optionList($values): array
+    {
+        return collect($values)
+            ->filter(fn ($value) => trim((string) $value) !== '')
+            ->map(fn ($value) => (string) $value)
+            ->unique()
+            ->sort()
+            ->prepend('ALL')
+            ->values()
+            ->all();
+    }
+
+    private function matchesOperationFilters(object $row, array $filters): bool
+    {
+        return ($filters['TAHUN'] === 'ALL' || (string) ($row->year ?? $row->groupYear ?? '') === $filters['TAHUN'])
+            && ($filters['BULAN'] === 'ALL' || (string) ($row->month ?? $row->groupMonth ?? '') === $filters['BULAN'])
+            && ($filters['AREA'] === 'ALL' || (string) ($row->area ?? '') === $filters['AREA'])
+            && ($filters['TIPE'] === 'ALL' || (string) ($row->tipe ?? '') === $filters['TIPE'])
+            && ($filters['NOPOL'] === 'ALL' || (string) ($row->nopol ?? '') === $filters['NOPOL']);
+    }
+
+    private function unitHasCostInYear(string $nopol, string $year): bool
+    {
+        return $this->unitHasCostInPeriod($nopol, $year, 'ALL');
+    }
+
+    private function vehicleCostForFilters(object $unit, array $filters): array
+    {
+        $pajakTahunan = $this->dateMatchesFilters($unit->jatuh_tempo_pajak ?? null, $filters)
+            ? (float) ($unit->biaya_pajak ?? 0)
+            : 0;
+        $pajakLimaTahun = $this->dateMatchesFilters($unit->jatuh_tempo_stnk ?? null, $filters)
+            ? (float) ($unit->biaya_stnk ?? 0)
+            : 0;
+        $kir = $this->dateMatchesFilters($unit->jatuh_tempo_kir ?? null, $filters)
+            ? (float) ($unit->biaya_kir ?? 0)
+            : 0;
+
+        $services = DB::table('maintenance_input_maintenance')
+            ->where('nopol', $unit->nopol)
+            ->get(['tanggal_services', 'total_biaya_service']);
+        $ban = DB::table('maintenance_monitoring_ban')
+            ->where('nopol', $unit->nopol)
+            ->get(['tanggal_ganti_ban', 'total_harga']);
+        $filteredServices = $services->filter(fn ($row) => $this->dateMatchesFilters($row->tanggal_services, $filters));
+        $filteredBan = $ban->filter(fn ($row) => $this->dateMatchesFilters($row->tanggal_ganti_ban, $filters));
+        $serviceUmum = (float) $filteredServices->sum('total_biaya_service');
+        $serviceBan = (float) $filteredBan->sum('total_harga');
+
+        return [
+            'total' => $pajakTahunan + $pajakLimaTahun + $kir + $serviceUmum + $serviceBan,
+            'legalitasTotal' => $pajakTahunan + $pajakLimaTahun + $kir,
+            'maintenanceTotal' => $serviceUmum + $serviceBan,
+            'serviceCount' => $filteredServices->count(),
+            'banCount' => $filteredBan->count(),
+        ];
+    }
+
+    private function dateMatchesFilters(?string $date, array $filters): bool
+    {
+        [$year, $month] = $this->dateGroups($date);
+
+        return ($filters['TAHUN'] === 'ALL' || $year === $filters['TAHUN'])
+            && ($filters['BULAN'] === 'ALL' || $month === $filters['BULAN']);
+    }
+
+    private function unitHasCostInPeriod(string $nopol, string $year, string $month): bool
+    {
+        $unit = Inventori::where('nopol', $nopol)->first();
+        $legalDates = collect([
+            $unit->jatuh_tempo_pajak ?? null,
+            $unit->jatuh_tempo_stnk ?? null,
+            $unit->jatuh_tempo_kir ?? null,
+        ])->contains(function ($date) use ($year, $month) {
+            [$dateYear, $dateMonth] = $this->dateGroups($date);
+
+            return ($year === 'ALL' || $dateYear === $year)
+                && ($month === 'ALL' || $dateMonth === $month);
+        });
+
+        if ($legalDates) {
+            return true;
+        }
+
+        $serviceMatch = DB::table('maintenance_input_maintenance')
+            ->where('nopol', $nopol)
+            ->get(['tanggal_services'])
+            ->contains(function ($row) use ($year, $month) {
+                [$dateYear, $dateMonth] = $this->dateGroups($row->tanggal_services);
+
+                return ($year === 'ALL' || $dateYear === $year)
+                    && ($month === 'ALL' || $dateMonth === $month);
+            });
+        $banMatch = DB::table('maintenance_monitoring_ban')
+            ->where('nopol', $nopol)
+            ->get(['tanggal_ganti_ban'])
+            ->contains(function ($row) use ($year, $month) {
+                [$dateYear, $dateMonth] = $this->dateGroups($row->tanggal_ganti_ban);
+
+                return ($year === 'ALL' || $dateYear === $year)
+                    && ($month === 'ALL' || $dateMonth === $month);
+            });
+
+        return $serviceMatch || $banMatch;
     }
 }
