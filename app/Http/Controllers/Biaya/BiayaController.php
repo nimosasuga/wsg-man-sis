@@ -22,6 +22,8 @@ class BiayaController extends Controller
     public function index()
     {
         $filters = $this->filters();
+        $vehicleCostRows = $this->vehicleCosts($this->emptyFilters())->values();
+        $operationRows = $this->operationRows()->values();
         $summary = collect($this->categories)->map(function ($category, $slug) {
             return [
                 'slug' => $slug,
@@ -33,10 +35,10 @@ class BiayaController extends Controller
 
         return Inertia::render('Biaya/Index', [
             'summaryData' => $summary,
-            'vehicleCosts' => $this->vehicleCosts($filters),
-            'vehicleCostRows' => $this->vehicleCosts($this->emptyFilters())->values(),
-            'operationFlow' => $this->operationFlow($filters),
-            'operationRows' => $this->operationRows()->values(),
+            'vehicleCosts' => $vehicleCostRows,
+            'vehicleCostRows' => $vehicleCostRows,
+            'operationFlow' => $this->operationFlow($filters, $operationRows),
+            'operationRows' => $operationRows,
             'filters' => $filters,
             'filterOptions' => $this->filterOptions(),
         ]);
@@ -230,15 +232,54 @@ class BiayaController extends Controller
 
     private function vehicleCosts(array $filters)
     {
-        return Inventori::select('nopol', 'area', 'tipe', 'pabrikan', 'model')
+        $units = Inventori::select(
+            'nopol',
+            'area',
+            'tipe',
+            'pabrikan',
+            'model',
+            'jatuh_tempo_pajak',
+            'jatuh_tempo_stnk',
+            'jatuh_tempo_kir',
+            'biaya_pajak',
+            'biaya_stnk',
+            'biaya_kir',
+        )
             ->whereNotNull('nopol')
             ->where('nopol', '!=', '')
             ->when($filters['AREA'] !== 'ALL', fn ($query) => $query->where('area', $filters['AREA']))
             ->when($filters['TIPE'] !== 'ALL', fn ($query) => $query->where('tipe', $filters['TIPE']))
             ->when($filters['NOPOL'] !== 'ALL', fn ($query) => $query->where('nopol', $filters['NOPOL']))
-            ->get()
-            ->map(function ($unit) use ($filters) {
-                $summary = $this->vehicleCostForFilters($unit, $filters);
+            ->get();
+
+        $nopols = $units->pluck('nopol')->filter()->unique()->values();
+        $servicesByNopol = DB::table('maintenance_input_maintenance')
+            ->whereIn('nopol', $nopols)
+            ->get(['nopol', 'tanggal_services', 'total_biaya_service'])
+            ->groupBy('nopol');
+        $banByNopol = DB::table('maintenance_monitoring_ban')
+            ->whereIn('nopol', $nopols)
+            ->get(['nopol', 'tanggal_ganti_ban', 'total_harga'])
+            ->groupBy('nopol');
+        $primaryByNopol = DB::table('operasional_primary_input')
+            ->whereIn('nopol_driver', $nopols)
+            ->get(['nopol_driver', 'tanggal_muat', 'total_biaya'])
+            ->groupBy('nopol_driver');
+        $secondaryByNopol = DB::table('operasional_secondary_input')
+            ->whereIn('nopol', $nopols)
+            ->get(['nopol', 'tanggal', 'total_biaya_operasional'])
+            ->groupBy('nopol');
+
+        return $units
+            ->map(function ($unit) use ($filters, $servicesByNopol, $banByNopol, $primaryByNopol, $secondaryByNopol) {
+                $summary = $this->vehicleCostFromRows(
+                    $unit,
+                    $filters,
+                    $servicesByNopol->get($unit->nopol, collect()),
+                    $banByNopol->get($unit->nopol, collect()),
+                    $primaryByNopol->get($unit->nopol, collect()),
+                    $secondaryByNopol->get($unit->nopol, collect()),
+                );
 
                 return [
                     'nopol' => $unit->nopol,
@@ -248,8 +289,13 @@ class BiayaController extends Controller
                     'total' => $summary['total'],
                     'legalitasTotal' => $summary['legalitasTotal'],
                     'maintenanceTotal' => $summary['maintenanceTotal'],
+                    'operasionalPrimaryTotal' => $summary['operasionalPrimaryTotal'],
+                    'operasionalSecondaryTotal' => $summary['operasionalSecondaryTotal'],
+                    'operasionalTotal' => $summary['operasionalTotal'],
                     'serviceCount' => $summary['serviceCount'],
                     'banCount' => $summary['banCount'],
+                    'primaryCount' => $summary['primaryCount'],
+                    'secondaryCount' => $summary['secondaryCount'],
                 ];
             })
             ->filter(function ($row) use ($filters) {
@@ -262,9 +308,9 @@ class BiayaController extends Controller
             ->take(300);
     }
 
-    private function operationFlow(array $filters): array
+    private function operationFlow(array $filters, $operationRows = null): array
     {
-        $rows = $this->operationRows()
+        $rows = ($operationRows ?? $this->operationRows())
             ->filter(fn ($row) => $this->matchesOperationFilters((object) $row, $filters));
 
         $primaryRows = $rows->where('source', 'primary');
@@ -409,6 +455,18 @@ class BiayaController extends Controller
 
     private function vehicleCostForFilters(object $unit, array $filters): array
     {
+        return $this->vehicleCostFromRows(
+            $unit,
+            $filters,
+            DB::table('maintenance_input_maintenance')->where('nopol', $unit->nopol)->get(['tanggal_services', 'total_biaya_service']),
+            DB::table('maintenance_monitoring_ban')->where('nopol', $unit->nopol)->get(['tanggal_ganti_ban', 'total_harga']),
+            DB::table('operasional_primary_input')->where('nopol_driver', $unit->nopol)->get(['tanggal_muat', 'total_biaya']),
+            DB::table('operasional_secondary_input')->where('nopol', $unit->nopol)->get(['tanggal', 'total_biaya_operasional']),
+        );
+    }
+
+    private function vehicleCostFromRows(object $unit, array $filters, $services, $ban, $primary, $secondary): array
+    {
         $pajakTahunan = $this->dateMatchesFilters($unit->jatuh_tempo_pajak ?? null, $filters)
             ? (float) ($unit->biaya_pajak ?? 0)
             : 0;
@@ -419,23 +477,27 @@ class BiayaController extends Controller
             ? (float) ($unit->biaya_kir ?? 0)
             : 0;
 
-        $services = DB::table('maintenance_input_maintenance')
-            ->where('nopol', $unit->nopol)
-            ->get(['tanggal_services', 'total_biaya_service']);
-        $ban = DB::table('maintenance_monitoring_ban')
-            ->where('nopol', $unit->nopol)
-            ->get(['tanggal_ganti_ban', 'total_harga']);
         $filteredServices = $services->filter(fn ($row) => $this->dateMatchesFilters($row->tanggal_services, $filters));
         $filteredBan = $ban->filter(fn ($row) => $this->dateMatchesFilters($row->tanggal_ganti_ban, $filters));
         $serviceUmum = (float) $filteredServices->sum('total_biaya_service');
         $serviceBan = (float) $filteredBan->sum('total_harga');
+        $filteredPrimary = $primary->filter(fn ($row) => $this->dateMatchesFilters($row->tanggal_muat, $filters));
+        $filteredSecondary = $secondary->filter(fn ($row) => $this->dateMatchesFilters($row->tanggal, $filters));
+        $operasionalPrimary = (float) $filteredPrimary->sum('total_biaya');
+        $operasionalSecondary = (float) $filteredSecondary->sum('total_biaya_operasional');
+        $operasionalTotal = $operasionalPrimary + $operasionalSecondary;
 
         return [
-            'total' => $pajakTahunan + $pajakLimaTahun + $kir + $serviceUmum + $serviceBan,
+            'total' => $pajakTahunan + $pajakLimaTahun + $kir + $serviceUmum + $serviceBan + $operasionalTotal,
             'legalitasTotal' => $pajakTahunan + $pajakLimaTahun + $kir,
             'maintenanceTotal' => $serviceUmum + $serviceBan,
+            'operasionalPrimaryTotal' => $operasionalPrimary,
+            'operasionalSecondaryTotal' => $operasionalSecondary,
+            'operasionalTotal' => $operasionalTotal,
             'serviceCount' => $filteredServices->count(),
             'banCount' => $filteredBan->count(),
+            'primaryCount' => $filteredPrimary->count(),
+            'secondaryCount' => $filteredSecondary->count(),
         ];
     }
 
@@ -484,6 +546,25 @@ class BiayaController extends Controller
                     && ($month === 'ALL' || $dateMonth === $month);
             });
 
-        return $serviceMatch || $banMatch;
+        $primaryMatch = DB::table('operasional_primary_input')
+            ->where('nopol_driver', $nopol)
+            ->get(['tanggal_muat'])
+            ->contains(function ($row) use ($year, $month) {
+                [$dateYear, $dateMonth] = $this->dateGroups($row->tanggal_muat);
+
+                return ($year === 'ALL' || $dateYear === $year)
+                    && ($month === 'ALL' || $dateMonth === $month);
+            });
+        $secondaryMatch = DB::table('operasional_secondary_input')
+            ->where('nopol', $nopol)
+            ->get(['tanggal'])
+            ->contains(function ($row) use ($year, $month) {
+                [$dateYear, $dateMonth] = $this->dateGroups($row->tanggal);
+
+                return ($year === 'ALL' || $dateYear === $year)
+                    && ($month === 'ALL' || $dateMonth === $month);
+            });
+
+        return $serviceMatch || $banMatch || $primaryMatch || $secondaryMatch;
     }
 }

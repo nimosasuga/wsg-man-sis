@@ -1,5 +1,5 @@
 // resources/js/Layouts/AdminLayout.jsx
-import { Link, router, usePage } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import React, { useEffect, useMemo, useState } from "react";
 import {
     LayoutDashboard,
@@ -67,6 +67,7 @@ export default function AdminLayout({ children }) {
             : window.matchMedia(DESKTOP_QUERY).matches,
     );
     const { url } = usePage();
+    const activePath = useMemo(() => url?.split("?")[0] || "/dashboard", [url]);
 
     const setDesktopSidebarOpen = (value) => {
         setIsSidebarOpen(value);
@@ -96,8 +97,6 @@ export default function AdminLayout({ children }) {
     const isExpanded = isDesktop ? isSidebarOpen : true;
     const sidebarWidthClass = isExpanded ? "w-[236px]" : "w-[72px]";
     const shellOffset = isDesktop ? sidebarWidth : 0;
-
-    const activePath = useMemo(() => url?.split("?")[0] || "/dashboard", [url]);
 
     return (
         <div className="h-screen overflow-hidden font-sans" style={{ backgroundColor: PAGE_BG }}>

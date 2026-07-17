@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Operations;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -155,18 +156,20 @@ class OnTheRoadController extends Controller
 
     private function rowsForDate(string $date): Collection
     {
-        return DB::table('operasional_secondary_input')
-            ->get()
-            ->map(function ($row) {
-                $row->tanggal_normalized = $this->normalizeDate($row->tanggal);
-                $row->tagihan = $this->tagihan($row);
-                $row->profit_trip = $this->profitTrip($row);
+        return Cache::remember("on_the_road.rows.$date", now()->addMinutes(10), function () use ($date) {
+            return DB::table('operasional_secondary_input')
+                ->get()
+                ->map(function ($row) {
+                    $row->tanggal_normalized = $this->normalizeDate($row->tanggal);
+                    $row->tagihan = $this->tagihan($row);
+                    $row->profit_trip = $this->profitTrip($row);
 
-                return $row;
-            })
-            ->filter(fn ($row) => $row->tanggal_normalized === $date)
-            ->filter(fn ($row) => trim((string) $row->status) === '' || strtoupper((string) $row->status) === 'JALAN')
-            ->values();
+                    return $row;
+                })
+                ->filter(fn ($row) => $row->tanggal_normalized === $date)
+                ->filter(fn ($row) => trim((string) $row->status) === '' || strtoupper((string) $row->status) === 'JALAN')
+                ->values();
+        });
     }
 
     private function standbyRows(string $date): Collection
@@ -208,18 +211,20 @@ class OnTheRoadController extends Controller
 
     private function dateOptions(): array
     {
-        return DB::table('operasional_secondary_input')
-            ->select('tanggal')
-            ->whereNotNull('tanggal')
-            ->where('tanggal', '!=', '')
-            ->get()
-            ->map(fn ($row) => $this->normalizeDate($row->tanggal))
-            ->filter()
-            ->unique()
-            ->sortDesc()
-            ->take(90)
-            ->values()
-            ->all();
+        return Cache::remember('on_the_road.date_options', now()->addMinutes(10), function () {
+            return DB::table('operasional_secondary_input')
+                ->select('tanggal')
+                ->whereNotNull('tanggal')
+                ->where('tanggal', '!=', '')
+                ->get()
+                ->map(fn ($row) => $this->normalizeDate($row->tanggal))
+                ->filter()
+                ->unique()
+                ->sortDesc()
+                ->take(90)
+                ->values()
+                ->all();
+        });
     }
 
     private function normalizeDate(?string $value): ?string

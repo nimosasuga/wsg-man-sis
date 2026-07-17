@@ -63,6 +63,8 @@ export default function Detail({
     unitData,
     riwayatService = [],
     riwayatBan = [],
+    riwayatPrimary = [],
+    riwayatSecondary = [],
     aggregates = {},
     vehicleCost = {},
 }) {
@@ -132,7 +134,7 @@ export default function Detail({
             </div>
 
             {/* Kumpulan KPI Atas menggunakan data unit dan biaya kendaraan */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4 mb-6">
                 <StatCard
                     title="Total Biaya Kendaraan"
                     value={formatRp(vehicleCost.total)}
@@ -156,6 +158,18 @@ export default function Detail({
                     value={formatRp(aggregates.biayaBan)}
                     icon={AlertCircle}
                     colorClass="bg-rose-50 text-rose-600"
+                />
+                <StatCard
+                    title="Biaya Primary"
+                    value={formatRp(vehicleCost.primaryTotal)}
+                    icon={Truck}
+                    colorClass="bg-blue-50 text-blue-600"
+                />
+                <StatCard
+                    title="Biaya Secondary"
+                    value={formatRp(vehicleCost.secondaryTotal)}
+                    icon={MapPin}
+                    colorClass="bg-sky-50 text-sky-600"
                 />
             </div>
 
@@ -523,6 +537,90 @@ export default function Detail({
                                             Belum ada riwayat ganti ban.
                                         </td>
                                     </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* RIWAYAT OPERASIONAL PRIMARY */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col max-h-96">
+                    <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <h3 className="font-black text-gray-800 text-sm flex items-center gap-2">
+                            <Truck size={16} className="text-blue-500" />{" "}
+                            RIWAYAT PRIMARY
+                        </h3>
+                        <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                            TOTAL: {aggregates.qtyPrimary || 0}x
+                        </span>
+                    </div>
+                    <div className="overflow-auto p-4 custom-scrollbar">
+                        <table className="w-full text-left text-xs">
+                            <thead className="text-[10px] font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 bg-white">
+                                <tr>
+                                    <th className="pb-2">Tanggal</th>
+                                    <th className="pb-2">Area / Rute</th>
+                                    <th className="pb-2 text-right">Biaya</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {riwayatPrimary.length > 0 ? (
+                                    riwayatPrimary.map((row) => (
+                                        <tr key={row.id_key}>
+                                            <td className="py-2.5 font-medium whitespace-nowrap">{row.tanggal_muat || "-"}</td>
+                                            <td className="py-2.5">
+                                                <span className="block font-bold text-gray-800">{row.area || "-"}</span>
+                                                <span className="block text-[10px] text-gray-500 mt-0.5 line-clamp-1">
+                                                    {[row.rute_asal, row.rute_tujuan].filter(Boolean).join(" - ") || row.jenis || "-"}
+                                                </span>
+                                            </td>
+                                            <td className="py-2.5 text-right font-bold text-gray-700 whitespace-nowrap">{formatRp(row.total_biaya)}</td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr><td colSpan="3" className="py-4 text-center text-gray-400">Belum ada riwayat Primary.</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* RIWAYAT OPERASIONAL SECONDARY */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col max-h-96">
+                    <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <h3 className="font-black text-gray-800 text-sm flex items-center gap-2">
+                            <MapPin size={16} className="text-sky-500" />{" "}
+                            RIWAYAT SECONDARY
+                        </h3>
+                        <span className="text-xs font-bold bg-sky-100 text-sky-700 px-2 py-1 rounded">
+                            TOTAL: {aggregates.qtySecondary || 0}x
+                        </span>
+                    </div>
+                    <div className="overflow-auto p-4 custom-scrollbar">
+                        <table className="w-full text-left text-xs">
+                            <thead className="text-[10px] font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 bg-white">
+                                <tr>
+                                    <th className="pb-2">Tanggal</th>
+                                    <th className="pb-2">Area / Rute</th>
+                                    <th className="pb-2 text-right">Biaya</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {riwayatSecondary.length > 0 ? (
+                                    riwayatSecondary.map((row) => (
+                                        <tr key={row.id_key}>
+                                            <td className="py-2.5 font-medium whitespace-nowrap">{row.tanggal || "-"}</td>
+                                            <td className="py-2.5">
+                                                <span className="block font-bold text-gray-800">{row.area || "-"}</span>
+                                                <span className="block text-[10px] text-gray-500 mt-0.5 line-clamp-1">
+                                                    {row.rute || row.order_type || row.tipe_unit || "-"}
+                                                </span>
+                                            </td>
+                                            <td className="py-2.5 text-right font-bold text-gray-700 whitespace-nowrap">{formatRp(row.total_biaya_operasional)}</td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr><td colSpan="3" className="py-4 text-center text-gray-400">Belum ada riwayat Secondary.</td></tr>
                                 )}
                             </tbody>
                         </table>

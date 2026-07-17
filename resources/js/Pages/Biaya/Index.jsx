@@ -472,14 +472,14 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
                         Beban Biaya per Kendaraan
                     </h2>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
-                        Pajak, KIR, pajak 5 tahun, service umum, dan service ban digabung ke nopol yang sama.
+                        Legalitas, service, ban, dan operasional digabung ke nopol yang sama.
                     </p>
                 </div>
                 <div className="custom-scrollbar max-h-[520px] overflow-auto">
-                    <table className="w-full min-w-[900px] border-collapse text-left">
+                    <table className="w-full min-w-[1080px] border-collapse text-left">
                         <thead className="sticky top-0 z-10 bg-slate-50">
                             <tr>
-                                {["Nopol", "Area", "Tipe", "Unit", "Legalitas", "Maintenance", "Total", "Riwayat"].map((head) => (
+                                {["Nopol", "Area", "Tipe", "Unit", "Legalitas", "Maintenance", "Operasional", "Total", "Riwayat"].map((head) => (
                                     <th key={head} className="border-b border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-slate-500">
                                         {head}
                                     </th>
@@ -506,15 +506,16 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
                                     <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.unit || "-"}</td>
                                     <td className="px-4 py-3 text-xs font-black text-cyan-700">{formatRp(row.legalitasTotal)}</td>
                                     <td className="px-4 py-3 text-xs font-black text-amber-700">{formatRp(row.maintenanceTotal)}</td>
+                                    <td className="px-4 py-3 text-xs font-black text-emerald-700">{formatRp(row.operasionalTotal)}</td>
                                     <td className="px-4 py-3 text-xs font-black text-blue-700">{formatRp(row.total)}</td>
                                     <td className="px-4 py-3 text-xs font-semibold text-slate-500">
-                                        Service {row.serviceCount || 0}x, Ban {row.banCount || 0}x
+                                        Svc {row.serviceCount || 0}x, Ban {row.banCount || 0}x, Op {(row.primaryCount || 0) + (row.secondaryCount || 0)}x
                                     </td>
                                 </tr>
                             ))}
                             {!instantVehicleCosts.length && (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-sm font-semibold text-slate-500">
+                                    <td colSpan={9} className="px-4 py-8 text-center text-sm font-semibold text-slate-500">
                                         Belum ada biaya kendaraan yang bisa dibaca.
                                     </td>
                                 </tr>

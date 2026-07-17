@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\Inventori;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function index()
     {
+        $dbChartData = Cache::remember('dashboard.db_chart_data', now()->addMinutes(5), function () {
         // 1. Tarik hanya kolom yang dibutuhkan untuk efisiensi memori
         $inventori = Inventori::select('status_pajak', 'status_stnk', 'status_kir')->get();
 
@@ -90,9 +92,7 @@ class DashboardController extends Controller
         $fatDocPrimary = $this->fatDocByDivision('Primary - Operasional');
         $fatDocSecondary = $this->fatDocByDivision('Secondary - Operasional');
 
-        // 6. Lempar data matang ke Frontend
-        return Inertia::render('Dashboard', [
-            'dbChartData' => [
+            return [
                 'pajak' => $chartDataPajak,
                 'stnk' => $chartDataStnk,
                 'kir' => $chartDataKir,
@@ -109,7 +109,12 @@ class DashboardController extends Controller
                 'totalActivitySecondary' => $totalActivitySecondary,
                 'totalFatDocPrimary' => $fatDocPrimary['total'],
                 'totalFatDocSecondary' => $fatDocSecondary['total'],
-            ]
+            ];
+        });
+
+        // 6. Lempar data matang ke Frontend
+        return Inertia::render('Dashboard', [
+            'dbChartData' => $dbChartData,
         ]);
     }
 

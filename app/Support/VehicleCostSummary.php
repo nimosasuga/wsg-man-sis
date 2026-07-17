@@ -12,12 +12,16 @@ class VehicleCostSummary
         $unit = $nopol ? Inventori::where('nopol', $nopol)->first() : null;
         $serviceQuery = DB::table('maintenance_input_maintenance')->where('nopol', $nopol);
         $banQuery = DB::table('maintenance_monitoring_ban')->where('nopol', $nopol);
+        $primaryQuery = DB::table('operasional_primary_input')->where('nopol_driver', $nopol);
+        $secondaryQuery = DB::table('operasional_secondary_input')->where('nopol', $nopol);
 
         $pajakTahunan = (float) ($unit->biaya_pajak ?? 0);
         $kir = (float) ($unit->biaya_kir ?? 0);
         $pajakLimaTahun = (float) ($unit->biaya_stnk ?? 0);
         $serviceUmum = (float) (clone $serviceQuery)->sum('total_biaya_service');
         $serviceBan = (float) (clone $banQuery)->sum('total_harga');
+        $primary = (float) (clone $primaryQuery)->sum('total_biaya');
+        $secondary = (float) (clone $secondaryQuery)->sum('total_biaya_operasional');
 
         $items = [
             [
@@ -55,6 +59,20 @@ class VehicleCostSummary
                 'count' => (clone $banQuery)->count(),
                 'date' => (clone $banQuery)->max('tanggal_ganti_ban'),
             ],
+            [
+                'key' => 'operasional_primary',
+                'label' => 'Operasional Primary',
+                'amount' => $primary,
+                'count' => (clone $primaryQuery)->count(),
+                'date' => (clone $primaryQuery)->max('tanggal_muat'),
+            ],
+            [
+                'key' => 'operasional_secondary',
+                'label' => 'Operasional Secondary',
+                'amount' => $secondary,
+                'count' => (clone $secondaryQuery)->count(),
+                'date' => (clone $secondaryQuery)->max('tanggal'),
+            ],
         ];
 
         return [
@@ -62,9 +80,15 @@ class VehicleCostSummary
             'total' => array_sum(array_column($items, 'amount')),
             'legalitasTotal' => $pajakTahunan + $pajakLimaTahun + $kir,
             'maintenanceTotal' => $serviceUmum + $serviceBan,
+            'serviceTotal' => $serviceUmum + $serviceBan,
+            'primaryTotal' => $primary,
+            'secondaryTotal' => $secondary,
+            'operasionalTotal' => $primary + $secondary,
             'items' => $items,
             'serviceCount' => $items[3]['count'],
             'banCount' => $items[4]['count'],
+            'primaryCount' => $items[5]['count'],
+            'secondaryCount' => $items[6]['count'],
         ];
     }
 }

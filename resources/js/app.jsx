@@ -10,6 +10,27 @@ import { createRoot } from 'react-dom/client';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
+function isChunkLoadError(error) {
+    const message = String(error?.message || error || '');
+
+    return message.includes('Failed to fetch dynamically imported module')
+        || message.includes('Importing a module script failed')
+        || message.includes('error loading dynamically imported module')
+        || message.includes('ChunkLoadError');
+}
+
+function reloadOnceForFreshAssets() {
+    const key = 'washeng:fresh-assets-reload';
+
+    if (sessionStorage.getItem(key) === '1') {
+        sessionStorage.removeItem(key);
+        return;
+    }
+
+    sessionStorage.setItem(key, '1');
+    window.location.reload();
+}
+
 function NavigationLoader() {
     const [isLoading, setIsLoading] = useState(false);
 
@@ -23,11 +44,27 @@ function NavigationLoader() {
             window.clearTimeout(loadingTimer);
             setIsLoading(false);
         });
+        const removeExceptionListener = router.on('exception', (event) => {
+            if (isChunkLoadError(event.detail.exception)) {
+                event.preventDefault();
+                reloadOnceForFreshAssets();
+            }
+        });
+        const onUnhandledRejection = (event) => {
+            if (isChunkLoadError(event.reason)) {
+                event.preventDefault();
+                reloadOnceForFreshAssets();
+            }
+        };
+
+        window.addEventListener('unhandledrejection', onUnhandledRejection);
 
         return () => {
             window.clearTimeout(loadingTimer);
             removeStartListener();
             removeFinishListener();
+            removeExceptionListener();
+            window.removeEventListener('unhandledrejection', onUnhandledRejection);
         };
     }, []);
 

@@ -48,6 +48,14 @@ class PajakController extends Controller
             ->where('nopol', $nopol)
             ->orderBy('tanggal_ganti_ban', 'desc')
             ->get(['id_key', 'tanggal_ganti_ban', 'posisi', 'jenis_ban', 'tipe_ban', 'total_harga']);
+        $riwayatPrimary = DB::table('operasional_primary_input')
+            ->where('nopol_driver', $nopol)
+            ->orderBy('tanggal_muat', 'desc')
+            ->get(['id_key', 'tanggal_muat', 'area', 'rute_asal', 'rute_tujuan', 'jenis', 'total_biaya']);
+        $riwayatSecondary = DB::table('operasional_secondary_input')
+            ->where('nopol', $nopol)
+            ->orderBy('tanggal', 'desc')
+            ->get(['id_key', 'tanggal', 'area', 'rute', 'order_type', 'tipe_unit', 'total_biaya_operasional']);
 
         // 4. Kalkulasi Agregat untuk KPI Card di atas
         $aggregates = [
@@ -55,6 +63,10 @@ class PajakController extends Controller
             'biayaService' => $riwayatService->sum('total_biaya_service'),
             'qtyBan' => $riwayatBan->count(),
             'biayaBan' => $riwayatBan->sum('total_harga'),
+            'qtyPrimary' => $riwayatPrimary->count(),
+            'biayaPrimary' => $riwayatPrimary->sum('total_biaya'),
+            'qtySecondary' => $riwayatSecondary->count(),
+            'biayaSecondary' => $riwayatSecondary->sum('total_biaya_operasional'),
         ];
 
         // Lempar semua data ke frontend
@@ -62,6 +74,8 @@ class PajakController extends Controller
             'unitData' => $unit,
             'riwayatService' => $riwayatService,
             'riwayatBan' => $riwayatBan,
+            'riwayatPrimary' => $riwayatPrimary,
+            'riwayatSecondary' => $riwayatSecondary,
             'aggregates' => $aggregates,
             'vehicleCost' => VehicleCostSummary::forNopol((string) $unit->nopol),
         ]);
