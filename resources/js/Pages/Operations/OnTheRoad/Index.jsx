@@ -101,7 +101,7 @@ const LatestPositionMap = memo(function LatestPositionMap({ positions = [] }) {
             <div className="border-b border-slate-100 p-4">
                 <div className="flex items-start justify-between gap-4">
                     <div>
-                        <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Posisi Terakhir Unit</h2>
+                        <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Monitoring Unit</h2>
                         <p className="mt-1 text-xs font-semibold text-slate-500">Titik terakhir yang dikirim melalui form AppSheet untuk setiap nopol.</p>
                     </div>
                     <span className="shrink-0 rounded-lg bg-cyan-50 px-3 py-1.5 text-xs font-black text-cyan-700">{validPositions.length} titik</span>

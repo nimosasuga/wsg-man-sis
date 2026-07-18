@@ -77,7 +77,7 @@ export default function PositionDetail({ position = {}, backUrl = "/on-the-road"
                 <section className="overflow-hidden rounded-xl bg-slate-950 text-white shadow-xl shadow-slate-200/70">
                     <div className="grid gap-5 p-5 sm:p-7 lg:grid-cols-[1fr_auto] lg:items-center">
                         <div className="min-w-0">
-                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-cyan-300">Posisi terakhir unit</p>
+                            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-cyan-300">Monitoring unit</p>
                             <h1 className="mt-2 break-words text-2xl font-black sm:text-3xl">{position.nopol || "Nopol belum diisi"}</h1>
                             <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-300">{position.keterangan || "Belum ada keterangan perjalanan."}</p>
                         </div>
