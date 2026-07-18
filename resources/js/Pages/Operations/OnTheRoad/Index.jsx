@@ -82,14 +82,31 @@ const LatestPositionMap = memo(function LatestPositionMap({ positions = [] }) {
         const bounds = [];
         validPositions.forEach((item) => {
             const point = [item.latitude, item.longitude];
+            const detailUrl = `/on-the-road/position/${encodeURIComponent(item.id)}`;
+            const tooltipButton = document.createElement("button");
+            tooltipButton.type = "button";
+            tooltipButton.className = "cursor-pointer border-0 bg-transparent p-0 font-bold text-slate-950";
+            tooltipButton.textContent = String(item.nopol || "Unit");
+            tooltipButton.addEventListener("click", (event) => {
+                event.stopPropagation();
+                router.visit(detailUrl);
+            });
+
             bounds.push(point);
-            L.circleMarker(point, {
+            const marker = L.circleMarker(point, {
                 radius: 8,
                 color: "#ffffff",
                 weight: 3,
                 fillColor: "#0891b2",
                 fillOpacity: 1,
-            }).addTo(map).bindTooltip(String(item.nopol || "Unit"), { direction: "top", offset: [0, -6] });
+            }).addTo(map);
+
+            marker.bindTooltip(tooltipButton, {
+                direction: "top",
+                interactive: true,
+                offset: [0, -6],
+            });
+            marker.on("click", () => router.visit(detailUrl));
         });
 
         map.fitBounds(bounds, { padding: [32, 32], maxZoom: 14 });
