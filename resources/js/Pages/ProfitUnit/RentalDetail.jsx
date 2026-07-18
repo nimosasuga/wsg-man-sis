@@ -102,6 +102,8 @@ export default function RentalDetail({ detail = {}, backUrl = "/profit-unit/rent
                         <InfoItem label="TIPE" value={detail.tipe} />
                         <InfoItem label="TARIF_SEWA_UNIT_BLN" value={formatRp(detail.tarif_sewa_unit_bln)} />
                         <InfoItem label="WEEK" value={detail.week} />
+                        <InfoItem label="TAHUN" value={detail.tahun} />
+                        <InfoItem label="BULAN" value={detail.bulan} />
                         <InfoItem label="REGIONAL" value={detail.regional} />
                         <InfoItem label="NO_BAP" value={detail.no_bap} />
                         <InfoItem label="NO_PO" value={detail.no_po} />

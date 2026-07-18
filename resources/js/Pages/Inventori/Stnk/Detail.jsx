@@ -1,7 +1,7 @@
 // resources/js/Pages/Inventori/Pajak/Detail.jsx
 import React, { useState } from "react";
 import AdminLayout from "../../../Layouts/AdminLayout";
-import { Head, Link } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 import {
     ChevronRight,
     ArrowLeft,
@@ -22,7 +22,7 @@ const DataItem = ({
     isBadge = false,
     badgeColor = "bg-gray-100 text-gray-700",
 }) => (
-    <div className="flex flex-col py-2 border-b border-gray-50 last:border-0">
+    <div className="min-w-0 flex flex-col py-2 border-b border-gray-50 last:border-0">
         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
             {label}
         </span>
@@ -34,7 +34,7 @@ const DataItem = ({
             </span>
         ) : (
             <span
-                className={`text-xs text-gray-800 ${isBold ? "font-black" : "font-medium"}`}
+                className={`break-words text-xs text-gray-800 ${isBold ? "font-black" : "font-medium"}`}
             >
                 {value || "-"}
             </span>
@@ -43,15 +43,15 @@ const DataItem = ({
 );
 
 const StatCard = ({ title, value, icon: Icon, colorClass }) => (
-    <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm flex items-center gap-4">
-        <div className={`p-3 rounded-lg ${colorClass}`}>
+    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm sm:gap-4 sm:p-4">
+        <div className={`shrink-0 p-2.5 rounded-lg sm:p-3 ${colorClass}`}>
             <Icon size={20} strokeWidth={2.5} />
         </div>
-        <div>
+        <div className="min-w-0">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                 {title}
             </p>
-            <h4 className="text-lg font-black text-gray-800 leading-tight">
+            <h4 className="break-words text-base font-black leading-tight text-gray-800 sm:text-lg">
                 {value || "0"}
             </h4>
         </div>
@@ -90,6 +90,28 @@ export default function Detail({
     // Format Rupiah standar
     const formatRp = (angka) =>
         `Rp ${Number(angka || 0).toLocaleString("id-ID")}`;
+    const formatDate = (value) => {
+        const date = String(value || "").trim();
+        const iso = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+        return iso ? `${iso[3]}/${iso[2]}/${iso[1]}` : date || "-";
+    };
+    const historyRowProps = (path, id) => {
+        const href = `${path}/${encodeURIComponent(id)}`;
+
+        return {
+            role: "link",
+            tabIndex: 0,
+            className: "cursor-pointer transition-colors hover:bg-cyan-50/70 focus-visible:bg-cyan-50 focus-visible:outline-none",
+            onClick: () => router.visit(href),
+            onKeyDown: (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    router.visit(href);
+                }
+            },
+        };
+    };
 
     return (
         <AdminLayout>
@@ -122,7 +144,7 @@ export default function Detail({
                             <ArrowLeft size={20} className="text-gray-600" />
                         </Link>
                         <div>
-                            <h1 className="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-3">
+                            <h1 className="flex min-w-0 flex-wrap items-center gap-2 text-xl font-black tracking-tight text-gray-800 sm:gap-3 sm:text-2xl">
                                 {unitData.nopol}{" "}
                                 <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-md border border-blue-200">
                                     {unitData.status}
@@ -134,7 +156,7 @@ export default function Detail({
             </div>
 
             {/* Kumpulan KPI Atas menggunakan data unit dan biaya kendaraan */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4 mb-6">
+            <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 2xl:gap-4">
                 <StatCard
                     title="Total Biaya Kendaraan"
                     value={formatRp(vehicleCost.total)}
@@ -173,15 +195,15 @@ export default function Detail({
                 />
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
-                <div className="xl:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
-                    <div className="flex border-b border-gray-100 px-6 pt-2 bg-gray-50/50">
+            <div className="mb-6 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-3 xl:gap-6">
+                <div className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm xl:col-span-2">
+                    <div className="flex overflow-x-auto border-b border-gray-100 bg-gray-50/50 px-3 pt-2 sm:px-6">
                         {["spesifikasi", "operasional", "legalitas"].map(
                             (tab) => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
-                                    className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-colors ${activeTab === tab ? "border-blue-600 text-blue-700 bg-white rounded-t-lg" : "border-transparent text-gray-400 hover:text-gray-700"}`}
+                                    className={`shrink-0 whitespace-nowrap px-3 py-3 text-[11px] font-bold uppercase tracking-wider border-b-2 transition-colors sm:px-4 sm:text-xs ${activeTab === tab ? "border-blue-600 text-blue-700 bg-white rounded-t-lg" : "border-transparent text-gray-400 hover:text-gray-700"}`}
                                 >
                                     {tab}
                                 </button>
@@ -189,9 +211,9 @@ export default function Detail({
                         )}
                     </div>
 
-                    <div className="p-6 bg-white flex-1">
+                    <div className="flex-1 bg-white p-4 sm:p-6">
                         {activeTab === "spesifikasi" && (
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2">
+                            <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
                                 <DataItem
                                     label="ID Database"
                                     value={unitData.id_key}
@@ -234,7 +256,7 @@ export default function Detail({
                         )}
 
                         {activeTab === "operasional" && (
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2">
+                            <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
                                 <DataItem
                                     label="Region"
                                     value={unitData.region}
@@ -371,8 +393,8 @@ export default function Detail({
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-6">
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                <div className="flex min-w-0 flex-col gap-4 xl:gap-6">
+                    <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
                         <h3 className="font-black text-gray-800 text-sm mb-4 flex items-center gap-2">
                             <DollarSign size={16} className="text-emerald-500" />{" "}
                             BIAYA KENDARAAN INI
@@ -383,8 +405,8 @@ export default function Detail({
                         <div className="divide-y divide-gray-100">
                             {(vehicleCost.items || []).map((item) => (
                                 <div key={item.key} className="py-3">
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div>
+                                    <div className="grid min-w-0 grid-cols-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3">
+                                        <div className="min-w-0">
                                             <p className="text-xs font-black text-gray-800">
                                                 {item.label}
                                             </p>
@@ -392,7 +414,7 @@ export default function Detail({
                                                 {item.count ? `${item.count} data` : "Belum ada biaya"}{item.date ? ` | ${item.date}` : ""}
                                             </p>
                                         </div>
-                                        <p className="text-right text-xs font-black text-blue-600">
+                                        <p className="break-words text-xs font-black text-blue-600 sm:text-right">
                                             {formatRp(item.amount)}
                                         </p>
                                     </div>
@@ -409,7 +431,7 @@ export default function Detail({
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 h-full">
+                    <div className="h-full min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
                         <h3 className="font-black text-gray-800 text-sm mb-4 flex items-center gap-2">
                             <MapPin size={16} className="text-emerald-500" />{" "}
                             KETERANGAN TAMBAHAN
@@ -423,10 +445,10 @@ export default function Detail({
             </div>
 
             {/* TABEL RIWAYAT DINAMIS */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-10">
+            <div className="grid min-w-0 grid-cols-1 gap-4 pb-10 2xl:grid-cols-2 2xl:gap-6">
                 {/* RIWAYAT SERVICE */}
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col max-h-96">
-                    <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <div className="flex flex-col items-start gap-2 border-b border-gray-100 bg-gray-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
                         <h3 className="font-black text-gray-800 text-sm flex items-center gap-2">
                             <Wrench size={16} className="text-amber-500" />{" "}
                             RIWAYAT SERVICE
@@ -435,8 +457,8 @@ export default function Detail({
                             TOTAL: {aggregates.qtyService}x
                         </span>
                     </div>
-                    <div className="overflow-auto p-4 custom-scrollbar">
-                        <table className="w-full text-left text-xs">
+                    <div className="custom-scrollbar overflow-auto p-3 sm:p-4">
+                        <table className="w-full min-w-[680px] table-fixed text-left text-xs lg:min-w-full">
                             <thead className="text-[10px] font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 bg-white">
                                 <tr>
                                     <th className="pb-2">Tanggal</th>
@@ -449,7 +471,7 @@ export default function Detail({
                             <tbody className="divide-y divide-gray-50">
                                 {riwayatService.length > 0 ? (
                                     riwayatService.map((rs) => (
-                                        <tr key={rs.id_key}>
+                                        <tr key={rs.id_key} {...historyRowProps("/riwayat-service-unit/service-umum", rs.id_key)}>
                                             <td className="py-2.5 font-medium whitespace-nowrap">
                                                 {rs.tanggal_services || "-"}
                                             </td>
@@ -486,7 +508,7 @@ export default function Detail({
 
                 {/* RIWAYAT GANTI BAN */}
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col max-h-96">
-                    <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <div className="flex flex-col items-start gap-2 border-b border-gray-100 bg-gray-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
                         <h3 className="font-black text-gray-800 text-sm flex items-center gap-2">
                             <PenTool size={16} className="text-blue-500" />{" "}
                             RIWAYAT GANTI BAN
@@ -495,8 +517,8 @@ export default function Detail({
                             TOTAL: {aggregates.qtyBan} Ban
                         </span>
                     </div>
-                    <div className="overflow-auto p-4 custom-scrollbar">
-                        <table className="w-full text-left text-xs">
+                    <div className="custom-scrollbar overflow-auto p-3 sm:p-4">
+                        <table className="w-full min-w-[560px] text-left text-xs">
                             <thead className="text-[10px] font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 bg-white">
                                 <tr>
                                     <th className="pb-2">Tanggal</th>
@@ -508,7 +530,7 @@ export default function Detail({
                             <tbody className="divide-y divide-gray-50">
                                 {riwayatBan.length > 0 ? (
                                     riwayatBan.map((rb) => (
-                                        <tr key={rb.id_key}>
+                                        <tr key={rb.id_key} {...historyRowProps("/riwayat-service-unit/service-ban", rb.id_key)}>
                                             <td className="py-2.5 font-medium whitespace-nowrap">
                                                 {rb.tanggal_ganti_ban || "-"}
                                             </td>
@@ -545,7 +567,7 @@ export default function Detail({
 
                 {/* RIWAYAT OPERASIONAL PRIMARY */}
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col max-h-96">
-                    <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <div className="flex flex-col items-start gap-2 border-b border-gray-100 bg-gray-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
                         <h3 className="font-black text-gray-800 text-sm flex items-center gap-2">
                             <Truck size={16} className="text-blue-500" />{" "}
                             RIWAYAT PRIMARY
@@ -554,31 +576,31 @@ export default function Detail({
                             TOTAL: {aggregates.qtyPrimary || 0}x
                         </span>
                     </div>
-                    <div className="overflow-auto p-4 custom-scrollbar">
-                        <table className="w-full text-left text-xs">
-                            <thead className="text-[10px] font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 bg-white">
+                    <div className="custom-scrollbar overflow-auto">
+                        <table className="w-full min-w-[680px] table-fixed border-separate border-spacing-0 text-left text-xs lg:min-w-full">
+                            <thead className="sticky top-0 z-10 bg-gray-50 text-[10px] font-bold uppercase text-gray-400 shadow-[0_1px_0_#e5e7eb]">
                                 <tr>
-                                    <th className="pb-2">Tanggal</th>
-                                    <th className="pb-2">Area / Rute</th>
-                                    <th className="pb-2 text-right">Biaya</th>
+                                    <th scope="col" className="w-[18%] px-4 py-3">Tanggal Muat</th>
+                                    <th scope="col" className="w-[22%] px-3 py-3">Area</th>
+                                    <th scope="col" className="w-[38%] px-3 py-3">Rute / Jenis</th>
+                                    <th scope="col" className="w-[22%] px-4 py-3 text-right">Total Biaya</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {riwayatPrimary.length > 0 ? (
-                                    riwayatPrimary.map((row) => (
-                                        <tr key={row.id_key}>
-                                            <td className="py-2.5 font-medium whitespace-nowrap">{row.tanggal_muat || "-"}</td>
-                                            <td className="py-2.5">
-                                                <span className="block font-bold text-gray-800">{row.area || "-"}</span>
-                                                <span className="block text-[10px] text-gray-500 mt-0.5 line-clamp-1">
-                                                    {[row.rute_asal, row.rute_tujuan].filter(Boolean).join(" - ") || row.jenis || "-"}
-                                                </span>
+                                    riwayatPrimary.map((row, index) => (
+                                        <tr key={`${row.id_key || "primary"}-${index}`} {...historyRowProps("/profit-unit/primary/table", row.id_key)}>
+                                             <td className="px-4 py-2.5 font-medium whitespace-nowrap">{formatDate(row.tanggal_muat)}</td>
+                                             <td className="px-3 py-2.5 font-bold text-gray-800">{row.area || "-"}</td>
+                                             <td className="px-3 py-2.5 text-gray-600">
+                                                <span className="block break-words">{[row.rute_asal, row.rute_tujuan].filter(Boolean).join(" - ") || "-"}</span>
+                                                {row.jenis && <span className="mt-0.5 block text-[10px] text-gray-400">{row.jenis}</span>}
                                             </td>
-                                            <td className="py-2.5 text-right font-bold text-gray-700 whitespace-nowrap">{formatRp(row.total_biaya)}</td>
+                                             <td className="px-4 py-2.5 text-right font-bold text-gray-700 whitespace-nowrap">{formatRp(row.total_biaya)}</td>
                                         </tr>
                                     ))
                                 ) : (
-                                    <tr><td colSpan="3" className="py-4 text-center text-gray-400">Belum ada riwayat Primary.</td></tr>
+                                    <tr><td colSpan="4" className="py-4 text-center text-gray-400">Belum ada riwayat Primary.</td></tr>
                                 )}
                             </tbody>
                         </table>
@@ -587,7 +609,7 @@ export default function Detail({
 
                 {/* RIWAYAT OPERASIONAL SECONDARY */}
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col max-h-96">
-                    <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <div className="flex flex-col items-start gap-2 border-b border-gray-100 bg-gray-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
                         <h3 className="font-black text-gray-800 text-sm flex items-center gap-2">
                             <MapPin size={16} className="text-sky-500" />{" "}
                             RIWAYAT SECONDARY
@@ -596,31 +618,31 @@ export default function Detail({
                             TOTAL: {aggregates.qtySecondary || 0}x
                         </span>
                     </div>
-                    <div className="overflow-auto p-4 custom-scrollbar">
-                        <table className="w-full text-left text-xs">
-                            <thead className="text-[10px] font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 bg-white">
+                    <div className="custom-scrollbar overflow-auto">
+                        <table className="w-full min-w-[680px] table-fixed border-separate border-spacing-0 text-left text-xs lg:min-w-full">
+                            <thead className="sticky top-0 z-10 bg-gray-50 text-[10px] font-bold uppercase text-gray-400 shadow-[0_1px_0_#e5e7eb]">
                                 <tr>
-                                    <th className="pb-2">Tanggal</th>
-                                    <th className="pb-2">Area / Rute</th>
-                                    <th className="pb-2 text-right">Biaya</th>
+                                    <th scope="col" className="w-[18%] px-4 py-3">Tanggal</th>
+                                    <th scope="col" className="w-[22%] px-3 py-3">Area</th>
+                                    <th scope="col" className="w-[38%] px-3 py-3">Rute / Order</th>
+                                    <th scope="col" className="w-[22%] px-4 py-3 text-right">Total Biaya</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {riwayatSecondary.length > 0 ? (
-                                    riwayatSecondary.map((row) => (
-                                        <tr key={row.id_key}>
-                                            <td className="py-2.5 font-medium whitespace-nowrap">{row.tanggal || "-"}</td>
-                                            <td className="py-2.5">
-                                                <span className="block font-bold text-gray-800">{row.area || "-"}</span>
-                                                <span className="block text-[10px] text-gray-500 mt-0.5 line-clamp-1">
-                                                    {row.rute || row.order_type || row.tipe_unit || "-"}
-                                                </span>
+                                    riwayatSecondary.map((row, index) => (
+                                        <tr key={`${row.id_key || "secondary"}-${index}`} {...historyRowProps("/profit-unit/secondary/table", row.id_key)}>
+                                             <td className="px-4 py-2.5 font-medium whitespace-nowrap">{formatDate(row.tanggal)}</td>
+                                             <td className="px-3 py-2.5 font-bold text-gray-800">{row.area || "-"}</td>
+                                             <td className="px-3 py-2.5 text-gray-600">
+                                                <span className="block break-words">{row.rute || "-"}</span>
+                                                <span className="mt-0.5 block text-[10px] text-gray-400">{[row.order_type, row.tipe_unit].filter(Boolean).join(" | ") || "-"}</span>
                                             </td>
-                                            <td className="py-2.5 text-right font-bold text-gray-700 whitespace-nowrap">{formatRp(row.total_biaya_operasional)}</td>
+                                             <td className="px-4 py-2.5 text-right font-bold text-gray-700 whitespace-nowrap">{formatRp(row.total_biaya_operasional)}</td>
                                         </tr>
                                     ))
                                 ) : (
-                                    <tr><td colSpan="3" className="py-4 text-center text-gray-400">Belum ada riwayat Secondary.</td></tr>
+                                    <tr><td colSpan="4" className="py-4 text-center text-gray-400">Belum ada riwayat Secondary.</td></tr>
                                 )}
                             </tbody>
                         </table>

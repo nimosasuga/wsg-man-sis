@@ -1,5 +1,5 @@
 // resources/js/Layouts/AdminLayout.jsx
-import { Link, usePage } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import React, { useEffect, useMemo, useState } from "react";
 import {
     LayoutDashboard,
@@ -61,6 +61,7 @@ export default function AdminLayout({ children }) {
         return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) !== "false";
     });
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [isDesktop, setIsDesktop] = useState(() =>
         typeof window === "undefined"
             ? true
@@ -97,6 +98,14 @@ export default function AdminLayout({ children }) {
     const isExpanded = isDesktop ? isSidebarOpen : true;
     const sidebarWidthClass = isExpanded ? "w-[236px]" : "w-[72px]";
     const shellOffset = isDesktop ? sidebarWidth : 0;
+    const handleLogout = () => {
+        if (isLoggingOut) return;
+
+        router.post("/logout", {}, {
+            onStart: () => setIsLoggingOut(true),
+            onFinish: () => setIsLoggingOut(false),
+        });
+    };
 
     return (
         <div className="h-screen overflow-hidden font-sans" style={{ backgroundColor: PAGE_BG }}>
@@ -227,11 +236,14 @@ export default function AdminLayout({ children }) {
                         <p className="text-xs font-semibold text-slate-400">Washeng ID</p>
                     </div>
                     <button
-                        onClick={() => router.post("/logout")}
-                        title="Keluar dari Sistem"
-                        className="grid h-9 w-9 place-items-center rounded-lg bg-white text-slate-950 shadow-lg shadow-black/10 transition hover:bg-rose-500 hover:text-white"
+                        type="button"
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                        title={isLoggingOut ? "Sedang keluar..." : "Keluar dari Sistem"}
+                        aria-label={isLoggingOut ? "Sedang keluar dari sistem" : "Keluar dari Sistem"}
+                        className="grid h-9 w-9 place-items-center rounded-lg bg-white text-slate-950 shadow-lg shadow-black/10 transition hover:bg-rose-500 hover:text-white disabled:cursor-wait disabled:opacity-60"
                     >
-                        <LogOut size={16} />
+                        <LogOut size={16} className={isLoggingOut ? "animate-pulse" : ""} />
                     </button>
                 </div>
             </header>

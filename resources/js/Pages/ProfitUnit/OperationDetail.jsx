@@ -10,10 +10,12 @@ const formatRp = (value) =>
     })}`;
 
 function InfoItem({ label, value }) {
+    const displayValue = value === null || value === undefined || value === "" ? "-" : value;
+
     return (
         <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
             <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</p>
-            <p className="mt-1 break-words text-sm font-black text-slate-900">{value || "-"}</p>
+            <p className="mt-1 break-words text-sm font-black text-slate-900">{displayValue}</p>
         </div>
     );
 }
@@ -79,9 +81,9 @@ export default function OperationDetail({ title, type, detail = {}, backUrl }) {
                         <InfoItem label="ID_KEY" value={detail.id_key} />
                         <InfoItem label="TANGGAL" value={detail.tanggal} />
                         <InfoItem label="AREA" value={detail.area} />
-                        <InfoItem label="NOPOL" value={detail.nopol} />
+                        <InfoItem label={type === "lcl" ? "NO_STT" : "NOPOL"} value={detail.nopol} />
                         <InfoItem label="TIPE" value={detail.tipe} />
-                        <InfoItem label="TARIF" value={formatRp(detail.tarif)} />
+                        <InfoItem label={type === "lcl" ? "TOTAL_ONGKIR" : "TARIF"} value={formatRp(detail.tarif)} />
                         <InfoItem label="BIAYA" value={formatRp(detail.biaya)} />
                         <InfoItem label="PROFIT" value={formatRp(detail.profit)} />
                         <InfoItem label="WEEK" value={detail.week} />
@@ -89,6 +91,22 @@ export default function OperationDetail({ title, type, detail = {}, backUrl }) {
                         <InfoItem label="NO_SI" value={detail.no_si} />
                         <InfoItem label="RUTE / ORDER" value={detail.rute || detail.order_type} />
                         <InfoItem label="VENDOR / DRIVER" value={detail.vendor || detail.driver} />
+                        {type === "lcl" && (
+                            <>
+                                <InfoItem label="SALES" value={detail.sales} />
+                                <InfoItem label="NAMA_PENGIRIM" value={detail.nama_pengirim} />
+                                <InfoItem label="KOTA_ASAL" value={detail.kota_asal} />
+                                <InfoItem label="NAMA_PENERIMA" value={detail.nama_penerima} />
+                                <InfoItem label="KOTA_TUJUAN" value={detail.kota_tujuan} />
+                                <InfoItem label="TOTAL_KOLI" value={detail.total_koli} />
+                                <InfoItem label="QTY_UNIT" value={detail.qty_unit} />
+                                <InfoItem label="JENIS_PPN" value={detail.jenis_ppn} />
+                                <InfoItem label="TOTAL_PPN" value={formatRp(detail.total_ppn)} />
+                                <InfoItem label="TAGIHAN_COD" value={formatRp(detail.tagihan_cod)} />
+                                <InfoItem label="TOTAL_BAYAR" value={formatRp(detail.total_bayar)} />
+                                <InfoItem label="KEMBALIAN" value={formatRp(detail.kembalian)} />
+                            </>
+                        )}
                     </div>
                 </section>
             </div>

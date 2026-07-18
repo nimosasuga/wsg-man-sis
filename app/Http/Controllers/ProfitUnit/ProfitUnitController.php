@@ -82,18 +82,27 @@ class ProfitUnitController extends Controller
 
     public function index()
     {
-        $primaryRevenue = (float) DB::table('operasional_primary_input')->sum('total_tarif');
-        $primaryCost = (float) DB::table('operasional_primary_input')->sum('total_biaya');
+        $primaryAssetQuery = DB::table('operasional_primary_input as primary')
+            ->whereExists(fn ($query) => $query
+                ->selectRaw('1')
+                ->from('hr_manager_db_inventori as unit')
+                ->whereColumn('unit.nopol', 'primary.nopol_driver'));
+        $primaryRevenue = (float) (clone $primaryAssetQuery)->sum('primary.total_tarif');
+        $primaryCost = (float) (clone $primaryAssetQuery)->sum('primary.total_biaya');
 
-        $secondaryRevenue = (float) DB::table('operasional_secondary_input')->sum('total_tarif');
-        $secondaryCost = (float) DB::table('operasional_secondary_input')->sum('total_biaya_operasional');
+        $secondaryAssetQuery = DB::table('operasional_secondary_input as secondary')
+            ->whereExists(fn ($query) => $query
+                ->selectRaw('1')
+                ->from('hr_manager_db_inventori as unit')
+                ->whereColumn('unit.nopol', 'secondary.nopol'));
+        $secondaryRevenue = (float) (clone $secondaryAssetQuery)->sum('secondary.total_tarif');
+        $secondaryCost = (float) (clone $secondaryAssetQuery)->sum('secondary.total_biaya_operasional');
 
         $rentalRevenue = (float) DB::table('operasional_rental_unit_input')->sum('tarif_sewa_unit_bln');
 
-        $lclQuery = DB::table('operasional_secondary_input')
-            ->where('order_type', 'like', '%LCL%');
-        $lclRevenue = (float) (clone $lclQuery)->sum('total_tarif');
-        $lclCost = (float) (clone $lclQuery)->sum('total_biaya_operasional');
+        $lclQuery = DB::table('db_chargo_data_paket_masuk');
+        $lclRevenue = (float) (clone $lclQuery)->sum('total_ongkir');
+        $lclCost = 0.0;
 
         return Inertia::render('ProfitUnit/Index', [
             'summaryData' => [
@@ -103,7 +112,8 @@ class ProfitUnitController extends Controller
                     'revenue' => $primaryRevenue,
                     'cost' => $primaryCost,
                     'profit' => $primaryRevenue - $primaryCost,
-                    'count' => DB::table('operasional_primary_input')->count(),
+                    'count' => (clone $primaryAssetQuery)->count(),
+                    'includeInAssetSummary' => true,
                 ],
                 [
                     'slug' => 'secondary',
@@ -111,7 +121,8 @@ class ProfitUnitController extends Controller
                     'revenue' => $secondaryRevenue,
                     'cost' => $secondaryCost,
                     'profit' => $secondaryRevenue - $secondaryCost,
-                    'count' => DB::table('operasional_secondary_input')->count(),
+                    'count' => (clone $secondaryAssetQuery)->count(),
+                    'includeInAssetSummary' => true,
                 ],
                 [
                     'slug' => 'rental',
@@ -120,6 +131,7 @@ class ProfitUnitController extends Controller
                     'cost' => 0,
                     'profit' => $rentalRevenue,
                     'count' => DB::table('operasional_rental_unit_input')->count(),
+                    'includeInAssetSummary' => false,
                 ],
                 [
                     'slug' => 'lcl',
@@ -128,6 +140,7 @@ class ProfitUnitController extends Controller
                     'cost' => $lclCost,
                     'profit' => $lclRevenue - $lclCost,
                     'count' => (clone $lclQuery)->count(),
+                    'includeInAssetSummary' => false,
                 ],
             ],
         ]);
@@ -451,7 +464,31 @@ class ProfitUnitController extends Controller
                 'total' => (int) $row->total,
             ]);
 
+        $rows = DB::table('operasional_rental_unit_input')
+            ->orderByRaw("STR_TO_DATE(tanggal, '%m-%d-%Y') desc")
+            ->get([
+                'id_key',
+                'tanggal',
+                'area',
+                'regional',
+                'nopol',
+                'tipe',
+                'tarif_sewa_unit_bln',
+            ])
+            ->map(fn ($row) => [
+                'id_key' => $row->id_key,
+                'tanggal' => $row->tanggal,
+                'area' => $row->area ?: 'TIDAK DIKETAHUI',
+                'nopol' => $row->nopol ?: '-',
+                'tipe' => $row->tipe ?: 'TIDAK DIKETAHUI',
+                'rute' => $row->regional ?: 'TIDAK DIKETAHUI',
+                'revenue' => (float) $row->tarif_sewa_unit_bln,
+                'cost' => 0.0,
+                'profit' => (float) $row->tarif_sewa_unit_bln,
+            ]);
+
         return Inertia::render('ProfitUnit/Rental', [
+            'rows' => $rows,
             'filters' => [
                 'AREA' => $area,
                 'HARI' => $hari,
@@ -551,6 +588,8 @@ class ProfitUnitController extends Controller
 
         abort_if(! $row, 404);
 
+        $rentalDate = \DateTimeImmutable::createFromFormat('m-d-Y', (string) $row->tanggal);
+
         $detail = [
             'id_key' => $row->id_key,
             'tanggal' => $row->tanggal,
@@ -559,7 +598,9 @@ class ProfitUnitController extends Controller
             'nopol' => $row->nopol,
             'tipe' => $row->tipe,
             'tarif_sewa_unit_bln' => (float) $row->tarif_sewa_unit_bln,
-            'week' => $row->tanggal ? 'W'.date('W', strtotime($row->tanggal)) : '-',
+            'week' => $rentalDate ? 'W'.$rentalDate->format('W') : '-',
+            'tahun' => $rentalDate ? $rentalDate->format('Y') : '-',
+            'bulan' => $rentalDate ? $rentalDate->format('m') : '-',
             'no_bap' => $row->no_bap,
             'no_po' => $row->no_po,
         ];
@@ -622,10 +663,10 @@ class ProfitUnitController extends Controller
             $deliveryQuery->where('d.kode_pesanan', $kategori);
         }
 
-        $revenue = (float) (clone $deliveryQuery)->sum('d.total_cod');
+        $revenue = (float) (clone $query)->sum('total_ongkir');
         $cost = 0.0;
         $profitTotal = $revenue - $cost;
-        $count = (clone $deliveryQuery)->count();
+        $count = (clone $query)->count();
         $rataProfit = $count > 0 ? $profitTotal / $count : 0;
         $rataTarif = $count > 0 ? $revenue / $count : 0;
         $rataBiaya = $count > 0 ? $cost / $count : 0;
@@ -756,6 +797,31 @@ class ProfitUnitController extends Controller
             ],
         ];
 
+        $rows = DB::table('db_chargo_data_paket_masuk')
+            ->orderByRaw("STR_TO_DATE(tanggal, '%m-%d-%Y') desc")
+            ->get([
+                'id_key',
+                'tanggal',
+                'kota_asal',
+                'kota_tujuan',
+                'no_stt',
+                'katagori_barang',
+                'week',
+                'total_ongkir',
+            ])
+            ->map(fn ($row) => [
+                'id_key' => $row->id_key,
+                'tanggal' => $row->tanggal,
+                'area' => $row->kota_tujuan ?: 'TIDAK DIKETAHUI',
+                'nopol' => $row->no_stt ?: '-',
+                'tipe' => $row->katagori_barang ?: 'TIDAK DIKETAHUI',
+                'rute' => trim(($row->kota_asal ?: '-').' - '.($row->kota_tujuan ?: '-')),
+                'week' => $row->week,
+                'revenue' => (float) $row->total_ongkir,
+                'cost' => 0.0,
+                'profit' => (float) $row->total_ongkir,
+            ]);
+
         return Inertia::render('ProfitUnit/Lcl', [
             'filters' => [
                 'SALES' => $sales,
@@ -789,6 +855,7 @@ class ProfitUnitController extends Controller
             'kunjungan' => $count,
             'paymentStatus' => $paymentStatus,
             'deliveryStatus' => $deliveryStatus,
+            'rows' => $rows,
             'filterOptions' => $this->filterOptions('db_chargo_data_paket_masuk', [
                 'AREA' => 'kota_tujuan',
                 'WEEK' => 'week',
@@ -882,6 +949,18 @@ class ProfitUnitController extends Controller
                 'no_si' => $row->no_stt,
                 'rute' => $row->kota_asal.' - '.$row->kota_tujuan,
                 'vendor' => $row->nama_pengirim.' / '.$row->nama_penerima,
+                'sales' => $row->kode_pesanan,
+                'nama_pengirim' => $row->nama_pengirim,
+                'kota_asal' => $row->kota_asal,
+                'nama_penerima' => $row->nama_penerima,
+                'kota_tujuan' => $row->kota_tujuan,
+                'total_koli' => (int) $row->total_koli,
+                'qty_unit' => (int) $row->qty_unit,
+                'jenis_ppn' => $row->jenis_ppn,
+                'total_ppn' => (float) $row->total_ppn,
+                'tagihan_cod' => (float) $row->tagihan_cod,
+                'total_bayar' => (float) $row->total_bayar,
+                'kembalian' => (float) $row->kembalian,
             ],
         ]);
     }
@@ -993,6 +1072,38 @@ class ProfitUnitController extends Controller
                 'total' => (int) $row->total,
             ]);
 
+        $rows = DB::table('operasional_primary_input')
+            ->orderByDesc('tanggal_muat')
+            ->get([
+                'id_key',
+                'tanggal_muat',
+                'tanggal_terima',
+                'area',
+                'regional',
+                'nopol_driver',
+                'jenis',
+                'rute_asal',
+                'rute_tujuan',
+                'week',
+                'total_tarif',
+                'total_biaya',
+                'profit',
+            ])
+            ->map(fn ($row) => [
+                'id_key' => $row->id_key,
+                'tanggal' => $row->tanggal_muat,
+                'tanggal_terima' => $row->tanggal_terima,
+                'area' => $row->area ?: 'TIDAK DIKETAHUI',
+                'regional' => $row->regional ?: '-',
+                'nopol' => $row->nopol_driver ?: '-',
+                'tipe' => $row->jenis ?: 'TIDAK DIKETAHUI',
+                'rute' => trim(($row->rute_asal ?: '-').' - '.($row->rute_tujuan ?: '-')),
+                'week' => $row->week,
+                'revenue' => (float) $row->total_tarif,
+                'cost' => (float) $row->total_biaya,
+                'profit' => (float) ($row->profit ?? ((float) $row->total_tarif - (float) $row->total_biaya)),
+            ]);
+
         return Inertia::render('ProfitUnit/Primary', [
             'filters' => [
                 'TIPE UNIT' => $tipeUnit,
@@ -1013,6 +1124,7 @@ class ProfitUnitController extends Controller
             'byYear' => $byYear,
             'byRegional' => $byRegional,
             'topUnits' => $topUnits,
+            'rows' => $rows,
             'typeCompositionChart' => $this->rentalDoughnutData($byType, 'value'),
             'typeValueChart' => $this->rentalDoughnutData($byType, 'profit'),
             'sumProfit' => $profitTotal,
