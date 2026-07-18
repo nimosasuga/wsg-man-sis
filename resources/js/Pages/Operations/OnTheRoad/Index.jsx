@@ -1,6 +1,8 @@
-import React from "react";
+import React, { memo, useEffect, useRef } from "react";
 import { Head, Link, router } from "@inertiajs/react";
-import { ArrowRight, CircleDollarSign, Map, Route, Truck } from "lucide-react";
+import { ArrowRight, CircleDollarSign, Map, MapPin, Route, Truck } from "lucide-react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import AdminLayout from "../../../Layouts/AdminLayout";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
@@ -64,7 +66,78 @@ function Breakdown({ title, items = [] }) {
     );
 }
 
-export default function Index({ date, dateOptions = [], summary = {}, cards = [], standbyHref, typeBreakdown = [], areaBreakdown = [], sampleRows = [] }) {
+const LatestPositionMap = memo(function LatestPositionMap({ positions = [] }) {
+    const mapElement = useRef(null);
+    const validPositions = positions.filter((item) => item.latitude !== null && item.longitude !== null);
+
+    useEffect(() => {
+        if (!mapElement.current || !validPositions.length) return undefined;
+
+        const map = L.map(mapElement.current, { zoomControl: true });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "&copy; OpenStreetMap contributors",
+            maxZoom: 19,
+        }).addTo(map);
+
+        const bounds = [];
+        validPositions.forEach((item) => {
+            const point = [item.latitude, item.longitude];
+            bounds.push(point);
+            L.circleMarker(point, {
+                radius: 8,
+                color: "#ffffff",
+                weight: 3,
+                fillColor: "#0891b2",
+                fillOpacity: 1,
+            }).addTo(map).bindTooltip(String(item.nopol || "Unit"), { direction: "top", offset: [0, -6] });
+        });
+
+        map.fitBounds(bounds, { padding: [32, 32], maxZoom: 14 });
+        return () => map.remove();
+    }, [validPositions]);
+
+    return (
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 p-4">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Posisi Terakhir Unit</h2>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">Titik terakhir yang dikirim melalui form AppSheet untuk setiap nopol.</p>
+                    </div>
+                    <span className="shrink-0 rounded-lg bg-cyan-50 px-3 py-1.5 text-xs font-black text-cyan-700">{validPositions.length} titik</span>
+                </div>
+            </div>
+            {validPositions.length ? (
+                <div className="grid min-w-0 lg:grid-cols-[1.45fr_0.75fr]">
+                    <div ref={mapElement} className="z-0 h-[360px] min-h-[300px] w-full bg-slate-100 sm:h-[430px]" />
+                    <div className="custom-scrollbar max-h-[430px] overflow-auto border-t border-slate-100 lg:border-l lg:border-t-0">
+                        {positions.map((item) => (
+                            <Link
+                                key={item.id}
+                                href={`/on-the-road/position/${encodeURIComponent(item.id)}`}
+                                className="group block border-b border-slate-100 p-4 transition last:border-b-0 hover:bg-cyan-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-500"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0"><p className="truncate text-sm font-black text-slate-950">{item.nopol}</p><p className="mt-1 truncate text-xs font-semibold text-slate-500">{item.nama_driver || "Driver belum diisi"}</p></div>
+                                    <MapPin size={17} className={item.latitude !== null ? "shrink-0 text-cyan-600 transition group-hover:scale-110" : "shrink-0 text-rose-500"} />
+                                </div>
+                                <p className="mt-2 text-xs font-bold text-slate-600">{item.tanggal_jam || "Waktu belum diisi"}</p>
+                                <p className="mt-1 break-words text-xs font-semibold leading-5 text-slate-500">{item.keterangan || "Tidak ada keterangan."}</p>
+                                {item.latitude === null && <p className="mt-2 text-[11px] font-black text-rose-600">Koordinat belum valid: {item.location || "kosong"}</p>}
+                            </Link>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div className="grid min-h-64 place-items-center p-6 text-center">
+                    <div><MapPin size={28} className="mx-auto text-slate-300" /><p className="mt-3 text-sm font-black text-slate-700">Belum ada koordinat unit</p><p className="mt-1 text-xs font-semibold text-slate-500">Peta akan terisi setelah AppSheet mengirim data location dalam format latitude, longitude.</p></div>
+                </div>
+            )}
+        </section>
+    );
+});
+
+export default function Index({ date, dateOptions = [], summary = {}, cards = [], standbyHref, typeBreakdown = [], areaBreakdown = [], sampleRows = [], latestPositions = [] }) {
     const changeDate = (value) => router.get("/on-the-road", { tanggal: value }, { preserveScroll: true });
 
     return (
@@ -95,6 +168,8 @@ export default function Index({ date, dateOptions = [], summary = {}, cards = []
                     <StatCard title="Total Tarif" value={formatRp(summary.totalTarif)} helper="Tagihan dari unit yang jalan" icon={CircleDollarSign} />
                     <StatCard title="Profit Hari Ini" value={formatRp(summary.totalProfit)} helper="Tarif dikurangi biaya" icon={CircleDollarSign} />
                 </div>
+
+                <LatestPositionMap positions={latestPositions} />
 
                 <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
                     {cards.map((item) => <UnitCard key={item.slug} item={item} />)}

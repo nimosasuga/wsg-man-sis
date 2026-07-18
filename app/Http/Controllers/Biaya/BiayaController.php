@@ -362,16 +362,36 @@ class BiayaController extends Controller
     private function operationRows()
     {
         $primaryRows = DB::table('operasional_primary_input')
-            ->select('tanggal_muat as tanggal', 'area', 'nopol_driver as nopol', 'jenis as tipe', 'total_biaya as nominal')
+            ->select('tanggal_muat as tanggal', 'area', 'nopol_driver as nopol', 'jenis as tipe', 'total_tarif as revenue', 'total_biaya as nominal')
             ->get()
             ->map(fn ($row) => $this->operationPayload($this->withDateGroups($row), 'primary'));
 
+        $ovtLookup = $this->secondaryOvtLookup();
         $secondaryRows = DB::table('operasional_secondary_input')
-            ->select('tanggal', 'area', 'nopol', 'tipe_unit as tipe', 'total_biaya_operasional as nominal')
+            ->whereIn('project', ['ON DEMAND - FULL SERVICE', 'RENTAL'])
+            ->select(
+                'tanggal', 'area', 'nopol', 'tipe_unit as tipe', 'driver', 'helper',
+                'total_tarif', 'add_cost_long_route', 'tkbm', 'spsi', 'parkir_liar_keamanan',
+                'penyebrangan_pas_masuk', 'rapid_antigen', 'allowance', 'total_subsidi_bbm',
+                'subsidi_hotel', 'total_biaya_operasional as nominal'
+            )
             ->get()
-            ->map(fn ($row) => $this->operationPayload($this->withDateGroups($row), 'secondary'));
+            ->map(function ($row) use ($ovtLookup) {
+                $row->revenue = $this->secondaryRevenue($row, $ovtLookup);
 
-        return $primaryRows->merge($secondaryRows);
+                return $this->operationPayload($this->withDateGroups($row), 'secondary');
+            });
+
+        $rentalRows = DB::table('operasional_rental_unit_input')
+            ->select('tanggal', 'area', 'nopol', 'tipe', 'tarif_sewa_unit_bln as revenue')
+            ->get()
+            ->map(function ($row) {
+                $row->nominal = 0;
+
+                return $this->operationPayload($this->withDateGroups($row), 'rental');
+            });
+
+        return $primaryRows->merge($secondaryRows)->merge($rentalRows);
     }
 
     private function operationPayload(object $row, string $source): array
@@ -384,7 +404,45 @@ class BiayaController extends Controller
             'nopol' => $row->nopol,
             'tipe' => $row->tipe,
             'nominal' => (float) ($row->nominal ?? 0),
+            'revenue' => (float) ($row->revenue ?? 0),
+            'profit' => (float) ($row->revenue ?? 0) - (float) ($row->nominal ?? 0),
         ];
+    }
+
+    private function secondaryOvtLookup(): array
+    {
+        $lookup = [];
+        DB::table('operasional_absen')->get(['nama', 'tanggal', 'approval_ovt'])->each(function ($row) use (&$lookup) {
+            $date = \DateTimeImmutable::createFromFormat('m/d/Y', trim((string) $row->tanggal));
+            if (! $date || ! $row->nama) {
+                return;
+            }
+            $key = $date->format('Y-m-d').'|'.mb_strtoupper(trim((string) $row->nama));
+            $lookup[$key] ??= (float) ($row->approval_ovt ?: 0);
+        });
+
+        return $lookup;
+    }
+
+    private function secondaryRevenue(object $row, array $ovtLookup): float
+    {
+        $date = \DateTimeImmutable::createFromFormat('m-d-Y', trim((string) $row->tanggal));
+        $dateKey = $date?->format('Y-m-d');
+        $approval = static fn ($name) => $dateKey && $name
+            ? ($ovtLookup[$dateKey.'|'.mb_strtoupper(trim((string) $name))] ?? 0)
+            : 0;
+
+        return (float) $row->total_tarif
+            + (float) $row->add_cost_long_route
+            + (float) $row->tkbm
+            + (float) $row->spsi
+            + (float) $row->parkir_liar_keamanan
+            + (float) $row->penyebrangan_pas_masuk
+            + (float) $row->rapid_antigen
+            + ((float) $row->allowance > 0 ? 125000 : 0)
+            + (float) $row->total_subsidi_bbm
+            + (float) $row->subsidi_hotel
+            + max($approval($row->driver), $approval($row->helper)) * 32500;
     }
 
     private function filterOptions(): array

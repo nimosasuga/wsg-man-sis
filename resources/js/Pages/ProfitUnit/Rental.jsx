@@ -11,6 +11,7 @@ export default function Rental({ rows = [] }) {
                 detailBase: "/profit-unit/rental/table",
                 numberLabel: "Nopol",
                 routeLabel: "Regional",
+                showWeeklyFlow: true,
                 filterFields: [
                     ["TAHUN", "Tahun"],
                     ["BULAN", "Bulan"],

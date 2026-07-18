@@ -78,19 +78,45 @@ export default function OperationDetail({ title, type, detail = {}, backUrl }) {
                         <p className="mt-1 text-xs font-semibold text-slate-500">Ini data asli dari record yang dipilih.</p>
                     </div>
                     <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
-                        <InfoItem label="ID_KEY" value={detail.id_key} />
-                        <InfoItem label="TANGGAL" value={detail.tanggal} />
-                        <InfoItem label="AREA" value={detail.area} />
-                        <InfoItem label={type === "lcl" ? "NO_STT" : "NOPOL"} value={detail.nopol} />
-                        <InfoItem label="TIPE" value={detail.tipe} />
-                        <InfoItem label={type === "lcl" ? "TOTAL_ONGKIR" : "TARIF"} value={formatRp(detail.tarif)} />
-                        <InfoItem label="BIAYA" value={formatRp(detail.biaya)} />
-                        <InfoItem label="PROFIT" value={formatRp(detail.profit)} />
-                        <InfoItem label="WEEK" value={detail.week} />
-                        <InfoItem label="NO_PO" value={detail.no_po} />
-                        <InfoItem label="NO_SI" value={detail.no_si} />
-                        <InfoItem label="RUTE / ORDER" value={detail.rute || detail.order_type} />
-                        <InfoItem label="VENDOR / DRIVER" value={detail.vendor || detail.driver} />
+                        {type === "secondary" ? (
+                            <>
+                                <InfoItem label="ID_KEY" value={detail.id_key} />
+                                <InfoItem label="TIPE_UNIT" value={detail.tipe} />
+                                <InfoItem label="AREA" value={detail.area} />
+                                <InfoItem label="PROFIT TRIP" value={formatRp(detail.profit)} />
+                                <InfoItem label="TAHUN" value={detail.tahun} />
+                                <InfoItem label="BULAN" value={detail.bulan} />
+                                <InfoItem label="WEEK" value={detail.week} />
+                                <InfoItem label="TANGGAL" value={detail.tanggal} />
+                                <InfoItem label="CROSSCEK_DATE" value={detail.crosscek_date} />
+                                <InfoItem label="PROJECT" value={detail.project} />
+                                <InfoItem label="POSISI_PROJECT" value={detail.posisi_project} />
+                                <InfoItem label="ADD_DATA" value={detail.add_data} />
+                                <InfoItem label="NOPOL" value={detail.nopol} />
+                                <InfoItem label="TOTAL TARIF PENAGIHAN SECONDARY" value={formatRp(detail.tarif)} />
+                                <InfoItem label="TOTAL BIAYA OPERASIONAL SECONDARY" value={formatRp(detail.biaya)} />
+                                <InfoItem label="NO_PO" value={detail.no_po} />
+                                <InfoItem label="NO_SI" value={detail.no_si} />
+                                <InfoItem label="RUTE / ORDER" value={detail.rute || detail.order_type} />
+                                <InfoItem label="DRIVER" value={detail.driver} />
+                            </>
+                        ) : (
+                            <>
+                                <InfoItem label="ID_KEY" value={detail.id_key} />
+                                <InfoItem label="TANGGAL" value={detail.tanggal} />
+                                <InfoItem label="AREA" value={detail.area} />
+                                <InfoItem label={type === "lcl" ? "NO_STT" : "NOPOL"} value={detail.nopol} />
+                                <InfoItem label="TIPE" value={detail.tipe} />
+                                <InfoItem label={type === "lcl" ? "TOTAL_ONGKIR" : "TARIF"} value={formatRp(detail.tarif)} />
+                                <InfoItem label="BIAYA" value={formatRp(detail.biaya)} />
+                                <InfoItem label="PROFIT" value={formatRp(detail.profit)} />
+                                <InfoItem label="WEEK" value={detail.week} />
+                                <InfoItem label="NO_PO" value={detail.no_po} />
+                                <InfoItem label="NO_SI" value={detail.no_si} />
+                                <InfoItem label="RUTE / ORDER" value={detail.rute || detail.order_type} />
+                                <InfoItem label="VENDOR / DRIVER" value={detail.vendor || detail.driver} />
+                            </>
+                        )}
                         {type === "lcl" && (
                             <>
                                 <InfoItem label="SALES" value={detail.sales} />

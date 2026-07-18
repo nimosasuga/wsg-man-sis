@@ -82,7 +82,7 @@ function FilterPanel({ filters, options, onChange, onReset, shortName = "Primary
     );
 }
 
-const FlowChart = memo(function FlowChart({ data, year, month, shortName = "Primary" }) {
+const FlowChart = memo(function FlowChart({ data, year, month, shortName = "Primary", title, description }) {
     const width = Math.max(data.length * 90, 680);
     const height = 270;
     const pad = { top: 24, right: 28, bottom: 44, left: 76 };
@@ -94,8 +94,8 @@ const FlowChart = memo(function FlowChart({ data, year, month, shortName = "Prim
 
     return (
         <section className="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-black uppercase text-slate-950">Statistik Profit {shortName}</h2>
-            <p className="mt-1 text-sm font-semibold text-slate-500">{helper}</p>
+            <h2 className="text-sm font-black uppercase text-slate-950">{title || `Statistik Profit ${shortName}`}</h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">{description || helper}</p>
             {data.length ? <>
                 <div className="my-4 flex flex-wrap gap-3">{series.map(([key,label,color]) => <span key={key} className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-600"><i className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:color}} />{label}</span>)}</div>
                 <div className="overflow-x-auto rounded-xl border border-slate-100 bg-slate-50 p-3">
@@ -118,9 +118,15 @@ export function ProfitFlowPage({ rows = [], config = {} }) {
         numberLabel: config.numberLabel || "Nopol",
         routeLabel: config.routeLabel || "Rute",
         filterFields: config.filterFields,
+        revenueLabel: config.revenueLabel || "Pendapatan",
+        costLabel: config.costLabel || "Biaya",
+        profitLabel: config.profitLabel || `Total Profit ${config.shortName || "Primary"}`,
+        showWeeklyFlow: Boolean(config.showWeeklyFlow),
     };
     const defaults = { TAHUN: "ALL", BULAN: "ALL", AREA: "ALL", TIPE: "ALL", NOPOL: "ALL" };
     const [filters, setFilters] = useState(defaults);
+    const [tablePage, setTablePage] = useState(1);
+    const pageSize = 25;
     const options = useMemo(() => {
         const unique = (key) => ["ALL", ...new Set(rows.map((row) => String(row[key] || "")).filter(Boolean).sort())];
         const years = [...new Set(rows.map((row) => dateParts(row.tanggal).year).filter(Boolean))].sort().reverse();
@@ -136,6 +142,26 @@ export function ProfitFlowPage({ rows = [], config = {} }) {
             && (isAll(filters.TIPE) || row.tipe === filters.TIPE)
             && (isAll(filters.NOPOL) || row.nopol === filters.NOPOL);
     }), [rows, filters, activeMonth]);
+    const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+    const currentPage = Math.min(tablePage, totalPages);
+    const paginatedRows = useMemo(
+        () => filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+        [filteredRows, currentPage],
+    );
+    const visiblePages = useMemo(
+        () => [...new Set([1, currentPage - 1, currentPage, currentPage + 1, totalPages])]
+            .filter((pageNumber) => pageNumber >= 1 && pageNumber <= totalPages)
+            .sort((a, b) => a - b),
+        [currentPage, totalPages],
+    );
+    const changeFilters = (nextFilters) => {
+        setFilters(nextFilters);
+        setTablePage(1);
+    };
+    const resetFilters = () => {
+        setFilters(defaults);
+        setTablePage(1);
+    };
     const summary = useMemo(() => filteredRows.reduce((total,row) => ({ revenue:total.revenue+Number(row.revenue||0), cost:total.cost+Number(row.cost||0), profit:total.profit+Number(row.profit||0) }), {revenue:0,cost:0,profit:0}), [filteredRows]);
     const chartData = useMemo(() => {
         const monthly = !isAll(filters.TAHUN);
@@ -145,21 +171,49 @@ export function ProfitFlowPage({ rows = [], config = {} }) {
             return matching.reduce((item,row)=>({ ...item, revenue:item.revenue+Number(row.revenue||0), cost:item.cost+Number(row.cost||0), profit:item.profit+Number(row.profit||0) }), { key, label:monthly ? MONTHS.find(([month])=>month===key)?.[1].slice(0,3) : key, revenue:0,cost:0,profit:0 });
         });
     }, [filteredRows, filters.TAHUN, activeMonth]);
+    const weeklyChartData = useMemo(() => {
+        if (isAll(activeMonth)) return [];
+
+        const grouped = filteredRows.reduce((weeks, row) => {
+            const weekNumber = Number(String(row.week || "").replace(/[^0-9]/g, ""));
+            if (!weekNumber) return weeks;
+            const key = String(weekNumber);
+            if (!weeks[key]) {
+                weeks[key] = { key, label: `W${weekNumber}`, revenue: 0, cost: 0, profit: 0 };
+            }
+            weeks[key].revenue += Number(row.revenue || 0);
+            weeks[key].cost += Number(row.cost || 0);
+            weeks[key].profit += Number(row.profit || 0);
+            return weeks;
+        }, {});
+
+        return Object.values(grouped).sort((a, b) => Number(a.key) - Number(b.key));
+    }, [filteredRows, activeMonth]);
     const margin = summary.revenue > 0 ? summary.profit / summary.revenue * 100 : 0;
 
     return <AdminLayout><Head title={page.name} />
         <div className="mb-4 flex items-center text-xs font-bold uppercase tracking-widest text-slate-500"><Link href="/profit-unit">Profit Unit</Link><ChevronRight size={14} className="mx-1"/><span className="text-slate-900">{page.name}</span></div>
         <section className="mb-5 rounded-xl bg-slate-950 p-5 text-white shadow-sm">
-            <p className="text-xs font-black uppercase text-cyan-200">Total Profit {page.shortName}</p><h1 className="mt-2 text-2xl font-black">{formatRp(summary.profit)}</h1>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[["Pendapatan",formatRp(summary.revenue)],["Biaya",formatRp(summary.cost)],["Margin",`${margin.toFixed(1)}%`],["Record",formatNumber(filteredRows.length)]].map(([label,value])=><div key={label} className="rounded-lg border border-white/10 bg-white/10 p-3"><p className="text-[10px] font-black uppercase text-slate-400">{label}</p><p className="mt-1 text-lg font-black">{value}</p></div>)}</div>
+            <p className="text-xs font-black uppercase text-cyan-200">{page.profitLabel}</p><h1 className="mt-2 text-2xl font-black">{formatRp(summary.profit)}</h1>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[[page.revenueLabel,formatRp(summary.revenue)],[page.costLabel,formatRp(summary.cost)],["Margin",`${margin.toFixed(1)}%`],["Record",formatNumber(filteredRows.length)]].map(([label,value])=><div key={label} className="rounded-lg border border-white/10 bg-white/10 p-3"><p className="text-[10px] font-black uppercase text-slate-400">{label}</p><p className="mt-1 text-lg font-black">{value}</p></div>)}</div>
         </section>
         <section className="mb-5 rounded-xl border border-cyan-100 bg-white p-5 shadow-sm"><div className="flex items-start gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-700"><Lightbulb size={19}/></div><div><p className="text-xs font-black uppercase text-cyan-700">Catatan kerja</p><h2 className="mt-1 text-lg font-black text-slate-950">Baca profit sebelum mengejar volume</h2><p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{filteredRows.length ? `Dari ${formatNumber(filteredRows.length)} transaksi yang tampil, margin ${page.shortName} berada di ${margin.toFixed(1)}%. Cek row dengan biaya besar dan profit tipis sebelum menambah pekerjaan pada jalur yang sama.` : `Belum ada transaksi yang cocok. Longgarkan filter untuk melihat data ${page.shortName} yang tersedia.`}</p></div></div></section>
-        <FilterPanel filters={filters} options={options} onChange={setFilters} onReset={()=>setFilters(defaults)} shortName={page.shortName} fields={page.filterFields} />
+        <FilterPanel filters={filters} options={options} onChange={changeFilters} onReset={resetFilters} shortName={page.shortName} fields={page.filterFields} />
         <FlowChart data={chartData} year={filters.TAHUN} month={activeMonth} shortName={page.shortName} />
-        <section className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-100 px-4 py-4"><h2 className="text-sm font-black uppercase text-slate-950">Data Profit {page.shortName}</h2><p className="mt-1 text-xs font-semibold text-slate-500">Klik row untuk membuka rincian transaksi {page.shortName}.</p></div><div className="custom-scrollbar max-h-[560px] overflow-auto"><table className="w-full min-w-[1050px] border-collapse text-left"><thead className="sticky top-0 z-10 bg-slate-50"><tr>{["Tanggal","Area",page.numberLabel,"Tipe",page.routeLabel,"Pendapatan","Biaya","Profit"].map((head)=><th key={head} className="border-b border-slate-200 px-4 py-3 text-[11px] font-black uppercase text-slate-500">{head}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{filteredRows.map((row,index)=><tr key={`${row.id_key}-${index}`} role="link" tabIndex={0} onClick={()=>router.visit(`${page.detailBase}/${encodeURIComponent(row.id_key)}`)} onKeyDown={(event)=>{if(!["Enter"," "].includes(event.key))return;event.preventDefault();router.visit(`${page.detailBase}/${encodeURIComponent(row.id_key)}`);}} className="cursor-pointer hover:bg-cyan-50/50 focus:bg-cyan-50 focus:outline-none"><td className="px-4 py-3 text-xs font-bold text-slate-700">{formatDate(row.tanggal)}</td><td className="px-4 py-3 text-xs font-bold text-slate-700">{row.area}</td><td className="px-4 py-3 text-xs font-black text-slate-950">{row.nopol}</td><td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.tipe}</td><td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.rute}</td><td className="px-4 py-3 text-xs font-black text-blue-700">{formatRp(row.revenue)}</td><td className="px-4 py-3 text-xs font-black text-amber-700">{formatRp(row.cost)}</td><td className="px-4 py-3 text-xs font-black text-emerald-700">{formatRp(row.profit)}</td></tr>)}{!filteredRows.length&&<tr><td colSpan="8" className="px-4 py-8 text-center text-sm font-semibold text-slate-500">Belum ada data {page.shortName} untuk pilihan ini.</td></tr>}</tbody></table></div></section>
+        {page.showWeeklyFlow && !isAll(activeMonth) && (
+            <FlowChart
+                data={weeklyChartData}
+                year={filters.TAHUN}
+                month={activeMonth}
+                shortName={page.shortName}
+                title="Statistik Flow Per Minggu"
+                description={`Pergerakan pendapatan, biaya, dan profit ${page.shortName} pada bulan yang dipilih, disusun berdasarkan week transaksi.`}
+            />
+        )}
+        <section className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-100 px-4 py-4"><h2 className="text-sm font-black uppercase text-slate-950">Data Profit {page.shortName}</h2><p className="mt-1 text-xs font-semibold text-slate-500">Klik row untuk membuka rincian transaksi {page.shortName}.</p></div><div className="custom-scrollbar max-h-[560px] overflow-auto"><table className="w-full min-w-[1050px] border-collapse text-left"><thead className="sticky top-0 z-10 bg-slate-50"><tr>{["Tanggal","Area",page.numberLabel,"Tipe",page.routeLabel,page.revenueLabel,page.costLabel,"Profit"].map((head)=><th key={head} className="border-b border-slate-200 px-4 py-3 text-[11px] font-black uppercase text-slate-500">{head}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{paginatedRows.map((row,index)=><tr key={`${row.id_key}-${index}`} role="link" tabIndex={0} onClick={()=>router.visit(`${page.detailBase}/${encodeURIComponent(row.id_key)}`)} onKeyDown={(event)=>{if(!["Enter"," "].includes(event.key))return;event.preventDefault();router.visit(`${page.detailBase}/${encodeURIComponent(row.id_key)}`);}} className="cursor-pointer hover:bg-cyan-50/50 focus:bg-cyan-50 focus:outline-none"><td className="px-4 py-3 text-xs font-bold text-slate-700">{formatDate(row.tanggal)}</td><td className="px-4 py-3 text-xs font-bold text-slate-700">{row.area}</td><td className="px-4 py-3 text-xs font-black text-slate-950">{row.nopol}</td><td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.tipe}</td><td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.rute}</td><td className="px-4 py-3 text-xs font-black text-blue-700">{formatRp(row.revenue)}</td><td className="px-4 py-3 text-xs font-black text-amber-700">{formatRp(row.cost)}</td><td className="px-4 py-3 text-xs font-black text-emerald-700">{formatRp(row.profit)}</td></tr>)}{!filteredRows.length&&<tr><td colSpan="8" className="px-4 py-8 text-center text-sm font-semibold text-slate-500">Belum ada data {page.shortName} untuk pilihan ini.</td></tr>}</tbody></table></div>{filteredRows.length > 0 && <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs font-bold text-slate-500">Menampilkan {formatNumber((currentPage - 1) * pageSize + 1)}-{formatNumber(Math.min(currentPage * pageSize, filteredRows.length))} dari {formatNumber(filteredRows.length)} data</p><div className="flex flex-wrap items-center gap-1"><button type="button" disabled={currentPage === 1} onClick={()=>setTablePage(currentPage - 1)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">Sebelumnya</button>{visiblePages.map((pageNumber,index)=><React.Fragment key={pageNumber}>{index > 0 && pageNumber - visiblePages[index - 1] > 1 && <span className="px-1 text-slate-400">...</span>}<button type="button" onClick={()=>setTablePage(pageNumber)} className={`h-9 min-w-9 rounded-lg border px-2 text-xs font-black ${pageNumber === currentPage ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>{pageNumber}</button></React.Fragment>)}<button type="button" disabled={currentPage === totalPages} onClick={()=>setTablePage(currentPage + 1)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">Berikutnya</button></div></div>}</section>
     </AdminLayout>;
 }
 
 export default function Primary(props) {
-    return <ProfitFlowPage {...props} />;
+    return <ProfitFlowPage {...props} config={{ ...(props.config || {}), showWeeklyFlow: true }} />;
 }

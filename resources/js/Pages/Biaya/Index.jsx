@@ -234,8 +234,9 @@ function FilterPanel({ filters = {}, options = {}, onChange, onReset }) {
     );
 }
 
-function SmartAnalysis({ summaryData, totalBiaya }) {
+function SmartAnalysis({ summaryData, totalBiaya, operationRows = [], vehicleCosts = [], filters = {} }) {
     const analysis = useMemo(() => {
+        const benchmarkMargin = 15;
         const rows = [...summaryData]
             .map((item) => ({
                 ...item,
@@ -257,10 +258,57 @@ function SmartAnalysis({ summaryData, totalBiaya }) {
             .reduce((sum, item) => sum + item.amount, 0);
 
         const notes = [];
+        const filteredOperations = operationRows.filter((row) =>
+            (isAll(filters.TAHUN) || String(row.year || "") === filters.TAHUN)
+            && (isAll(filters.BULAN) || String(row.month || "") === filters.BULAN)
+            && matchesActiveFilter(row, filters)
+        );
+        const filteredVehicles = vehicleCosts.filter((row) => matchesActiveFilter(row, filters));
+        const periodIsActive = !isAll(filters.TAHUN) || !isAll(filters.BULAN);
+        const revenue = filteredOperations.reduce((sum, row) => sum + Number(row.revenue || 0), 0);
+        const expense = periodIsActive
+            ? filteredOperations.reduce((sum, row) => sum + Number(row.nominal || 0), 0)
+            : filteredVehicles.reduce((sum, row) => sum + Number(row.total || 0), 0);
+        const profit = revenue - expense;
+        const margin = revenue > 0 ? profit / revenue * 100 : 0;
+        const areaMap = {};
+        const vehicleMap = {};
+
+        filteredOperations.forEach((row) => {
+            const area = String(row.area || "TIDAK DIKETAHUI");
+            const nopol = String(row.nopol || "TIDAK DIKETAHUI");
+            areaMap[area] ??= { name: area, revenue: 0, expense: 0 };
+            vehicleMap[nopol] ??= { name: nopol, area, revenue: 0, expense: 0 };
+            areaMap[area].revenue += Number(row.revenue || 0);
+            vehicleMap[nopol].revenue += Number(row.revenue || 0);
+            if (periodIsActive) {
+                areaMap[area].expense += Number(row.nominal || 0);
+                vehicleMap[nopol].expense += Number(row.nominal || 0);
+            }
+        });
+        if (!periodIsActive) filteredVehicles.forEach((row) => {
+            const area = String(row.area || "TIDAK DIKETAHUI");
+            const nopol = String(row.nopol || "TIDAK DIKETAHUI");
+            areaMap[area] ??= { name: area, revenue: 0, expense: 0 };
+            vehicleMap[nopol] ??= { name: nopol, area, revenue: 0, expense: 0 };
+            areaMap[area].expense += Number(row.total || 0);
+            vehicleMap[nopol].expense += Number(row.total || 0);
+        });
+        const withResult = (item) => ({
+            ...item,
+            profit: item.revenue - item.expense,
+            margin: item.revenue > 0 ? (item.revenue - item.expense) / item.revenue * 100 : 0,
+        });
+        const areaResults = Object.values(areaMap).map(withResult).filter((item) => item.revenue > 0).sort((a, b) => b.profit - a.profit);
+        const vehicleResults = Object.values(vehicleMap).map(withResult).filter((item) => item.revenue > 0).sort((a, b) => b.profit - a.profit);
+        const bestArea = areaResults[0];
+        const weakestArea = [...areaResults].sort((a, b) => a.margin - b.margin)[0];
+        const bestVehicle = vehicleResults[0];
+        const costlyVehicle = [...vehicleResults].sort((a, b) => (b.expense / b.revenue) - (a.expense / a.revenue))[0];
 
         if (!rows.length || totalBiaya <= 0) {
             return {
-                top: null,
+                top: null, margin, benchmarkMargin, revenue, expense, profit,
                 notes: [
                     "Belum ada biaya yang terbaca. Cek dulu import data operasional, pajak, KIR, dan service.",
                     "Untuk sementara jangan ambil kesimpulan dulu. Data nol biasanya berarti sumbernya belum lengkap.",
@@ -270,6 +318,22 @@ function SmartAnalysis({ summaryData, totalBiaya }) {
 
         if (top) {
             notes.push(`${top.title} sedang jadi beban paling besar: ${formatRp(top.amount)}, sekitar ${top.percent.toFixed(1)}% dari total biaya.`);
+        }
+
+        if (revenue > 0) {
+            notes.push(`Margin yang terbaca ${margin.toFixed(1)}%. Patokan kerja awal yang dipakai di sini ${benchmarkMargin}%; ini batas internal untuk penyaringan, bukan standar resmi seluruh industri.`);
+        }
+
+        if (bestArea) {
+            notes.push(`${bestArea.name} memberi profit area terbesar, ${formatRp(bestArea.profit)}, dengan margin ${bestArea.margin.toFixed(1)}%. Pola rute dan pemakaian unitnya layak dijadikan pembanding.`);
+        }
+
+        if (weakestArea && weakestArea.name !== bestArea?.name) {
+            notes.push(`${weakestArea.name} punya margin paling tipis, ${weakestArea.margin.toFixed(1)}%. Cek tarif, frekuensi jalan, dan biaya unit di area ini sebelum menambah pekerjaan.`);
+        }
+
+        if (bestVehicle && costlyVehicle) {
+            notes.push(`${bestVehicle.name} mencatat profit kendaraan terbaik ${formatRp(bestVehicle.profit)}. Sementara ${costlyVehicle.name} memakai ${((costlyVehicle.expense / costlyVehicle.revenue) * 100).toFixed(1)}% pendapatannya untuk biaya dan perlu dicek lebih dulu.`);
         }
 
         if (second && top && top.amount > second.amount * 1.8) {
@@ -292,8 +356,8 @@ function SmartAnalysis({ summaryData, totalBiaya }) {
 
         notes.push("Langkah paling masuk akal: buka kategori terbesar, urutkan nominal tertinggi, lalu cek apakah biayanya wajar untuk unit, area, dan tanggalnya.");
 
-        return { top, rows, serviceTotal, legalTotal, operasionalTotal, notes: notes.slice(0, 5) };
-    }, [summaryData, totalBiaya]);
+        return { top, rows, serviceTotal, legalTotal, operasionalTotal, notes: notes.slice(0, 6), margin, benchmarkMargin, revenue, expense, profit, bestArea, weakestArea, bestVehicle, costlyVehicle };
+    }, [summaryData, totalBiaya, operationRows, vehicleCosts, filters]);
 
     return (
         <section className="mb-5 rounded-xl border border-cyan-100 bg-white p-5 shadow-sm">
@@ -304,9 +368,9 @@ function SmartAnalysis({ summaryData, totalBiaya }) {
                     </div>
                     <div>
                         <p className="text-xs font-black uppercase tracking-wider text-cyan-700">Catatan biaya</p>
-                        <h2 className="mt-1 text-lg font-black text-slate-950">Mulai cek dari sini</h2>
+                        <h2 className="mt-1 text-lg font-black text-slate-950">Keuntungan dan pengeluaran yang perlu dijaga</h2>
                         <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
-                            Ringkasan ini membantu mencari biaya yang perlu dicek dulu, bukan sekadar melihat totalnya.
+                            Membandingkan pendapatan dengan seluruh beban kendaraan, lalu melihat area dan nopol yang paling sehat atau perlu dibenahi.
                         </p>
                     </div>
                 </div>
@@ -321,6 +385,17 @@ function SmartAnalysis({ summaryData, totalBiaya }) {
                     </div>
                 )}
             </div>
+
+            {analysis.revenue > 0 && (
+                <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    {[
+                        ["Pendapatan terbaca", formatRp(analysis.revenue)],
+                        ["Pengeluaran kendaraan", formatRp(analysis.expense)],
+                        ["Sisa keuntungan", formatRp(analysis.profit)],
+                        ["Margin / patokan kerja", `${analysis.margin.toFixed(1)}% / ${analysis.benchmarkMargin}%`],
+                    ].map(([label, value]) => <div key={label} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3"><p className="text-[10px] font-black uppercase text-slate-400">{label}</p><p className="mt-1 text-base font-black text-slate-950">{value}</p></div>)}
+                </div>
+            )}
 
             <div className="grid gap-3 lg:grid-cols-2">
                 {analysis.notes.map((note, index) => (
@@ -455,7 +530,13 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
                 <p className="mt-1 text-sm font-medium text-slate-300">Total dari semua kategori biaya yang sudah terbaca.</p>
             </div>
 
-            <SmartAnalysis summaryData={summaryData} totalBiaya={totalBiaya} />
+            <SmartAnalysis
+                summaryData={summaryData}
+                totalBiaya={totalBiaya}
+                operationRows={operationRows}
+                vehicleCosts={vehicleCostRows.length ? vehicleCostRows : vehicleCosts}
+                filters={activeFilters}
+            />
 
             <FilterPanel
                 filters={activeFilters}

@@ -43,11 +43,6 @@ function ProfitCard({ item }) {
                     <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
                         {item.title}
                     </p>
-                    {item.includeInAssetSummary === false && (
-                        <span className="mt-1 inline-flex rounded bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-700">
-                            Di luar ringkasan aset
-                        </span>
-                    )}
                     <h3 className="mt-2 break-words text-[clamp(1.35rem,2vw,1.9rem)] font-black leading-tight text-slate-900">
                         {formatRp(item.profit)}
                     </h3>
@@ -122,7 +117,7 @@ export default function Index({ summaryData = [] }) {
 
         if (!rows.length) {
             return [
-                    "Belum ada profit dari unit aset yang terbaca. Cek kecocokan NOPOL transaksi dengan daftar inventori.",
+                    "Belum ada pendapatan unit aset yang terbaca dari Primary, Secondary, Rental, maupun LCL.",
                     "Untuk sementara jangan putuskan apa-apa dulu sebelum pendapatan dan biaya sama-sama terbaca.",
             ];
         }
@@ -169,7 +164,7 @@ export default function Index({ summaryData = [] }) {
                 <div className="mt-3 grid gap-4 lg:grid-cols-[1fr_0.8fr_0.8fr_0.5fr]">
                     <div>
                         <h1 className="text-3xl font-black">{formatRp(totals.profit)}</h1>
-                        <p className="mt-1 text-sm font-medium text-slate-300">Hanya transaksi Primary dan Secondary dengan NOPOL yang terdaftar sebagai aset perusahaan.</p>
+                        <p className="mt-1 text-sm font-medium text-slate-300">Gabungan seluruh pendapatan unit aset dari Primary, Secondary, Rental, dan LCL.</p>
                     </div>
                     <div className="rounded-lg border border-white/10 bg-white/10 p-4">
                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Pendapatan</p>
@@ -248,11 +243,6 @@ export default function Index({ summaryData = [] }) {
                             >
                                 <td className="border-r border-slate-100 px-4 py-3 text-sm font-black text-slate-800">
                                     <span className={isClickable ? "hover:text-blue-600" : ""}>{item.title}</span>
-                                    {item.includeInAssetSummary === false && (
-                                        <span className="ml-2 inline-flex rounded bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase text-amber-700">
-                                            Di luar ringkasan aset
-                                        </span>
-                                    )}
                                 </td>
                                 <td className="border-r border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{formatRp(item.revenue)}</td>
                                 <td className="border-r border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{formatRp(item.cost)}</td>

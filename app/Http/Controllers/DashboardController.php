@@ -91,6 +91,7 @@ class DashboardController extends Controller
 
         $fatDocPrimary = $this->fatDocByDivision('Primary - Operasional');
         $fatDocSecondary = $this->fatDocByDivision('Secondary - Operasional');
+        $globalProfit = $this->globalProfitKpis();
 
             return [
                 'pajak' => $chartDataPajak,
@@ -109,6 +110,8 @@ class DashboardController extends Controller
                 'totalActivitySecondary' => $totalActivitySecondary,
                 'totalFatDocPrimary' => $fatDocPrimary['total'],
                 'totalFatDocSecondary' => $fatDocSecondary['total'],
+                'globalProfit' => $globalProfit['summary'],
+                'profitByArea' => $globalProfit['areas'],
             ];
         });
 
@@ -116,6 +119,88 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'dbChartData' => $dbChartData,
         ]);
+    }
+
+    private function globalProfitKpis(): array
+    {
+        $areas = [];
+        $add = static function (?string $area, float $revenue, float $cost) use (&$areas): void {
+            $name = mb_strtoupper(trim((string) $area)) ?: 'TIDAK DIKETAHUI';
+            $areas[$name] ??= ['area' => $name, 'revenue' => 0.0, 'cost' => 0.0, 'profit' => 0.0, 'records' => 0];
+            $areas[$name]['revenue'] += $revenue;
+            $areas[$name]['cost'] += $cost;
+            $areas[$name]['profit'] += $revenue - $cost;
+            $areas[$name]['records']++;
+        };
+
+        DB::table('operasional_primary_input')
+            ->get(['area', 'total_tarif', 'total_biaya'])
+            ->each(fn ($row) => $add($row->area, (float) $row->total_tarif, (float) $row->total_biaya));
+
+        $ovtLookup = [];
+        DB::table('operasional_absen')->get(['nama', 'tanggal', 'approval_ovt'])->each(function ($row) use (&$ovtLookup) {
+            $date = \DateTimeImmutable::createFromFormat('m/d/Y', trim((string) $row->tanggal));
+            if (! $date || ! $row->nama) {
+                return;
+            }
+            $key = $date->format('Y-m-d').'|'.mb_strtoupper(trim((string) $row->nama));
+            $ovtLookup[$key] ??= (float) ($row->approval_ovt ?: 0);
+        });
+
+        DB::table('operasional_secondary_input')
+            ->whereIn('project', ['ON DEMAND - FULL SERVICE', 'RENTAL'])
+            ->get([
+                'area', 'tanggal', 'driver', 'helper', 'tarif_unit', 'total_tarif',
+                'add_cost_long_route', 'tkbm', 'spsi', 'parkir_liar_keamanan',
+                'penyebrangan_pas_masuk', 'rapid_antigen', 'allowance',
+                'total_subsidi_bbm', 'subsidi_hotel', 'total_biaya_operasional',
+            ])
+            ->each(function ($row) use ($add, $ovtLookup) {
+                $date = \DateTimeImmutable::createFromFormat('m-d-Y', trim((string) $row->tanggal));
+                $dateKey = $date?->format('Y-m-d');
+                $approval = static fn ($name) => $dateKey && $name
+                    ? ($ovtLookup[$dateKey.'|'.mb_strtoupper(trim((string) $name))] ?? 0)
+                    : 0;
+                $nilaiOvt = max($approval($row->driver), $approval($row->helper)) * 32500;
+                $revenue = (float) $row->total_tarif
+                    + (float) $row->add_cost_long_route
+                    + (float) $row->tkbm
+                    + (float) $row->spsi
+                    + (float) $row->parkir_liar_keamanan
+                    + (float) $row->penyebrangan_pas_masuk
+                    + (float) $row->rapid_antigen
+                    + ((float) $row->allowance > 0 ? 125000 : 0)
+                    + (float) $row->total_subsidi_bbm
+                    + (float) $row->subsidi_hotel
+                    + $nilaiOvt;
+                $add($row->area, $revenue, (float) $row->total_biaya_operasional);
+            });
+
+        DB::table('operasional_rental_unit_input')
+            ->get(['area', 'tarif_sewa_unit_bln'])
+            ->each(fn ($row) => $add($row->area, (float) $row->tarif_sewa_unit_bln, 0));
+
+        DB::table('db_chargo_data_paket_masuk')
+            ->get(['kota_tujuan', 'total_ongkir'])
+            ->each(fn ($row) => $add($row->kota_tujuan, (float) $row->total_ongkir, 0));
+
+        $ranked = collect(array_values($areas))->sortByDesc('profit')->values();
+        $revenue = (float) $ranked->sum('revenue');
+        $cost = (float) $ranked->sum('cost');
+        $profit = $revenue - $cost;
+
+        return [
+            'summary' => [
+                'revenue' => $revenue,
+                'cost' => $cost,
+                'profit' => $profit,
+                'margin' => $revenue > 0 ? $profit / $revenue * 100 : 0,
+                'topArea' => $ranked->first()['area'] ?? '-',
+                'topAreaProfit' => (float) ($ranked->first()['profit'] ?? 0),
+                'areaCount' => $ranked->count(),
+            ],
+            'areas' => $ranked->take(10)->all(),
+        ];
     }
 
     private function fatDocByDivision(string $division): array

@@ -11,6 +11,7 @@ export default function Lcl({ rows = [] }) {
                 detailBase: "/profit-unit/lcl/table",
                 numberLabel: "No. STT",
                 routeLabel: "Rute Pengiriman",
+                showWeeklyFlow: true,
                 filterFields: [
                     ["TAHUN", "Tahun"],
                     ["BULAN", "Bulan"],

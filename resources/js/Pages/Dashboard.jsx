@@ -1,9 +1,6 @@
-import { Link } from "@inertiajs/react";
-import { ExternalLink } from "lucide-react";
 import React, { memo } from "react";
 import AdminLayout from "../Layouts/AdminLayout";
 import { Head } from "@inertiajs/react";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import {
     AlertCircle,
     ArrowDownRight,
@@ -18,47 +15,9 @@ import {
     WalletCards,
 } from "lucide-react";
 
-// Komponen KPI Card Atas (Analitik Cepat)
-const chartData = {
-    kir: [
-        { name: "AKTIF", value: 229 },
-        { name: "EXPIRED", value: 17 },
-        { name: "HAMPIR EXPIRED", value: 31 },
-    ],
-    docInv: [
-        { name: "LENGKAP", value: 2507 },
-        { name: "BELUM LENGKAP", value: 836 },
-        { name: "[blank]", value: 52 },
-    ],
-    aktifitasPrimary: [
-        { name: "Februari", value: 25 },
-        { name: "Maret", value: 106 },
-        { name: "April", value: 107 },
-        { name: "Mei", value: 36 },
-        { name: "Juni", value: 16 },
-    ],
-    aktifitasSecondary: [{ name: "Juni", value: 45 }],
-    fatDocPrimary: [
-        { name: "BELUM NAIK", value: 514 },
-        { name: "DITERIMA", value: 2390 },
-    ],
-    fatDocSecondary: [
-        { name: "BELUM NAIK", value: 869 },
-        { name: "DITERIMA", value: 3852 },
-    ],
-};
-
-const cBlue = ["#3B82F6", "#93C5FD", "#F59E0B"];
-const cDoc = ["#10B981", "#EF4444", "#F59E0B"];
-const cActivity = ["#EF4444", "#F97316", "#EAB308", "#22C55E", "#06B6D4"];
-const cOrange = ["#F97316"];
-const cFinance = ["#EF4444", "#10B981"];
-const fallbackInvoiceTotal = chartData.docInv.reduce(
-    (total, item) => total + item.value,
-    0,
-);
-
-const totalOf = (items = []) => items.reduce((total, item) => total + Number(item.value || 0), 0);
+const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", {
+    maximumFractionDigits: 0,
+})}`;
 
 const complianceItems = [
     { label: "Pajak aktif", value: "259", helper: "15 unit perlu tindakan", tone: "blue" },
@@ -197,112 +156,61 @@ const WorkQueueCard = memo(function WorkQueueCard() {
     );
 });
 
-// Komponen Reusable Donut Chart yang diperhalus
-const DonutCard = memo(function DonutCard({
-    title,
-    subtitle,
-    data,
-    centerText,
-    colors,
-    detailLink,
-}) {
+const GlobalProfitSection = memo(function GlobalProfitSection({ summary = {}, areas = [] }) {
+    const maxProfit = Math.max(...areas.map((item) => Math.max(Number(item.profit || 0), 0)), 1);
+
     return (
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex flex-col h-full hover:border-blue-200 hover:shadow-lg hover:shadow-slate-200/80 transition-all relative group">
-            {/* Tombol Detail (Muncul & Aktif jika detailLink ada) */}
-            {detailLink && (
-                <Link
-                    href={detailLink}
-                    className="absolute top-4 right-4 text-slate-300 hover:text-blue-600 transition-colors p-1.5 rounded-md hover:bg-blue-50 cursor-pointer z-20"
-                    title="Lihat Detail Data"
-                >
-                    <ExternalLink size={18} />
-                </Link>
-            )}
-
-            <div className="mb-2 min-h-[44px] pr-8">
-                <h3 className="text-[13px] font-black text-gray-800 tracking-wide leading-tight">
-                    {title}
-                </h3>
-                <p className="text-[11px] font-bold text-gray-400 uppercase mt-0.5">
-                    {subtitle}
-                </p>
-            </div>
-
-            <div className="flex-1 relative w-full flex items-center justify-center min-h-[210px]">
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
-                    {centerText && (
-                        <>
-                            <span className="text-3xl font-black text-gray-800 leading-none">
-                                {centerText.value}
-                            </span>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase mt-1 tracking-wider">
-                                {centerText.label}
-                            </span>
-                        </>
-                    )}
-                </div>
-
-                <ResponsiveContainer
-                    width="100%"
-                    height="100%"
-                    className="relative z-10"
-                >
-                    <PieChart>
-                        <Pie
-                            data={data}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius="65%"
-                            outerRadius="85%"
-                            paddingAngle={3}
-                            dataKey="value"
-                            stroke="none"
-                            isAnimationActive={false}
-                        >
-                            {data.map((entry, index) => (
-                                <Cell
-                                    key={`cell-${index}`}
-                                    fill={colors[index % colors.length]}
-                                />
-                            ))}
-                        </Pie>
-                        <Tooltip
-                            cursor={{ fill: "transparent" }}
-                            wrapperStyle={{ zIndex: 100 }}
-                            contentStyle={{
-                                backgroundColor: "#ffffff",
-                                borderRadius: "8px",
-                                border: "1px solid #e5e7eb",
-                                boxShadow:
-                                    "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
-                                padding: "8px 12px",
-                            }}
-                            itemStyle={{ fontWeight: "900", color: "#1f2937" }}
-                        />
-                    </PieChart>
-                </ResponsiveContainer>
-            </div>
-
-            <div className="flex flex-wrap justify-center content-start gap-x-3 gap-y-2 mt-4 min-h-[48px]">
-                {data.map((entry, index) => (
-                    <div
-                        key={`legend-${index}`}
-                        className="flex items-center text-[11px] font-bold text-gray-600"
-                    >
-                        <span
-                            className="w-2.5 h-2.5 rounded-full mr-1.5 shadow-sm"
-                            style={{
-                                backgroundColor: colors[index % colors.length],
-                            }}
-                        ></span>
-                        {entry.name}
-                        <span className="ml-1.5 text-gray-400">
-                            ({entry.value})
-                        </span>
+        <section className="mb-8">
+            <SectionHeader
+                title="Kinerja Profit Global"
+                description="Gabungan Primary, Secondary, Rental, dan LCL untuk melihat hasil usaha dan kontribusi tiap area."
+            />
+            <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                {[
+                    ["Total Pendapatan", formatRp(summary.revenue), "Nilai pekerjaan yang tercatat."],
+                    ["Total Biaya", formatRp(summary.cost), "Beban operasional Primary dan Secondary."],
+                    ["Profit Bersih", formatRp(summary.profit), "Sisa pendapatan setelah biaya."],
+                    ["Margin Global", `${Number(summary.margin || 0).toFixed(1)}%`, "Porsi profit dari seluruh pendapatan."],
+                    ["Area Teratas", summary.topArea || "-", `${formatRp(summary.topAreaProfit)} profit.`],
+                ].map(([label, value, helper]) => (
+                    <div key={label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{label}</p>
+                        <p className="mt-2 break-words text-xl font-black text-slate-950">{value}</p>
+                        <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">{helper}</p>
                     </div>
                 ))}
             </div>
-        </div>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex flex-col gap-1 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h3 className="text-sm font-black uppercase text-slate-950">Keuntungan Per Area</h3>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">Sepuluh area dengan profit terbesar dari seluruh grup usaha.</p>
+                    </div>
+                    <span className="text-xs font-black text-cyan-700">{Number(summary.areaCount || 0).toLocaleString("id-ID")} area tercatat</span>
+                </div>
+                <div className="custom-scrollbar overflow-x-auto">
+                    <table className="w-full min-w-[760px] text-left">
+                        <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400">
+                            <tr><th className="px-5 py-3">Area</th><th className="px-5 py-3">Pendapatan</th><th className="px-5 py-3">Biaya</th><th className="px-5 py-3">Profit</th><th className="px-5 py-3">Margin</th><th className="px-5 py-3">Kontribusi</th></tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {areas.map((item) => {
+                                const margin = Number(item.revenue || 0) > 0 ? Number(item.profit || 0) / Number(item.revenue) * 100 : 0;
+                                const width = Math.max(Number(item.profit || 0) / maxProfit * 100, 0);
+                                return <tr key={item.area} className="text-xs font-bold text-slate-600">
+                                    <td className="px-5 py-3 font-black text-slate-900">{item.area}</td>
+                                    <td className="px-5 py-3">{formatRp(item.revenue)}</td>
+                                    <td className="px-5 py-3">{formatRp(item.cost)}</td>
+                                    <td className={`px-5 py-3 font-black ${Number(item.profit) >= 0 ? "text-emerald-700" : "text-rose-600"}`}>{formatRp(item.profit)}</td>
+                                    <td className="px-5 py-3">{margin.toFixed(1)}%</td>
+                                    <td className="w-44 px-5 py-3"><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-cyan-500" style={{ width: `${width}%` }} /></div></td>
+                                </tr>;
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
     );
 });
 
@@ -401,124 +309,16 @@ export default function Dashboard({ dbChartData }) {
                 />
             </div>
 
+            <GlobalProfitSection
+                summary={dbChartData?.globalProfit || {}}
+                areas={dbChartData?.profitByArea || []}
+            />
+
             <div className="mb-8 grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.1fr] xl:gap-6">
                 <ComplianceCard />
                 <WorkQueueCard />
             </div>
 
-            <SectionHeader
-                title="Bacaan Per Modul"
-                description="Lihat pola data per bagian, lalu masuk ke detail kalau ada angka yang terasa tidak wajar."
-            />
-
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 xl:gap-6 pb-10">
-                <DonutCard
-                    title="STATUS PAJAK"
-                    subtitle="Legalitas Kendaraan"
-                    data={dbChartData?.pajak || []} // Ambil dari DB
-                    colors={cBlue}
-                    centerText={{
-                        label: "Total",
-                        value: dbChartData?.totalPajak || 0,
-                    }}
-                    detailLink="/inventori/pajak"
-                />
-
-                {/* 2. MENGGUNAKAN DATA DATABASE */}
-                <DonutCard
-                    title="STATUS STNK"
-                    subtitle="Legalitas Kendaraan"
-                    data={dbChartData?.stnk || []} // Ambil dari DB
-                    colors={cBlue}
-                    centerText={{
-                        label: "Total",
-                        value: dbChartData?.totalStnk || 0,
-                    }}
-                    detailLink="/inventori/stnk"
-                />
-                <DonutCard
-                    title="STATUS KIR"
-                    subtitle="Kelaikan Kendaraan"
-                    data={dbChartData?.kir || chartData.kir}
-                    colors={cBlue}
-                    centerText={{
-                        label: "Total",
-                        value: dbChartData?.totalKir || 0,
-                    }}
-                    detailLink="/inventori/kir"
-                />
-                <DonutCard
-                    title="DOKUMEN INVOICE"
-                    subtitle="Progress Pemberkasan"
-                    data={
-                        dbChartData?.invoice?.length
-                            ? dbChartData.invoice
-                            : chartData.docInv
-                    }
-                    colors={cDoc}
-                    centerText={{
-                        label: "Total",
-                        value: dbChartData?.invoice?.length
-                            ? dbChartData.totalInvoice
-                            : fallbackInvoiceTotal,
-                    }}
-                    detailLink="/finance/dokumen-invoice"
-                />
-
-                <DonutCard
-                    title="AKTIFITAS PRIMARY"
-                    subtitle="Distribusi Bulanan"
-                    data={dbChartData?.activityPrimary?.length ? dbChartData.activityPrimary : chartData.aktifitasPrimary}
-                    colors={cActivity}
-                    centerText={{
-                        label: "Total",
-                        value: dbChartData?.activityPrimary?.length
-                            ? dbChartData.totalActivityPrimary
-                            : totalOf(chartData.aktifitasPrimary),
-                    }}
-                    detailLink="/profit-unit/primary"
-                />
-                <DonutCard
-                    title="AKTIFITAS SECONDARY"
-                    subtitle="Distribusi Bulanan"
-                    data={dbChartData?.activitySecondary?.length ? dbChartData.activitySecondary : chartData.aktifitasSecondary}
-                    colors={cOrange}
-                    centerText={{
-                        label: "Total",
-                        value: dbChartData?.activitySecondary?.length
-                            ? dbChartData.totalActivitySecondary
-                            : totalOf(chartData.aktifitasSecondary),
-                    }}
-                    detailLink="/profit-unit/secondary"
-                />
-                <DonutCard
-                    title="FAT DOC PRIMARY"
-                    subtitle="Finance & Tax"
-                    data={dbChartData?.fatDocPrimary?.length ? dbChartData.fatDocPrimary : chartData.fatDocPrimary}
-                    colors={cFinance}
-                    centerText={{
-                        label: "Total",
-                        value: dbChartData?.fatDocPrimary?.length
-                            ? dbChartData.totalFatDocPrimary
-                            : totalOf(chartData.fatDocPrimary),
-                    }}
-                    detailLink="/finance/dokumen-invoice"
-                />
-                <DonutCard
-                    title="FAT DOC SECONDARY"
-                    subtitle="Finance & Tax"
-                    data={dbChartData?.fatDocSecondary?.length ? dbChartData.fatDocSecondary : chartData.fatDocSecondary}
-                    colors={cFinance}
-                    centerText={{
-                        label: "Total",
-                        value: dbChartData?.fatDocSecondary?.length
-                            ? dbChartData.totalFatDocSecondary
-                            : totalOf(chartData.fatDocSecondary),
-                    }}
-                    detailLink="/finance/dokumen-invoice"
-                />
-            </div>
         </AdminLayout>
     );
 }

@@ -57,7 +57,56 @@ class OnTheRoadController extends Controller
             'typeBreakdown' => $this->breakdown($rows, 'tipe_unit', 'type', $date),
             'areaBreakdown' => $this->breakdown($rows, 'area', 'area', $date),
             'sampleRows' => $rows->take(12)->values(),
+            'latestPositions' => $this->latestUnitPositions(),
         ]);
+    }
+
+    private function latestUnitPositions(): array
+    {
+        return DB::table('operasional_update_posisi_unit')
+            ->whereNotNull('nopol')
+            ->where('nopol', '!=', '')
+            ->orderByDesc('tanggal_jam')
+            ->get(['id', 'tanggal_jam', 'nopol', 'nama_driver', 'location', 'keterangan'])
+            ->unique(fn ($row) => mb_strtoupper(trim((string) $row->nopol)))
+            ->map(fn ($row) => $this->positionPayload($row))
+            ->values()
+            ->all();
+    }
+
+    public function positionDetail(string $id)
+    {
+        $row = DB::table('operasional_update_posisi_unit')
+            ->where('id', urldecode($id))
+            ->first();
+
+        abort_if(! $row, 404);
+
+        return Inertia::render('Operations/OnTheRoad/PositionDetail', [
+            'position' => $this->positionPayload($row),
+            'backUrl' => url()->previous() ?: route('on-the-road.index'),
+        ]);
+    }
+
+    private function positionPayload(object $row): array
+    {
+        $coordinates = array_map('trim', explode(',', (string) $row->location));
+        $latitude = isset($coordinates[0]) && is_numeric($coordinates[0]) ? (float) $coordinates[0] : null;
+        $longitude = isset($coordinates[1]) && is_numeric($coordinates[1]) ? (float) $coordinates[1] : null;
+        $valid = $latitude !== null && $longitude !== null
+            && $latitude >= -90 && $latitude <= 90
+            && $longitude >= -180 && $longitude <= 180;
+
+        return [
+            'id' => $row->id,
+            'tanggal_jam' => $row->tanggal_jam,
+            'nopol' => $row->nopol,
+            'nama_driver' => $row->nama_driver,
+            'location' => $row->location,
+            'keterangan' => $row->keterangan,
+            'latitude' => $valid ? $latitude : null,
+            'longitude' => $valid ? $longitude : null,
+        ];
     }
 
     public function table(string $category)
@@ -156,20 +205,18 @@ class OnTheRoadController extends Controller
 
     private function rowsForDate(string $date): Collection
     {
-        return Cache::remember("on_the_road.rows.$date", now()->addMinutes(10), function () use ($date) {
-            return DB::table('operasional_secondary_input')
-                ->get()
-                ->map(function ($row) {
-                    $row->tanggal_normalized = $this->normalizeDate($row->tanggal);
-                    $row->tagihan = $this->tagihan($row);
-                    $row->profit_trip = $this->profitTrip($row);
+        return DB::table('operasional_secondary_input')
+            ->get()
+            ->map(function ($row) {
+                $row->tanggal_normalized = $this->normalizeDate($row->tanggal);
+                $row->tagihan = $this->tagihan($row);
+                $row->profit_trip = $this->profitTrip($row);
 
-                    return $row;
-                })
-                ->filter(fn ($row) => $row->tanggal_normalized === $date)
-                ->filter(fn ($row) => trim((string) $row->status) === '' || strtoupper((string) $row->status) === 'JALAN')
-                ->values();
-        });
+                return $row;
+            })
+            ->filter(fn ($row) => $row->tanggal_normalized === $date)
+            ->filter(fn ($row) => trim((string) $row->status) === '' || strtoupper((string) $row->status) === 'JALAN')
+            ->values();
     }
 
     private function standbyRows(string $date): Collection
@@ -211,7 +258,7 @@ class OnTheRoadController extends Controller
 
     private function dateOptions(): array
     {
-        return Cache::remember('on_the_road.date_options', now()->addMinutes(10), function () {
+        return Cache::remember('on_the_road.v2.date_options', now()->addMinutes(10), function () {
             return DB::table('operasional_secondary_input')
                 ->select('tanggal')
                 ->whereNotNull('tanggal')

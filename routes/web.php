@@ -49,6 +49,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/need-approval/outstanding/{id}', [NeedApprovalController::class, 'outstandingDetail'])->name('need-approval.outstanding.detail');
 
     Route::get('/on-the-road', [OnTheRoadController::class, 'index'])->name('on-the-road.index');
+    Route::get('/on-the-road/position/{id}', [OnTheRoadController::class, 'positionDetail'])->name('on-the-road.position.detail');
     Route::get('/on-the-road/breakdown/{field}/{value}', [OnTheRoadController::class, 'breakdownTable'])->name('on-the-road.breakdown');
     Route::get('/on-the-road/{category}', [OnTheRoadController::class, 'table'])->name('on-the-road.table');
     Route::get('/on-the-road/{category}/{id}', [OnTheRoadController::class, 'detail'])->name('on-the-road.detail');
