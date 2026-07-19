@@ -413,11 +413,11 @@ class BiayaController extends Controller
     {
         $lookup = [];
         DB::table('operasional_absen')->get(['nama', 'tanggal', 'approval_ovt'])->each(function ($row) use (&$lookup) {
-            $date = \DateTimeImmutable::createFromFormat('m/d/Y', trim((string) $row->tanggal));
-            if (! $date || ! $row->nama) {
+            $dateKey = $this->dateKey($row->tanggal);
+            if (! $dateKey || ! $row->nama) {
                 return;
             }
-            $key = $date->format('Y-m-d').'|'.mb_strtoupper(trim((string) $row->nama));
+            $key = $dateKey.'|'.mb_strtoupper(trim((string) $row->nama));
             $lookup[$key] ??= (float) ($row->approval_ovt ?: 0);
         });
 
@@ -426,8 +426,7 @@ class BiayaController extends Controller
 
     private function secondaryRevenue(object $row, array $ovtLookup): float
     {
-        $date = \DateTimeImmutable::createFromFormat('m-d-Y', trim((string) $row->tanggal));
-        $dateKey = $date?->format('Y-m-d');
+        $dateKey = $this->dateKey($row->tanggal);
         $approval = static fn ($name) => $dateKey && $name
             ? ($ovtLookup[$dateKey.'|'.mb_strtoupper(trim((string) $name))] ?? 0)
             : 0;
@@ -443,6 +442,23 @@ class BiayaController extends Controller
             + (float) $row->total_subsidi_bbm
             + (float) $row->subsidi_hotel
             + max($approval($row->driver), $approval($row->helper)) * 32500;
+    }
+
+    private function dateKey(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        foreach (['m-d-Y', 'm/d/Y', 'd/m/Y', 'Y-m-d', 'Y-m-d H:i:s'] as $format) {
+            $date = \DateTimeImmutable::createFromFormat('!'.$format, $value);
+            if ($date !== false && $date->format($format) === $value) {
+                return $date->format('Y-m-d');
+            }
+        }
+
+        return null;
     }
 
     private function filterOptions(): array
