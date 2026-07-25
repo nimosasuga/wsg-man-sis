@@ -65,7 +65,7 @@ const BusinessHealth = memo(function BusinessHealth({ data }) {
                         Business Health
                     </div>
                     <h2 className="mt-3 text-2xl font-black text-slate-950">Kesehatan Bisnis</h2>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">Skor gabungan dari kepatuhan dokumen dan profitabilitas.</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">Nilai ini ngukur sehat nggaknya bisnis dari dua sisi: urusan dokumen kendaraan (pajak, STNK, KIR) sama untung rugi usahanya. Masing-masing bobotnya setengah, jadi kalau dokumen rapi tapi profit jeblok ya tetap kuning, begitu juga sebaliknya.</p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                     <div className="rounded-xl border border-slate-100 bg-slate-950 p-4 text-white">
@@ -224,6 +224,12 @@ const AreaHealthTable = memo(function AreaHealthTable({ areas = [] }) {
             <div className="mb-4">
                 <h2 className="text-base font-black text-slate-900">Kesehatan Per Area</h2>
                 <p className="mt-1 text-sm font-medium text-slate-500">Skor kepatuhan dokumen dan profitabilitas tiap cabang.</p>
+            </div>
+            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold leading-relaxed text-slate-500">
+                Skor tiap area dihitung dari dua hal: pertama, seberapa banyak unit di area itu yang dokumen pajak, STNK, dan KIR-nya masih aktif —
+                makin banyak yang aktif, makin tinggi skor kepatuhannya. Kedua, margin profit area itu dibanding target 50% — kalau margin 50% atau
+                lebih, dapet skor penuh. Dua nilai ini digabung 50:50 jadi skor akhir. Hijau artinya sehat (≥75), kuning artinya cukup (50–74),
+                merah artinya perlu perhatian (&lt;50).
             </div>
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="custom-scrollbar overflow-x-auto">
