@@ -12,6 +12,16 @@ use Inertia\Response;
 
 class DaftarKaryawanController extends Controller
 {
+    private array $inactiveStatuses = [
+        'EXPIRED',
+        'NON AKTIF',
+        'NON-AKTIF',
+        'TIDAK AKTIF',
+        'INACTIVE',
+        'RESIGN',
+        'KELUAR',
+    ];
+
     private array $detailColumns = [
         'id_key',
         'nama_karyawan',
@@ -141,6 +151,71 @@ class DaftarKaryawanController extends Controller
                 'area' => $this->distinctValues('area'),
                 'status' => $this->distinctValues('status'),
                 'status_pkwt' => $this->distinctValues('status_pkwt'),
+            ],
+        ]);
+    }
+
+    public function archive(): Response
+    {
+        $rows = DB::table('hr_manager_db_pegawai')
+            ->select([
+                'id_key',
+                'nama_karyawan',
+                'nama_panggilan',
+                'nip',
+                'divisi',
+                'jabatan',
+                'level',
+                'area',
+                'jenis_kelamin',
+                'no_ponsel',
+                'email',
+                'tanggal_bergabung',
+                'status',
+                'status_pkwt',
+                'akhir_pkwt',
+                'masa_aktif',
+                'hari_aktif',
+                'jenis_sim',
+                'masa_berlaku',
+            ])
+            ->where(function ($query) {
+                foreach ($this->inactiveStatuses as $status) {
+                    $query->orWhereRaw('UPPER(TRIM(status)) = ?', [$status]);
+                }
+            })
+            ->orderByRaw("CASE WHEN nama_karyawan IS NULL OR nama_karyawan = '' THEN 1 ELSE 0 END")
+            ->orderBy('nama_karyawan')
+            ->get()
+            ->map(fn ($row) => [
+                'id_key' => $row->id_key,
+                'nama_karyawan' => $row->nama_karyawan,
+                'nama_panggilan' => $row->nama_panggilan,
+                'nip' => $row->nip,
+                'divisi' => $row->divisi,
+                'jabatan' => $row->jabatan,
+                'level' => $row->level,
+                'area' => $row->area,
+                'jenis_kelamin' => $row->jenis_kelamin,
+                'no_ponsel' => $row->no_ponsel,
+                'email' => $row->email,
+                'tanggal_bergabung' => $row->tanggal_bergabung,
+                'status' => $row->status,
+                'status_pkwt' => $row->status_pkwt,
+                'akhir_pkwt' => $row->akhir_pkwt,
+                'masa_aktif' => $row->masa_aktif,
+                'hari_aktif' => $row->hari_aktif,
+                'jenis_sim' => $row->jenis_sim,
+                'masa_berlaku' => $row->masa_berlaku,
+            ]);
+
+        return Inertia::render('Karyawan/DaftarKaryawan/Archive', [
+            'employees' => $rows,
+            'filters' => [
+                'divisi' => $this->distinctValues('divisi'),
+                'jabatan' => $this->distinctValues('jabatan'),
+                'area' => $this->distinctValues('area'),
+                'status' => $rows->pluck('status')->filter()->unique()->sort()->values()->all(),
             ],
         ]);
     }

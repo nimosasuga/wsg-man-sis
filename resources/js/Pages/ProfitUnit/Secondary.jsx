@@ -21,6 +21,8 @@ export default function Secondary({ rows = [] }) {
                     ["AREA", "Area"],
                     ["TIPE", "Tipe Unit"],
                     ["NOPOL", "Nopol"],
+                    ["WEEK", "Minggu"],
+                    ["HARI", "Hari"],
                 ],
             }}
         />

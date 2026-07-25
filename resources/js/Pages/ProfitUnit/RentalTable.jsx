@@ -5,8 +5,8 @@ import AdminLayout from "../../Layouts/AdminLayout";
 
 const formatRp = (value) =>
     `Rp${Number(value || 0).toLocaleString("id-ID", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
     })}`;
 
 const formatTanggal = (value) => {
@@ -91,7 +91,7 @@ export default function RentalTable({ rows = [], filters = {}, summary = {} }) {
                     </div>
                 </section>
 
-                <section className="grid gap-4 md:grid-cols-3">
+                <section className="grid gap-4 md:grid-cols-4">
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                         <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Filter Unit</p>
                         <p className="mt-2 text-lg font-black text-slate-950">{filters.NOPOL && filters.NOPOL !== "ALL" ? filters.NOPOL : "Semua Unit"}</p>
@@ -104,6 +104,12 @@ export default function RentalTable({ rows = [], filters = {}, summary = {} }) {
                         <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Nilai Rental</p>
                         <p className="mt-2 break-words text-lg font-black text-blue-600">{formatRp(summary.revenue)}</p>
                     </div>
+                    {summary.cost !== undefined && (
+                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                            <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Biaya Legalitas</p>
+                            <p className="mt-2 break-words text-lg font-black text-amber-600">{formatRp(summary.cost)}</p>
+                        </div>
+                    )}
                 </section>
 
                 <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-950/5">
@@ -119,7 +125,7 @@ export default function RentalTable({ rows = [], filters = {}, summary = {} }) {
                         <table className="min-w-[860px] w-full border-collapse text-left">
                             <thead className="bg-slate-50">
                                 <tr>
-                                    {["ID_KEY", "TANGGAL", "AREA", "NOPOL", "TIPE", "TARIF_SEWA_UNIT_BLN", "WEEK"].map((head) => (
+                                    {["ID_KEY", "TANGGAL", "AREA", "NOPOL", "TIPE", "TARIF_SEWA_UNIT_BLN", "BIAYA LEGALITAS", "WEEK"].map((head) => (
                                         <th key={head} className="border-r border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-slate-700 last:border-r-0">
                                             {head}
                                         </th>
@@ -145,11 +151,12 @@ export default function RentalTable({ rows = [], filters = {}, summary = {} }) {
                                         <td className="border-r border-slate-100 px-4 py-3 text-sm font-black text-blue-600">{row.nopol || "-"}</td>
                                         <td className="border-r border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{row.tipe || "-"}</td>
                                         <td className="border-r border-slate-100 px-4 py-3 text-sm font-black text-slate-950">{formatRp(row.tarif_sewa_unit_bln)}</td>
+                                        <td className="border-r border-slate-100 px-4 py-3 text-sm font-black text-amber-700">{formatRp(row.biaya_legalitas)}</td>
                                         <td className="px-4 py-3 text-sm font-semibold text-slate-700">{row.week || "-"}</td>
                                     </tr>
                                 )) : (
                                     <tr>
-                                        <td colSpan={7} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
+                                        <td colSpan={8} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
                                             Data rental tidak ditemukan untuk filter ini.
                                         </td>
                                     </tr>

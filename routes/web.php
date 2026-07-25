@@ -16,20 +16,35 @@ use App\Http\Controllers\Operations\OnTheRoadController;
 use App\Http\Controllers\Maintenance\RiwayatServiceController;
 use App\Http\Controllers\System\DataHealthController;
 use App\Http\Controllers\System\SystemActivityLogController;
+use App\Http\Controllers\System\AccessControlController;
 use App\Http\Controllers\Karyawan\DaftarKaryawanController;
+use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\ModuleCrudController;
 
 Route::redirect('/', '/dashboard');
 
 Route::middleware(['auth'])->group(function () {
 
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/global-search', GlobalSearchController::class)->name('global-search');
+    Route::prefix('module-records')->name('module-records.')->group(function () {
+        Route::get('/', [ModuleCrudController::class, 'modules'])->name('modules');
+        Route::get('/{module}', [ModuleCrudController::class, 'index'])->name('index');
+        Route::get('/{module}/create', [ModuleCrudController::class, 'create'])->name('create');
+        Route::post('/{module}', [ModuleCrudController::class, 'store'])->name('store');
+        Route::get('/{module}/{id}/edit', [ModuleCrudController::class, 'edit'])->name('edit');
+        Route::put('/{module}/{id}', [ModuleCrudController::class, 'update'])->name('update');
+        Route::delete('/{module}/{id}', [ModuleCrudController::class, 'destroy'])->name('destroy');
+    });
 
-    Route::prefix('biaya')->name('biaya.')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard.view')->name('dashboard');
+
+    Route::prefix('biaya')->name('biaya.')->middleware('permission:biaya.view')->group(function () {
         Route::get('/', [BiayaController::class, 'index'])->name('index');
         Route::get('/{slug}', [BiayaController::class, 'category'])->name('category');
         Route::get('/{slug}/{id}', [BiayaController::class, 'detail'])->name('detail');
     });
 
+    Route::middleware('permission:profit-unit.view')->group(function () {
     Route::get('/profit-unit', [ProfitUnitController::class, 'index'])->name('profit-unit.index');
     Route::get('/profit-unit/primary', [ProfitUnitController::class, 'primary'])->name('profit-unit.primary');
     Route::get('/profit-unit/primary/table', [ProfitUnitController::class, 'primaryTable'])->name('profit-unit.primary.table');
@@ -43,45 +58,78 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/profit-unit/lcl', [ProfitUnitController::class, 'lcl'])->name('profit-unit.lcl');
     Route::get('/profit-unit/lcl/table', [ProfitUnitController::class, 'lclTable'])->name('profit-unit.lcl.table');
     Route::get('/profit-unit/lcl/table/{id}', [ProfitUnitController::class, 'lclDetail'])->name('profit-unit.lcl.detail');
+    });
 
+    Route::middleware('permission:approval.view')->group(function () {
     Route::get('/need-approval', [NeedApprovalController::class, 'index'])->name('need-approval.index');
     Route::get('/need-approval/outstanding', [NeedApprovalController::class, 'outstanding'])->name('need-approval.outstanding');
     Route::get('/need-approval/outstanding/{id}', [NeedApprovalController::class, 'outstandingDetail'])->name('need-approval.outstanding.detail');
+    });
 
+    Route::middleware('permission:on-the-road.view')->group(function () {
     Route::get('/on-the-road', [OnTheRoadController::class, 'index'])->name('on-the-road.index');
     Route::get('/on-the-road/position/{id}', [OnTheRoadController::class, 'positionDetail'])->name('on-the-road.position.detail');
     Route::get('/on-the-road/breakdown/{field}/{value}', [OnTheRoadController::class, 'breakdownTable'])->name('on-the-road.breakdown');
     Route::get('/on-the-road/{category}', [OnTheRoadController::class, 'table'])->name('on-the-road.table');
     Route::get('/on-the-road/{category}/{id}', [OnTheRoadController::class, 'detail'])->name('on-the-road.detail');
+    });
 
+    Route::middleware('permission:service.view')->group(function () {
     Route::get('/riwayat-service-unit', [RiwayatServiceController::class, 'index'])->name('riwayat-service-unit.index');
     Route::get('/riwayat-service-unit/service-umum', [RiwayatServiceController::class, 'serviceUmum'])->name('riwayat-service-unit.service-umum');
+    Route::get('/riwayat-service-unit/service-ban', [RiwayatServiceController::class, 'serviceBan'])->name('riwayat-service-unit.service-ban');
+    });
+    Route::middleware('permission:service.manage')->group(function () {
     Route::get('/riwayat-service-unit/service-umum/create', [RiwayatServiceController::class, 'createServiceUmum'])->name('riwayat-service-unit.service-umum.create');
     Route::post('/riwayat-service-unit/service-umum', [RiwayatServiceController::class, 'storeServiceUmum'])->name('riwayat-service-unit.service-umum.store');
     Route::get('/riwayat-service-unit/service-umum/{id}/edit', [RiwayatServiceController::class, 'editServiceUmum'])->name('riwayat-service-unit.service-umum.edit');
     Route::put('/riwayat-service-unit/service-umum/{id}', [RiwayatServiceController::class, 'updateServiceUmum'])->name('riwayat-service-unit.service-umum.update');
     Route::delete('/riwayat-service-unit/service-umum/{id}', [RiwayatServiceController::class, 'destroyServiceUmum'])->name('riwayat-service-unit.service-umum.destroy');
-    Route::get('/riwayat-service-unit/service-umum/{id}', [RiwayatServiceController::class, 'serviceUmumDetail'])->name('riwayat-service-unit.service-umum.detail');
-    Route::get('/riwayat-service-unit/service-ban', [RiwayatServiceController::class, 'serviceBan'])->name('riwayat-service-unit.service-ban');
     Route::get('/riwayat-service-unit/service-ban/create', [RiwayatServiceController::class, 'createServiceBan'])->name('riwayat-service-unit.service-ban.create');
     Route::post('/riwayat-service-unit/service-ban', [RiwayatServiceController::class, 'storeServiceBan'])->name('riwayat-service-unit.service-ban.store');
     Route::get('/riwayat-service-unit/service-ban/{id}/edit', [RiwayatServiceController::class, 'editServiceBan'])->name('riwayat-service-unit.service-ban.edit');
     Route::put('/riwayat-service-unit/service-ban/{id}', [RiwayatServiceController::class, 'updateServiceBan'])->name('riwayat-service-unit.service-ban.update');
     Route::delete('/riwayat-service-unit/service-ban/{id}', [RiwayatServiceController::class, 'destroyServiceBan'])->name('riwayat-service-unit.service-ban.destroy');
-    Route::get('/riwayat-service-unit/service-ban/{id}', [RiwayatServiceController::class, 'serviceBanDetail'])->name('riwayat-service-unit.service-ban.detail');
+    });
+    Route::middleware('permission:service.view')->group(function () {
+        Route::get('/riwayat-service-unit/service-umum/{id}', [RiwayatServiceController::class, 'serviceUmumDetail'])->name('riwayat-service-unit.service-umum.detail');
+        Route::get('/riwayat-service-unit/service-ban/{id}', [RiwayatServiceController::class, 'serviceBanDetail'])->name('riwayat-service-unit.service-ban.detail');
+    });
+    Route::middleware('permission:system.view')->group(function () {
     Route::get('/system/activity-log', [SystemActivityLogController::class, 'index'])->name('system.activity-log.index');
     Route::get('/system/activity-log/user', [SystemActivityLogController::class, 'userActivity'])->name('system.activity-log.user');
     Route::get('/system/activity-log/user/{id}', [SystemActivityLogController::class, 'userActivityDetail'])->name('system.activity-log.user.detail');
     Route::get('/system/data-health', [DataHealthController::class, 'index'])->name('system.data-health');
+    });
+    Route::middleware('permission:access-control.manage')->group(function () {
+        Route::get('/system/access-control', [AccessControlController::class, 'index'])->name('system.access-control.index');
+        Route::get('/system/access-control/users/create', [AccessControlController::class, 'create'])->name('system.access-control.users.create');
+        Route::post('/system/access-control/users', [AccessControlController::class, 'store'])->name('system.access-control.users.store');
+        Route::get('/system/access-control/users/{user}', [AccessControlController::class, 'show'])->name('system.access-control.users.show');
+        Route::get('/system/access-control/users/{user}/edit', [AccessControlController::class, 'edit'])->name('system.access-control.users.edit');
+        Route::put('/system/access-control/users/{user}', [AccessControlController::class, 'update'])->name('system.access-control.users.update');
+        Route::delete('/system/access-control/users/{user}', [AccessControlController::class, 'destroy'])->name('system.access-control.users.destroy');
+        Route::put('/system/access-control/users/{user}/access', [AccessControlController::class, 'updateUserAccess'])->name('system.access-control.users.access');
+        Route::put('/system/access-control/users/{user}/role', [AccessControlController::class, 'updateUserRole'])->name('system.access-control.users.role');
+        Route::put('/system/access-control/roles/{role}/permissions', [AccessControlController::class, 'updateRolePermissions'])->name('system.access-control.roles.permissions');
+    });
+
+    Route::middleware('permission:employees.view')->group(function () {
     Route::get('/daftar-karyawan', [DaftarKaryawanController::class, 'index'])->name('daftar-karyawan.index');
+    Route::get('/daftar-karyawan/arsip', [DaftarKaryawanController::class, 'archive'])->name('daftar-karyawan.archive');
+    });
+    Route::middleware('permission:employees.manage')->group(function () {
     Route::get('/daftar-karyawan/create', [DaftarKaryawanController::class, 'create'])->name('daftar-karyawan.create');
     Route::post('/daftar-karyawan', [DaftarKaryawanController::class, 'store'])->name('daftar-karyawan.store');
-    Route::get('/daftar-karyawan/{id}', [DaftarKaryawanController::class, 'show'])->name('daftar-karyawan.show');
     Route::get('/daftar-karyawan/{id}/edit', [DaftarKaryawanController::class, 'edit'])->name('daftar-karyawan.edit');
     Route::put('/daftar-karyawan/{id}', [DaftarKaryawanController::class, 'update'])->name('daftar-karyawan.update');
     Route::delete('/daftar-karyawan/{id}', [DaftarKaryawanController::class, 'destroy'])->name('daftar-karyawan.destroy');
+    });
+    Route::get('/daftar-karyawan/{id}', [DaftarKaryawanController::class, 'show'])
+        ->middleware('permission:employees.view')
+        ->name('daftar-karyawan.show');
 
-    Route::prefix('inventori')->name('inventori.')->group(function () {
+    Route::prefix('inventori')->name('inventori.')->middleware('permission:inventory.view')->group(function () {
         Route::get('/daftar-unit', [DaftarUnitController::class, 'index'])->name('daftar-unit.index');
         Route::get('/daftar-unit/{category}', [DaftarUnitController::class, 'category'])->name('daftar-unit.category');
         Route::get('/daftar-asset', [DaftarAssetController::class, 'index'])->name('daftar-asset.index');
@@ -102,7 +150,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/kir/{nopol}', [KirController::class, 'show'])->name('kir.detail');
     });
 
-    Route::prefix('finance')->name('finance.')->group(function () {
+    Route::prefix('finance')->name('finance.')->middleware('permission:finance-documents.view')->group(function () {
         Route::get('/dokumen-invoice', [DokumenInvoiceController::class, 'index'])->name('dokumen-invoice.index');
         Route::get('/dokumen-invoice/{id}', [DokumenInvoiceController::class, 'show'])->name('dokumen-invoice.detail');
     });

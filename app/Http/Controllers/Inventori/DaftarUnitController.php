@@ -9,12 +9,8 @@ use Inertia\Inertia;
 class DaftarUnitController extends Controller
 {
     private array $categories = [
-        'tipe-unit' => ['title' => 'Tipe Unit', 'field' => 'tipe'],
-        'pajak-stnk' => ['title' => 'Pajak STNK', 'field' => 'status_pajak'],
-        'data-kir' => ['title' => 'Data KIR', 'field' => 'status_kir'],
-        'my-pertamina' => ['title' => 'My Pertamina', 'field' => 'my_pertamina'],
-        'gps-unit' => ['title' => 'GPS Unit', 'field' => 'gps'],
-        'tahun-unit' => ['title' => 'Tahun Unit', 'field' => 'tahun'],
+        'washeng' => ['title' => 'Washeng', 'inventaris' => 'WASHENG KEKE MANDIRI', 'field' => 'tipe'],
+        'rental' => ['title' => 'Inventaris Rental', 'inventaris' => 'RENTAL', 'field' => 'tipe'],
     ];
 
     public function index()
@@ -25,6 +21,7 @@ class DaftarUnitController extends Controller
             'area',
             'tipe',
             'pabrikan',
+            'inventaris',
             'model',
             'jatuh_tempo_stnk',
             'jatuh_tempo_pajak',
@@ -37,20 +34,13 @@ class DaftarUnitController extends Controller
             'tahun'
         )->get();
 
+        $inventarisGroups = $this->groupCounts($inventori, 'inventaris');
+
         return Inertia::render('Inventori/DaftarUnit/Index', [
             'summary' => [
                 'totalUnit' => $inventori->count(),
-                'tipeUnit' => $this->groupCounts($inventori, 'tipe'),
-                'pajakStnk' => [
-                    'pajak' => $this->groupCounts($inventori, 'status_pajak'),
-                    'stnk' => $this->groupCounts($inventori, 'status_stnk'),
-                ],
-                'dataKir' => $this->groupCounts($inventori, 'status_kir'),
-                'myPertamina' => $this->groupCounts($inventori, 'my_pertamina'),
-                'gpsUnit' => $this->groupCounts($inventori, 'gps'),
-                'tahunUnit' => $this->groupCounts($inventori, 'tahun'),
+                'inventaris' => $inventarisGroups,
             ],
-            'rawTableData' => $inventori,
         ]);
     }
 
@@ -58,29 +48,33 @@ class DaftarUnitController extends Controller
     {
         abort_unless(isset($this->categories[$category]), 404);
 
-        $dataInventori = Inventori::select(
-            'id_key',
-            'nopol',
-            'area',
-            'tipe',
-            'pabrikan',
-            'model',
-            'jatuh_tempo_stnk',
-            'jatuh_tempo_pajak',
-            'jatuh_tempo_kir',
-            'status_stnk',
-            'status_pajak',
-            'status_kir',
-            'my_pertamina',
-            'gps',
-            'tahun'
-        )->get();
+        $config = $this->categories[$category];
+
+        $dataInventori = Inventori::where('inventaris', $config['inventaris'])
+            ->select(
+                'id_key',
+                'nopol',
+                'area',
+                'tipe',
+                'pabrikan',
+                'inventaris',
+                'model',
+                'jatuh_tempo_stnk',
+                'jatuh_tempo_pajak',
+                'jatuh_tempo_kir',
+                'status_stnk',
+                'status_pajak',
+                'status_kir',
+                'my_pertamina',
+                'gps',
+                'tahun'
+            )->get();
 
         return Inertia::render('Inventori/DaftarUnit/Category', [
             'rawTableData' => $dataInventori,
             'category' => [
                 'slug' => $category,
-                ...$this->categories[$category],
+                ...$config,
             ],
         ]);
     }

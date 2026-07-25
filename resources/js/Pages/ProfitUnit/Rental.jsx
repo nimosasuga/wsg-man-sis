@@ -12,6 +12,7 @@ export default function Rental({ rows = [] }) {
                 numberLabel: "Nopol",
                 routeLabel: "Regional",
                 showWeeklyFlow: true,
+                description: "Unit yang direntalkan pasti menimbulkan biaya pajak dan biaya legalitas lainnya. Pastikan biaya-biaya tersebut sudah diperhitungkan dalam tarif sewa.",
                 filterFields: [
                     ["TAHUN", "Tahun"],
                     ["BULAN", "Bulan"],

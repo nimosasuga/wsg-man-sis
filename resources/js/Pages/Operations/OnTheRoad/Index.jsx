@@ -1,12 +1,77 @@
-import React, { memo, useEffect, useRef } from "react";
+import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Head, Link, router } from "@inertiajs/react";
-import { ArrowRight, CircleDollarSign, Map, MapPin, Route, Truck } from "lucide-react";
+import { ArrowRight, CircleDollarSign, Map, MapPin, Route, Search, Truck } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import AdminLayout from "../../../Layouts/AdminLayout";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
 const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 })}`;
+
+const DAYS = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+const MONTHS = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+export function CalendarWidget({ date, dateOptions = [], onChange, dark }) {
+    const parsed = date ? new Date(date + "T00:00:00") : new Date();
+    const [viewYear, setViewYear] = useState(parsed.getFullYear());
+    const [viewMonth, setViewMonth] = useState(parsed.getMonth() + 1);
+    const available = useMemo(() => new Set(dateOptions), [dateOptions]);
+
+    const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+    const firstDow = new Date(viewYear, viewMonth - 1, 1).getDay();
+    const startOffset = firstDow === 0 ? 6 : firstDow - 1;
+
+    const pad = (n) => String(n).padStart(2, "0");
+    const dayClass = (day) => {
+        const ds = `${viewYear}-${pad(viewMonth)}-${pad(day)}`;
+        const isSel = date === ds;
+        const isTdy = (() => { const t = new Date(); return t.getFullYear() === viewYear && t.getMonth() + 1 === viewMonth && t.getDate() === day; })();
+        const has = available.has(ds);
+        if (isSel) return dark ? "bg-cyan-500 text-white font-black" : "bg-cyan-600 text-white font-black";
+        if (isTdy) return dark ? "bg-white/10 text-white font-bold" : "bg-cyan-50 text-cyan-700 font-bold";
+        if (has) return dark ? "text-white font-semibold hover:bg-white/10" : "text-slate-900 font-semibold hover:bg-slate-100";
+        return dark ? "text-slate-600 hover:bg-white/5" : "text-slate-400 hover:bg-slate-50";
+    };
+
+    const nav = (delta) => {
+        let m = viewMonth + delta;
+        let y = viewYear;
+        if (m < 1) { m = 12; y--; }
+        if (m > 12) { m = 1; y++; }
+        setViewMonth(m);
+        setViewYear(y);
+    };
+
+    const cells = [];
+    for (let i = 0; i < startOffset; i++) cells.push(<div key={`e${i}`} />);
+    for (let d = 1; d <= daysInMonth; d++) {
+        const ds = `${viewYear}-${pad(viewMonth)}-${pad(d)}`;
+        cells.push(
+            <button key={d} type="button" onClick={() => onChange(ds)}
+                className={`h-8 w-8 rounded-full text-[11px] leading-none transition ${dayClass(d)}`}>
+                {d}
+            </button>
+        );
+    }
+
+    const base = dark ? "bg-white/5 border-white/10 text-white" : "bg-white border-slate-200 text-slate-900";
+    const navBtn = dark ? "hover:bg-white/10 text-white" : "hover:bg-slate-100 text-slate-700";
+    const labelCls = dark ? "text-slate-400" : "text-slate-500";
+
+    return (
+        <div className={`w-full max-w-[260px] rounded-xl border p-3 ${base}`}>
+            <div className="mb-2 flex items-center justify-between gap-1">
+                <button type="button" onClick={() => nav(-1)} className={`grid h-7 w-7 place-items-center rounded-lg text-xs font-black transition ${navBtn}`}>&lt;</button>
+                <span className="text-sm font-black">{MONTHS[viewMonth - 1]} {viewYear}</span>
+                <button type="button" onClick={() => nav(1)} className={`grid h-7 w-7 place-items-center rounded-lg text-xs font-black transition ${navBtn}`}>&gt;</button>
+            </div>
+            <div className="grid grid-cols-7 gap-0">
+                {DAYS.map((d) => <div key={d} className={`h-7 w-8 text-center text-[10px] font-black leading-7 uppercase ${labelCls}`}>{d}</div>)}
+                {cells.map((c, i) => <div key={i} className="flex h-8 w-8 items-center justify-center">{c}</div>)}
+            </div>
+        </div>
+    );
+}
 
 function StatCard({ title, value, helper, icon: Icon }) {
     return (
@@ -68,7 +133,25 @@ function Breakdown({ title, items = [] }) {
 
 const LatestPositionMap = memo(function LatestPositionMap({ positions = [] }) {
     const mapElement = useRef(null);
-    const validPositions = positions.filter((item) => item.latitude !== null && item.longitude !== null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const filteredPositions = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
+
+        if (!query) return positions;
+
+        return positions.filter((item) =>
+            [
+                item.nopol,
+                item.nama_driver,
+                item.tanggal_jam,
+                item.location,
+                item.keterangan,
+            ]
+                .filter(Boolean)
+                .some((value) => String(value).toLowerCase().includes(query)),
+        );
+    }, [positions, searchQuery]);
+    const validPositions = filteredPositions.filter((item) => item.latitude !== null && item.longitude !== null);
 
     useEffect(() => {
         if (!mapElement.current || !validPositions.length) return undefined;
@@ -116,19 +199,43 @@ const LatestPositionMap = memo(function LatestPositionMap({ positions = [] }) {
     return (
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 p-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Monitoring Unit</h2>
                         <p className="mt-1 text-xs font-semibold text-slate-500">Titik terakhir yang dikirim melalui form AppSheet untuk setiap nopol.</p>
                     </div>
-                    <span className="shrink-0 rounded-lg bg-cyan-50 px-3 py-1.5 text-xs font-black text-cyan-700">{validPositions.length} titik</span>
+                    <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:items-center">
+                        <div className="relative w-full sm:w-80">
+                            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="search"
+                                value={searchQuery}
+                                onChange={(event) => setSearchQuery(event.target.value)}
+                                placeholder="Cari nopol, driver, lokasi..."
+                                className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-bold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                            />
+                        </div>
+                        <span className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-cyan-50 px-3 text-xs font-black text-cyan-700">
+                            {validPositions.length} titik
+                        </span>
+                    </div>
                 </div>
             </div>
-            {validPositions.length ? (
+            {filteredPositions.length ? (
                 <div className="grid min-w-0 lg:grid-cols-[1.45fr_0.75fr]">
-                    <div ref={mapElement} className="z-0 h-[360px] min-h-[300px] w-full bg-slate-100 sm:h-[430px]" />
+                    {validPositions.length ? (
+                        <div ref={mapElement} className="z-0 h-[360px] min-h-[300px] w-full bg-slate-100 sm:h-[430px]" />
+                    ) : (
+                        <div className="grid h-[360px] min-h-[300px] place-items-center bg-slate-100 p-6 text-center sm:h-[430px]">
+                            <div>
+                                <MapPin size={28} className="mx-auto text-slate-300" />
+                                <p className="mt-3 text-sm font-black text-slate-700">Tidak ada koordinat valid</p>
+                                <p className="mt-1 text-xs font-semibold text-slate-500">Data hasil pencarian ada, tapi titik lokasinya belum bisa ditampilkan di peta.</p>
+                            </div>
+                        </div>
+                    )}
                     <div className="custom-scrollbar max-h-[430px] overflow-auto border-t border-slate-100 lg:border-l lg:border-t-0">
-                        {positions.map((item) => (
+                        {filteredPositions.map((item) => (
                             <Link
                                 key={item.id}
                                 href={`/on-the-road/position/${encodeURIComponent(item.id)}`}
@@ -163,18 +270,13 @@ export default function Index({ date, dateOptions = [], summary = {}, cards = []
 
             <div className="space-y-5">
                 <section className="rounded-xl bg-slate-950 p-5 text-white shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div>
                             <div className="inline-flex items-center gap-2 rounded-lg bg-cyan-400/15 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-cyan-200"><Map size={15} /> On The Road</div>
                             <h1 className="mt-4 text-2xl font-black tracking-tight">Unit yang sedang jalan</h1>
                             <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-300">Cek unit jalan, unit standby, tarif, biaya, dan profit untuk tanggal yang dipilih.</p>
                         </div>
-                        <label className="block w-full max-w-xs">
-                            <span className="mb-2 block text-[11px] font-black uppercase tracking-wide text-slate-400">Tanggal</span>
-                            <select value={date} onChange={(event) => changeDate(event.target.value)} className="h-11 w-full rounded-lg border border-white/10 bg-white/10 px-3 text-sm font-bold text-white outline-none">
-                                {dateOptions.map((option) => <option key={option} value={option} className="text-slate-900">{option}</option>)}
-                            </select>
-                        </label>
+                        <CalendarWidget date={date} dateOptions={dateOptions} onChange={changeDate} dark />
                     </div>
                 </section>
 

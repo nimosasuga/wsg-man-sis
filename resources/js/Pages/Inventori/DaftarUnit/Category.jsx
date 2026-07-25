@@ -7,7 +7,6 @@ import {
     ArrowUpDown,
     ChevronDown,
     ChevronRight,
-    Filter,
     PanelLeftClose,
     PanelLeftOpen,
     SearchX,
@@ -49,7 +48,7 @@ export default function Category({ rawTableData = [], category }) {
         });
     }, [rawTableData, activeValue, activeArea, category.field]);
 
-    const sortedAndFilteredData = useMemo(() => {
+    const sortedData = useMemo(() => {
         const rows = [...filteredData];
         if (!sortConfig.key) return rows;
 
@@ -103,7 +102,7 @@ export default function Category({ rawTableData = [], category }) {
                     </div>
                     <div className="flex items-center gap-3">
                         <h1 className="text-2xl font-black tracking-tight text-gray-800">
-                            Detail {category.title}
+                            {category.title}
                         </h1>
                         <button
                             onClick={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
@@ -176,7 +175,7 @@ export default function Category({ rawTableData = [], category }) {
 
                 <div className="relative flex flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300">
                     <div className="custom-scrollbar flex-1 overflow-auto">
-                        {sortedAndFilteredData.length > 0 ? (
+                        {sortedData.length > 0 ? (
                             <table className="w-full border-collapse text-left whitespace-nowrap">
                                 <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 shadow-sm">
                                     <tr>
@@ -200,7 +199,7 @@ export default function Category({ rawTableData = [], category }) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {sortedAndFilteredData.map((row) => (
+                                    {sortedData.map((row) => (
                                         <tr
                                             key={row.id_key}
                                             onClick={() => router.get(`/inventori/pajak/${row.nopol}`)}

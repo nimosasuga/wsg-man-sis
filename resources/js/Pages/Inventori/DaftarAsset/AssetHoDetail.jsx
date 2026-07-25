@@ -1,6 +1,6 @@
 import React from "react";
-import { Head, Link } from "@inertiajs/react";
-import { ArrowLeft, Box, ChevronRight, Image as ImageIcon } from "lucide-react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
+import { ArrowLeft, Box, ChevronRight, Edit3, Image as ImageIcon, Trash2 } from "lucide-react";
 import AdminLayout from "../../../Layouts/AdminLayout";
 
 const fields = [
@@ -34,6 +34,15 @@ function InfoItem({ label, value }) {
 }
 
 export default function AssetHoDetail({ asset }) {
+    const permissions = usePage().props.auth?.permissions || [];
+    const canManageInventory = permissions.includes("inventory.manage");
+    const assetKey = asset?.id_key ? encodeURIComponent(asset.id_key) : null;
+
+    const deleteAsset = () => {
+        if (!assetKey || !window.confirm("Hapus data Asset HO ini?")) return;
+        router.delete(`/module-records/asset-ho/${assetKey}`);
+    };
+
     return (
         <AdminLayout>
             <Head title={`${asset?.jenis_barang || "Asset HO"} - Detail`} />
@@ -70,13 +79,34 @@ export default function AssetHoDetail({ asset }) {
                             </div>
                         </div>
 
-                        <Link
-                            href="/inventori/daftar-asset/asset-ho"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
-                        >
-                            <ArrowLeft size={16} />
-                            Kembali
-                        </Link>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                            {canManageInventory && assetKey && (
+                                <>
+                                    <Link
+                                        href={`/module-records/asset-ho/${assetKey}/edit`}
+                                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-cyan-700"
+                                    >
+                                        <Edit3 size={16} />
+                                        Edit
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={deleteAsset}
+                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-black text-rose-700 shadow-sm transition hover:bg-rose-100"
+                                    >
+                                        <Trash2 size={16} />
+                                        Delete
+                                    </button>
+                                </>
+                            )}
+                            <Link
+                                href="/inventori/daftar-asset/asset-ho"
+                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                            >
+                                <ArrowLeft size={16} />
+                                Kembali
+                            </Link>
+                        </div>
                     </div>
                 </section>
 

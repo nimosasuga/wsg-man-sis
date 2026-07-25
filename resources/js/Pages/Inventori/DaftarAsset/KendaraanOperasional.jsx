@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import AdminLayout from "../../../Layouts/AdminLayout";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     ArrowDown,
     ArrowUp,
@@ -10,16 +10,21 @@ import {
     Image as ImageIcon,
     PanelLeftClose,
     PanelLeftOpen,
+    Plus,
+    Search,
     SearchX,
 } from "lucide-react";
 
 const normalize = (value) => (value ? String(value).toUpperCase() : "TIDAK DIKETAHUI");
+const searchText = (row, keys) => keys.map((key) => row?.[key] ?? "").join(" ").toLowerCase();
 
 export default function KendaraanOperasional({ rawTableData = [] }) {
+    const canManage = (usePage().props.auth?.permissions || []).includes("inventory.manage");
     const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
     const [isJenisMenuOpen, setIsJenisMenuOpen] = useState(true);
     const [activeJenis, setActiveJenis] = useState("ALL");
     const [activeArea, setActiveArea] = useState("ALL");
+    const [searchQuery, setSearchQuery] = useState("");
     const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
     const jenisList = useMemo(() => {
@@ -42,12 +47,27 @@ export default function KendaraanOperasional({ rawTableData = [] }) {
     }, [rawTableData]);
 
     const filteredData = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
         return rawTableData.filter((item) => {
             const matchJenis = activeJenis === "ALL" || normalize(item.jenis || item.tipe) === activeJenis;
             const matchArea = activeArea === "ALL" || item.area === activeArea;
-            return matchJenis && matchArea;
+            const matchSearch =
+                !query ||
+                searchText(item, [
+                    "nopol",
+                    "area",
+                    "tipe",
+                    "jenis",
+                    "pabrikan",
+                    "model",
+                    "driver",
+                    "project",
+                    "status",
+                    "keterangan",
+                ]).includes(query);
+            return matchJenis && matchArea && matchSearch;
         });
-    }, [rawTableData, activeJenis, activeArea]);
+    }, [rawTableData, activeJenis, activeArea, searchQuery]);
 
     const sortedAndFilteredData = useMemo(() => {
         const rows = [...filteredData];
@@ -112,6 +132,27 @@ export default function KendaraanOperasional({ rawTableData = [] }) {
                             {isFilterSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
                         </button>
                     </div>
+                </div>
+                <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                    <div className="relative w-full sm:w-72">
+                        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                            type="search"
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Cari nopol, area, tipe..."
+                            className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+                        />
+                    </div>
+                    {canManage && (
+                        <Link
+                            href="/module-records/kendaraan-operasional/create"
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-cyan-500 px-4 text-sm font-black text-white shadow-sm transition hover:bg-cyan-600"
+                        >
+                            <Plus size={16} />
+                            Tambah Data
+                        </Link>
+                    )}
                 </div>
             </div>
 

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import AdminLayout from "../../../Layouts/AdminLayout";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     ArrowDown,
     ArrowUp,
@@ -11,16 +11,22 @@ import {
     Image as ImageIcon,
     PanelLeftClose,
     PanelLeftOpen,
+    Plus,
+    Search,
     SearchX,
 } from "lucide-react";
 
 const normalize = (value) => (value ? String(value).toUpperCase() : "TIDAK DIKETAHUI");
+const searchText = (row, keys) => keys.map((key) => row?.[key] ?? "").join(" ").toLowerCase();
 
 export default function AssetHo({ rawTableData = [] }) {
+    const permissions = usePage().props.auth?.permissions || [];
+    const canManageInventory = permissions.includes("inventory.manage");
     const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
     const [isJenisMenuOpen, setIsJenisMenuOpen] = useState(true);
     const [activeJenis, setActiveJenis] = useState("ALL");
     const [activeLokasi, setActiveLokasi] = useState("ALL");
+    const [searchQuery, setSearchQuery] = useState("");
     const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
     const jenisList = useMemo(() => {
@@ -43,12 +49,27 @@ export default function AssetHo({ rawTableData = [] }) {
     }, [rawTableData]);
 
     const filteredData = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
         return rawTableData.filter((item) => {
             const matchJenis = activeJenis === "ALL" || normalize(item.jenis_barang) === activeJenis;
             const matchLokasi = activeLokasi === "ALL" || item.lokasi === activeLokasi;
-            return matchJenis && matchLokasi;
+            const matchSearch =
+                !query ||
+                searchText(item, [
+                    "jenis_barang",
+                    "nama_pengguna",
+                    "katagori",
+                    "model_unit",
+                    "divisi",
+                    "lokasi",
+                    "status",
+                    "warna",
+                    "serial_number",
+                    "keterangan",
+                ]).includes(query);
+            return matchJenis && matchLokasi && matchSearch;
         });
-    }, [rawTableData, activeJenis, activeLokasi]);
+    }, [rawTableData, activeJenis, activeLokasi, searchQuery]);
 
     const sortedAndFilteredData = useMemo(() => {
         const rows = [...filteredData];
@@ -114,6 +135,27 @@ export default function AssetHo({ rawTableData = [] }) {
                             {isFilterSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
                         </button>
                     </div>
+                </div>
+                <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                    <div className="relative w-full sm:w-72">
+                        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                            type="search"
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Cari pengguna, jenis, lokasi..."
+                            className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+                        />
+                    </div>
+                    {canManageInventory && (
+                        <Link
+                            href="/module-records/asset-ho/create"
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-600 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-cyan-700 sm:w-auto"
+                        >
+                            <Plus size={16} />
+                            Tambah Data
+                        </Link>
+                    )}
                 </div>
             </div>
 

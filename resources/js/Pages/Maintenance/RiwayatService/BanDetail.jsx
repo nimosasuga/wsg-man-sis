@@ -1,5 +1,5 @@
 import React from "react";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import { ArrowLeft, CircleDollarSign, Gauge, Pencil, PenTool, Trash2, Truck } from "lucide-react";
 import AdminLayout from "../../../Layouts/AdminLayout";
 
@@ -88,6 +88,7 @@ function TimelineTable({ title, rows = [], type }) {
 }
 
 export default function BanDetail({ record = {}, unit = {}, related = {}, backUrl = "/riwayat-service-unit/service-ban" }) {
+    const canManage = (usePage().props.auth?.permissions || []).includes("service.manage");
     const totalMaintenance = Number(related.totalService || 0) + Number(related.totalBan || 0);
     const deleteRecord = () => {
         if (!window.confirm("Hapus record service ban ini? Data yang sudah dihapus tidak bisa dikembalikan dari halaman ini.")) return;
@@ -110,7 +111,7 @@ export default function BanDetail({ record = {}, unit = {}, related = {}, backUr
                                 <h1 className="truncate text-xl font-black uppercase text-slate-950">Detail Service Ban</h1>
                             </div>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        {canManage && <div className="flex flex-wrap gap-2">
                             <Link href={`/riwayat-service-unit/service-ban/${record.id_key}/edit`} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-cyan-600 px-4 text-xs font-black uppercase tracking-wide text-white transition hover:bg-cyan-700">
                                 <Pencil size={15} />
                                 Edit
@@ -119,7 +120,7 @@ export default function BanDetail({ record = {}, unit = {}, related = {}, backUr
                                 <Trash2 size={15} />
                                 Hapus
                             </button>
-                        </div>
+                        </div>}
                     </div>
                 </section>
 

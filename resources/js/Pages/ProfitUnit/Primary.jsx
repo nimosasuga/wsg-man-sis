@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useState } from "react";
 import { Head, Link, router } from "@inertiajs/react";
-import { ChevronRight, Filter, Lightbulb, RotateCcw, TrendingUp } from "lucide-react";
+import { ArrowDownAZ, ArrowUpAZ, ChevronRight, Filter, Lightbulb, RotateCcw, TrendingUp } from "lucide-react";
 import AdminLayout from "../../Layouts/AdminLayout";
 
 const MONTHS = [
@@ -10,8 +10,8 @@ const MONTHS = [
 ];
 
 const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
 })}`;
 const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
 const isAll = (value) => !value || value === "ALL";
@@ -73,7 +73,7 @@ function FilterPanel({ filters, options, onChange, onReset, shortName = "Primary
                 </div>
                 <button type="button" onClick={onReset} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-black uppercase text-slate-600 hover:bg-slate-50"><RotateCcw size={14} /> Reset</button>
             </div>
-            <div className={`grid gap-3 md:grid-cols-2 ${filterFields.length >= 5 ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}>
+            <div className={`grid gap-3 md:grid-cols-2 ${filterFields.length >= 7 ? "xl:grid-cols-7" : filterFields.length >= 5 ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}>
                 {filterFields.map(([key, label]) => (
                     <SearchableSelect key={key} label={label} value={filters[key]} options={options[key]} onChange={(value) => onChange({ ...filters, [key]: value })} />
                 ))}
@@ -110,7 +110,7 @@ const FlowChart = memo(function FlowChart({ data, year, month, shortName = "Prim
     );
 });
 
-export function ProfitFlowPage({ rows = [], config = {} }) {
+export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
     const page = {
         name: config.name || "Profit Primary",
         shortName: config.shortName || "Primary",
@@ -122,17 +122,35 @@ export function ProfitFlowPage({ rows = [], config = {} }) {
         costLabel: config.costLabel || "Biaya",
         profitLabel: config.profitLabel || `Total Profit ${config.shortName || "Primary"}`,
         showWeeklyFlow: Boolean(config.showWeeklyFlow),
+        description: config.description || "",
     };
-    const defaults = { TAHUN: "ALL", BULAN: "ALL", AREA: "ALL", TIPE: "ALL", NOPOL: "ALL" };
+    const defaults = Object.fromEntries(
+        (page.filterFields || [["TAHUN","Tahun"],["BULAN","Bulan"],["AREA","Area"],["TIPE","Tipe Unit"],["NOPOL","Nopol"]])
+            .map(([key]) => [key, "ALL"])
+    );
     const [filters, setFilters] = useState(defaults);
     const [tablePage, setTablePage] = useState(1);
     const pageSize = 25;
     const options = useMemo(() => {
         const unique = (key) => ["ALL", ...new Set(rows.map((row) => String(row[key] || "")).filter(Boolean).sort())];
-        const years = [...new Set(rows.map((row) => dateParts(row.tanggal).year).filter(Boolean))].sort().reverse();
-        const months = MONTHS.filter(([key]) => rows.some((row) => dateParts(row.tanggal).month === key)).map(([key,name]) => [key,name]);
-        return { TAHUN:["ALL",...years], BULAN:["ALL",...months.map(([key,name])=>`${key} ${name}`)], AREA:unique("area"), TIPE:unique("tipe"), NOPOL:unique("nopol") };
-    }, [rows]);
+        const result = {};
+        const keys = (page.filterFields || []).map(([k]) => k);
+        if (keys.includes("TAHUN")) {
+            const years = [...new Set(rows.map((row) => dateParts(row.tanggal).year).filter(Boolean))].sort().reverse();
+            result.TAHUN = ["ALL", ...years];
+        }
+        if (keys.includes("BULAN")) {
+            const months = MONTHS.filter(([m]) => rows.some((row) => dateParts(row.tanggal).month === m)).map(([m,n]) => `${m} ${n}`);
+            result.BULAN = ["ALL", ...months];
+        }
+        if (keys.includes("AREA")) result.AREA = filterOptions.AREA?.length ? filterOptions.AREA : unique("area");
+        if (keys.includes("TIPE")) result.TIPE = unique("tipe");
+        if (keys.includes("NOPOL")) result.NOPOL = unique("nopol");
+        if (keys.includes("KATEGORI")) result.KATEGORI = filterOptions.KATEGORI?.length ? filterOptions.KATEGORI : unique("regional");
+        if (keys.includes("WEEK")) result.WEEK = unique("week");
+        if (keys.includes("HARI")) result.HARI = unique("tanggal");
+        return result;
+    }, [rows, page.filterFields, filterOptions]);
     const activeMonth = filters.BULAN === "ALL" ? "ALL" : filters.BULAN.slice(0,2);
     const filteredRows = useMemo(() => rows.filter((row) => {
         const date = dateParts(row.tanggal);
@@ -140,19 +158,47 @@ export function ProfitFlowPage({ rows = [], config = {} }) {
             && (isAll(filters.BULAN) || date.month === activeMonth)
             && (isAll(filters.AREA) || row.area === filters.AREA)
             && (isAll(filters.TIPE) || row.tipe === filters.TIPE)
-            && (isAll(filters.NOPOL) || row.nopol === filters.NOPOL);
-    }), [rows, filters, activeMonth]);
+            && (isAll(filters.NOPOL) || row.nopol === filters.NOPOL)
+            && (isAll(filters.KATEGORI) || (filterOptions.KATEGORI_MAP?.[filters.KATEGORI] || []).includes(row.regional))
+            && (isAll(filters.WEEK) || row.week === filters.WEEK)
+            && (isAll(filters.HARI) || row.tanggal === filters.HARI);
+    }), [rows, filters, activeMonth, filterOptions]);
     const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
     const currentPage = Math.min(tablePage, totalPages);
-    const paginatedRows = useMemo(
-        () => filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-        [filteredRows, currentPage],
-    );
     const visiblePages = useMemo(
         () => [...new Set([1, currentPage - 1, currentPage, currentPage + 1, totalPages])]
             .filter((pageNumber) => pageNumber >= 1 && pageNumber <= totalPages)
             .sort((a, b) => a - b),
         [currentPage, totalPages],
+    );
+    const sortColumns = [
+        { label: "Tanggal", key: "tanggal", type: "text" },
+        { label: "Area", key: "area", type: "text" },
+        { label: page.numberLabel, key: "nopol", type: "text" },
+        { label: "Tipe", key: "tipe", type: "text" },
+        { label: page.routeLabel, key: "rute", type: "text" },
+        { label: page.revenueLabel, key: "revenue", type: "number" },
+        { label: page.costLabel, key: "cost", type: "number" },
+        { label: "Profit", key: "profit", type: "number" },
+    ];
+    const [tableSort, setTableSort] = useState({ key: "tanggal", direction: "desc" });
+    const sortRows = (key) => {
+        setTableSort((current) => ({
+            key,
+            direction: current.key === key && current.direction === "desc" ? "asc" : "desc",
+        }));
+    };
+    const sortedRows = useMemo(() => [...filteredRows].sort((a, b) => {
+        const column = sortColumns.find((c) => c.key === tableSort.key);
+        const multiplier = tableSort.direction === "asc" ? 1 : -1;
+        if (column?.type === "number") {
+            return (Number(a[tableSort.key] || 0) - Number(b[tableSort.key] || 0)) * multiplier;
+        }
+        return String(a[tableSort.key] || "").localeCompare(String(b[tableSort.key] || ""), "id", { numeric: true, sensitivity: "base" }) * multiplier;
+    }), [filteredRows, tableSort]);
+    const paginatedRows = useMemo(
+        () => sortedRows.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+        [sortedRows, currentPage, pageSize],
     );
     const changeFilters = (nextFilters) => {
         setFilters(nextFilters);
@@ -197,7 +243,7 @@ export function ProfitFlowPage({ rows = [], config = {} }) {
             <p className="text-xs font-black uppercase text-cyan-200">{page.profitLabel}</p><h1 className="mt-2 text-2xl font-black">{formatRp(summary.profit)}</h1>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[[page.revenueLabel,formatRp(summary.revenue)],[page.costLabel,formatRp(summary.cost)],["Margin",`${margin.toFixed(1)}%`],["Record",formatNumber(filteredRows.length)]].map(([label,value])=><div key={label} className="rounded-lg border border-white/10 bg-white/10 p-3"><p className="text-[10px] font-black uppercase text-slate-400">{label}</p><p className="mt-1 text-lg font-black">{value}</p></div>)}</div>
         </section>
-        <section className="mb-5 rounded-xl border border-cyan-100 bg-white p-5 shadow-sm"><div className="flex items-start gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-700"><Lightbulb size={19}/></div><div><p className="text-xs font-black uppercase text-cyan-700">Catatan kerja</p><h2 className="mt-1 text-lg font-black text-slate-950">Baca profit sebelum mengejar volume</h2><p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{filteredRows.length ? `Dari ${formatNumber(filteredRows.length)} transaksi yang tampil, margin ${page.shortName} berada di ${margin.toFixed(1)}%. Cek row dengan biaya besar dan profit tipis sebelum menambah pekerjaan pada jalur yang sama.` : `Belum ada transaksi yang cocok. Longgarkan filter untuk melihat data ${page.shortName} yang tersedia.`}</p></div></div></section>
+        <section className="mb-5 rounded-xl border border-cyan-100 bg-white p-5 shadow-sm"><div className="flex items-start gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-700"><Lightbulb size={19}/></div><div><p className="text-xs font-black uppercase text-cyan-700">Catatan kerja</p><h2 className="mt-1 text-lg font-black text-slate-950">Baca profit sebelum mengejar volume</h2><p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{filteredRows.length ? `Dari ${formatNumber(filteredRows.length)} transaksi yang tampil, margin ${page.shortName} berada di ${margin.toFixed(1)}%. Cek row dengan biaya besar dan profit tipis sebelum menambah pekerjaan pada jalur yang sama.` : `Belum ada transaksi yang cocok. Longgarkan filter untuk melihat data ${page.shortName} yang tersedia.`}</p>{page.description && <p className="mt-3 rounded-lg bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-900">{page.description}</p>}</div></div></section>
         <FilterPanel filters={filters} options={options} onChange={changeFilters} onReset={resetFilters} shortName={page.shortName} fields={page.filterFields} />
         <FlowChart data={chartData} year={filters.TAHUN} month={activeMonth} shortName={page.shortName} />
         {page.showWeeklyFlow && !isAll(activeMonth) && (
@@ -210,10 +256,18 @@ export function ProfitFlowPage({ rows = [], config = {} }) {
                 description={`Pergerakan pendapatan, biaya, dan profit ${page.shortName} pada bulan yang dipilih, disusun berdasarkan week transaksi.`}
             />
         )}
-        <section className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-100 px-4 py-4"><h2 className="text-sm font-black uppercase text-slate-950">Data Profit {page.shortName}</h2><p className="mt-1 text-xs font-semibold text-slate-500">Klik row untuk membuka rincian transaksi {page.shortName}.</p></div><div className="custom-scrollbar max-h-[560px] overflow-auto"><table className="w-full min-w-[1050px] border-collapse text-left"><thead className="sticky top-0 z-10 bg-slate-50"><tr>{["Tanggal","Area",page.numberLabel,"Tipe",page.routeLabel,page.revenueLabel,page.costLabel,"Profit"].map((head)=><th key={head} className="border-b border-slate-200 px-4 py-3 text-[11px] font-black uppercase text-slate-500">{head}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{paginatedRows.map((row,index)=><tr key={`${row.id_key}-${index}`} role="link" tabIndex={0} onClick={()=>router.visit(`${page.detailBase}/${encodeURIComponent(row.id_key)}`)} onKeyDown={(event)=>{if(!["Enter"," "].includes(event.key))return;event.preventDefault();router.visit(`${page.detailBase}/${encodeURIComponent(row.id_key)}`);}} className="cursor-pointer hover:bg-cyan-50/50 focus:bg-cyan-50 focus:outline-none"><td className="px-4 py-3 text-xs font-bold text-slate-700">{formatDate(row.tanggal)}</td><td className="px-4 py-3 text-xs font-bold text-slate-700">{row.area}</td><td className="px-4 py-3 text-xs font-black text-slate-950">{row.nopol}</td><td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.tipe}</td><td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.rute}</td><td className="px-4 py-3 text-xs font-black text-blue-700">{formatRp(row.revenue)}</td><td className="px-4 py-3 text-xs font-black text-amber-700">{formatRp(row.cost)}</td><td className="px-4 py-3 text-xs font-black text-emerald-700">{formatRp(row.profit)}</td></tr>)}{!filteredRows.length&&<tr><td colSpan="8" className="px-4 py-8 text-center text-sm font-semibold text-slate-500">Belum ada data {page.shortName} untuk pilihan ini.</td></tr>}</tbody></table></div>{filteredRows.length > 0 && <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs font-bold text-slate-500">Menampilkan {formatNumber((currentPage - 1) * pageSize + 1)}-{formatNumber(Math.min(currentPage * pageSize, filteredRows.length))} dari {formatNumber(filteredRows.length)} data</p><div className="flex flex-wrap items-center gap-1"><button type="button" disabled={currentPage === 1} onClick={()=>setTablePage(currentPage - 1)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">Sebelumnya</button>{visiblePages.map((pageNumber,index)=><React.Fragment key={pageNumber}>{index > 0 && pageNumber - visiblePages[index - 1] > 1 && <span className="px-1 text-slate-400">...</span>}<button type="button" onClick={()=>setTablePage(pageNumber)} className={`h-9 min-w-9 rounded-lg border px-2 text-xs font-black ${pageNumber === currentPage ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>{pageNumber}</button></React.Fragment>)}<button type="button" disabled={currentPage === totalPages} onClick={()=>setTablePage(currentPage + 1)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">Berikutnya</button></div></div>}</section>
+        <section className="mb-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-100 px-4 py-4"><h2 className="text-sm font-black uppercase text-slate-950">Data Profit {page.shortName}</h2><p className="mt-1 text-xs font-semibold text-slate-500">Klik row untuk membuka rincian transaksi {page.shortName}.</p></div><div className="custom-scrollbar max-h-[560px] overflow-auto"><table className="w-full min-w-[1050px] border-collapse text-left"><thead className="sticky top-0 z-10 bg-slate-50"><tr>{sortColumns.map((column) => { const isActive = tableSort.key === column.key; const SortIcon = isActive && tableSort.direction === "desc" ? ArrowDownAZ : ArrowUpAZ; return (<th key={column.key} className="border-b border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-slate-500"><button type="button" onClick={() => sortRows(column.key)} className={`inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-left transition hover:bg-cyan-50 hover:text-cyan-700 ${isActive ? "text-cyan-700" : ""}`} title={`Urutkan ${column.label}`}>{column.label}<SortIcon size={13} className={isActive ? "text-cyan-600" : "text-slate-300"} /></button></th>); })}</tr></thead><tbody className="divide-y divide-slate-100">{paginatedRows.map((row,index)=><tr key={`${row.id_key}-${index}`} role="link" tabIndex={0} onClick={()=>router.visit(`${page.detailBase}/${encodeURIComponent(row.id_key)}`)} onKeyDown={(event)=>{if(!["Enter"," "].includes(event.key))return;event.preventDefault();router.visit(`${page.detailBase}/${encodeURIComponent(row.id_key)}`);}} className="cursor-pointer hover:bg-cyan-50/50 focus:bg-cyan-50 focus:outline-none"><td className="px-4 py-3 text-xs font-bold text-slate-700">{formatDate(row.tanggal)}</td><td className="px-4 py-3 text-xs font-bold text-slate-700">{row.area}</td><td className="px-4 py-3 text-xs font-black text-slate-950">{row.nopol}</td><td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.tipe}</td><td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.rute}</td><td className="px-4 py-3 text-xs font-black text-blue-700">{formatRp(row.revenue)}</td><td className="px-4 py-3 text-xs font-black text-amber-700">{formatRp(row.cost)}</td><td className="px-4 py-3 text-xs font-black text-emerald-700">{formatRp(row.profit)}</td></tr>)}{!filteredRows.length&&<tr><td colSpan="8" className="px-4 py-8 text-center text-sm font-semibold text-slate-500">Belum ada data {page.shortName} untuk pilihan ini.</td></tr>}</tbody></table></div>{filteredRows.length > 0 && <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs font-bold text-slate-500">Menampilkan {formatNumber((currentPage - 1) * pageSize + 1)}-{formatNumber(Math.min(currentPage * pageSize, filteredRows.length))} dari {formatNumber(filteredRows.length)} data</p><div className="flex flex-wrap items-center gap-1"><button type="button" disabled={currentPage === 1} onClick={()=>setTablePage(currentPage - 1)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">Sebelumnya</button>{visiblePages.map((pageNumber,index)=><React.Fragment key={pageNumber}>{index > 0 && pageNumber - visiblePages[index - 1] > 1 && <span className="px-1 text-slate-400">...</span>}<button type="button" onClick={()=>setTablePage(pageNumber)} className={`h-9 min-w-9 rounded-lg border px-2 text-xs font-black ${pageNumber === currentPage ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>{pageNumber}</button></React.Fragment>)}<button type="button" disabled={currentPage === totalPages} onClick={()=>setTablePage(currentPage + 1)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">Berikutnya</button></div></div>}</section>
     </AdminLayout>;
 }
 
 export default function Primary(props) {
-    return <ProfitFlowPage {...props} config={{ ...(props.config || {}), showWeeklyFlow: true }} />;
+    return <ProfitFlowPage {...props} config={{ ...(props.config || {}), showWeeklyFlow: true, filterFields: [
+        ["TAHUN", "Tahun"],
+        ["BULAN", "Bulan"],
+        ["KATEGORI", "Kategori"],
+        ["AREA", "Area"],
+        ["TIPE", "Tipe Unit"],
+        ["WEEK", "Minggu"],
+        ["HARI", "Hari"],
+    ] }} />;
 }

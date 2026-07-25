@@ -1,12 +1,11 @@
 import React, { memo, useMemo, useState } from "react";
 import AdminLayout from "../../Layouts/AdminLayout";
 import { Head, router } from "@inertiajs/react";
-import { AlertTriangle, ChevronRight, Filter, Lightbulb, RotateCcw, TrendingUp } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowDownAZ, ArrowUp, ArrowUpAZ, BarChart3, ChevronRight, Filter, Lightbulb, RotateCcw, TrendingUp } from "lucide-react";
 
 const formatRp = (value) =>
     `Rp${Number(value || 0).toLocaleString("id-ID", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
+        maximumFractionDigits: 0,
     })}`;
 
 const MONTHS = [
@@ -42,10 +41,14 @@ const FlowChart = memo(function FlowChart({ data = [], filters = {} }) {
     const yFor = (value) => padding.top + ((maxAmount - Number(value || 0)) / maxAmount) * (chartHeight - padding.top - padding.bottom);
     const pointsFor = (key) => chartData.map((item, index) => `${xFor(index)},${yFor(item[key])}`).join(" ");
     const modeText = filters.TAHUN !== "ALL"
-        ? filters.BULAN !== "ALL"
-            ? `Menampilkan ${filters.BULAN.replace(/^[A-L]\s+/, "")} ${filters.TAHUN}.`
+        ? filters.WEEK !== "ALL"
+            ? `Menampilkan statistik biaya ${filters.WEEK}, ${filters.BULAN !== "ALL" ? filters.BULAN.replace(/^[A-L]\s+/, "") : "semua bulan"} ${filters.TAHUN}.`
+            : filters.BULAN !== "ALL"
+            ? `Menampilkan statistik biaya per minggu ${filters.BULAN.replace(/^[A-L]\s+/, "")} ${filters.TAHUN}.`
             : `Menampilkan alur bulanan tahun ${filters.TAHUN}, dari Januari sampai Desember.`
-        : "Rekomendasi tampilan semua tahun: lihat tren per tahun dulu, baru pilih tahun tertentu untuk membaca gerak bulanan.";
+        : filters.WEEK !== "ALL"
+            ? `Menampilkan statistik biaya ${filters.WEEK} dari semua tahun yang terbaca.`
+            : "Rekomendasi tampilan semua tahun: lihat tren per tahun dulu, baru pilih tahun tertentu untuk membaca gerak bulanan.";
     const series = [
         ["primary", "Primary", "#2563eb"],
         ["secondary", "Secondary", "#06b6d4"],
@@ -91,9 +94,11 @@ const FlowChart = memo(function FlowChart({ data = [], filters = {} }) {
                                 <g key={key}>
                                     <polyline fill="none" stroke={color} strokeWidth={key === "total" ? 4 : 3} strokeLinecap="round" strokeLinejoin="round" points={pointsFor(key)} />
                                     {chartData.map((item, index) => (
-                                        <circle key={`${key}-${item.key}`} cx={xFor(index)} cy={yFor(item[key])} r={key === "total" ? 4.5 : 3.5} fill={color}>
-                                            <title>{`${label} ${item.label}: ${formatRp(item[key])}`}</title>
-                                        </circle>
+                                        <g key={`${key}-${item.key}`}>
+                                            <circle cx={xFor(index)} cy={yFor(item[key])} r={key === "total" ? 4.5 : 3.5} fill={color}>
+                                                <title>{`${label} ${item.label}: ${formatRp(item[key])}`}</title>
+                                            </circle>
+                                        </g>
                                     ))}
                                 </g>
                             ))}
@@ -197,6 +202,7 @@ function FilterPanel({ filters = {}, options = {}, onChange, onReset }) {
     const fields = [
         ["TAHUN", "Tahun"],
         ["BULAN", "Bulan"],
+        ["WEEK", "Minggu"],
         ["AREA", "Area"],
         ["TIPE", "Tipe Unit"],
         ["NOPOL", "Nopol"],
@@ -219,7 +225,7 @@ function FilterPanel({ filters = {}, options = {}, onChange, onReset }) {
                     Reset
                 </button>
             </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
                 {fields.map(([key, label]) => (
                     <SearchableSelect
                         key={key}
@@ -261,10 +267,11 @@ function SmartAnalysis({ summaryData, totalBiaya, operationRows = [], vehicleCos
         const filteredOperations = operationRows.filter((row) =>
             (isAll(filters.TAHUN) || String(row.year || "") === filters.TAHUN)
             && (isAll(filters.BULAN) || String(row.month || "") === filters.BULAN)
+            && (isAll(filters.WEEK) || String(row.week || "") === filters.WEEK)
             && matchesActiveFilter(row, filters)
         );
         const filteredVehicles = vehicleCosts.filter((row) => matchesActiveFilter(row, filters));
-        const periodIsActive = !isAll(filters.TAHUN) || !isAll(filters.BULAN);
+        const periodIsActive = !isAll(filters.TAHUN) || !isAll(filters.BULAN) || !isAll(filters.WEEK);
         const revenue = filteredOperations.reduce((sum, row) => sum + Number(row.revenue || 0), 0);
         const expense = periodIsActive
             ? filteredOperations.reduce((sum, row) => sum + Number(row.nominal || 0), 0)
@@ -425,27 +432,31 @@ const isAll = (value) => !value || value === "ALL";
 const matchesActiveFilter = (row, filters) =>
     (isAll(filters.AREA) || String(row.area || "") === filters.AREA)
     && (isAll(filters.TIPE) || String(row.tipe || "") === filters.TIPE)
-    && (isAll(filters.NOPOL) || String(row.nopol || "") === filters.NOPOL);
+    && (isAll(filters.NOPOL) || String(row.nopol || "") === filters.NOPOL)
+    && (isAll(filters.WEEK) || row.week === undefined || String(row.week || "") === filters.WEEK);
 
 const buildOperationFlow = (rows = [], filters = {}) => {
     const filteredRows = rows.filter((row) =>
         (isAll(filters.TAHUN) || String(row.year || "") === filters.TAHUN)
         && (isAll(filters.BULAN) || String(row.month || "") === filters.BULAN)
+        && (isAll(filters.WEEK) || String(row.week || "") === filters.WEEK)
         && matchesActiveFilter(row, filters)
     );
-    const groupByMonth = !isAll(filters.TAHUN);
-    const timeline = groupByMonth
+    const groupMode = !isAll(filters.WEEK) ? "week" : (!isAll(filters.TAHUN) && !isAll(filters.BULAN)) ? "week" : !isAll(filters.TAHUN) ? "month" : "year";
+    const timeline = groupMode === "week"
+        ? !isAll(filters.WEEK) ? [filters.WEEK] : [...new Set(filteredRows.map((row) => String(row.week || "")).filter((week) => week && week !== "0"))].sort()
+        : groupMode === "month"
         ? (isAll(filters.BULAN) ? MONTHS : MONTHS.filter((month) => month === filters.BULAN))
         : [...new Set(filteredRows.map((row) => String(row.year || "")).filter((year) => year && year !== "0"))].sort();
 
     const grouped = filteredRows.reduce((carry, row) => {
-        const key = groupByMonth ? String(row.month || "") : String(row.year || "");
+        const key = groupMode === "week" ? String(row.week || "") : groupMode === "month" ? String(row.month || "") : String(row.year || "");
         if (!key || key === "0") return carry;
 
         if (!carry[key]) {
             carry[key] = {
                 key,
-                label: groupByMonth ? shortMonth(key) : key,
+                label: groupMode === "month" ? shortMonth(key) : key,
                 primary: 0,
                 secondary: 0,
                 total: 0,
@@ -462,21 +473,156 @@ const buildOperationFlow = (rows = [], filters = {}) => {
 
     return timeline.map((key) => grouped[key] || {
         key,
-        label: groupByMonth ? shortMonth(key) : key,
+        label: groupMode === "month" ? shortMonth(key) : key,
         primary: 0,
         secondary: 0,
         total: 0,
     });
 };
 
+function DataComparison({ operationRows = [], filters = {} }) {
+    const comparison = useMemo(() => {
+        const isYearActive = !isAll(filters.TAHUN);
+        const isMonthActive = !isAll(filters.BULAN);
+        if (!isYearActive) return null;
+
+        const aggregate = (rows) => {
+            const primary = rows.filter((r) => r.source === "primary").reduce((s, r) => s + Number(r.nominal || 0), 0);
+            const secondary = rows.filter((r) => r.source === "secondary").reduce((s, r) => s + Number(r.nominal || 0), 0);
+            const revenue = rows.reduce((s, r) => s + Number(r.revenue || 0), 0);
+            return { primary, secondary, total: primary + secondary, revenue };
+        };
+
+        const currentRows = operationRows.filter((row) =>
+            String(row.year) === filters.TAHUN
+            && (isMonthActive ? String(row.month) === filters.BULAN : true)
+        );
+        const current = aggregate(currentRows);
+
+        let prevLabel = null;
+        let prevRows = [];
+        if (isMonthActive) {
+            const monthIndex = MONTHS.indexOf(filters.BULAN);
+            if (monthIndex > 0) {
+                prevRows = operationRows.filter((row) =>
+                    String(row.year) === filters.TAHUN && String(row.month) === MONTHS[monthIndex - 1]
+                );
+                prevLabel = MONTHS[monthIndex - 1].replace(/^[A-L]\s+/, "");
+            } else {
+                const prevYear = String(Number(filters.TAHUN) - 1);
+                prevRows = operationRows.filter((row) =>
+                    String(row.year) === prevYear && String(row.month) === MONTHS[11]
+                );
+                prevLabel = `Des ${prevYear}`;
+            }
+        } else {
+            const prevYear = String(Number(filters.TAHUN) - 1);
+            prevRows = operationRows.filter((row) => String(row.year) === prevYear);
+            prevLabel = prevYear;
+        }
+        const prev = prevRows.length ? aggregate(prevRows) : null;
+
+        let yoyLabel = null;
+        let yoy = null;
+        if (isMonthActive) {
+            const yoyYear = String(Number(filters.TAHUN) - 1);
+            const yoyRows = operationRows.filter((row) =>
+                String(row.year) === yoyYear && String(row.month) === filters.BULAN
+            );
+            if (yoyRows.length) {
+                yoy = aggregate(yoyRows);
+                yoyLabel = `${filters.BULAN.replace(/^[A-L]\s+/, "")} ${yoyYear}`;
+            }
+        }
+
+        return { current, prev, prevLabel, yoy, yoyLabel };
+    }, [operationRows, filters]);
+
+    const periodLabel = !comparison ? ""
+        : !isAll(filters.BULAN)
+            ? `${filters.BULAN.replace(/^[A-L]\s+/, "")} ${filters.TAHUN}`
+            : `Tahun ${filters.TAHUN}`;
+
+    const change = (a, b) => b && Number(b) > 0 ? ((Number(a) - Number(b)) / Number(b) * 100) : null;
+
+    const metrics = comparison ? [
+        { key: "Total", value: comparison.current.total, prevValue: comparison.prev?.total, yoyValue: comparison.yoy?.total },
+        { key: "Primary", value: comparison.current.primary, prevValue: comparison.prev?.primary, yoyValue: comparison.yoy?.primary },
+        { key: "Secondary", value: comparison.current.secondary, prevValue: comparison.prev?.secondary, yoyValue: comparison.yoy?.secondary },
+        { key: "Pendapatan", value: comparison.current.revenue, prevValue: comparison.prev?.revenue, yoyValue: comparison.yoy?.revenue },
+    ] : [];
+
+    return (
+        <section className="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+                <div className="grid h-9 w-9 place-items-center rounded-lg bg-violet-50 text-violet-700">
+                    <BarChart3 size={17} />
+                </div>
+                <div>
+                    <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Perbandingan Data</h2>
+                    <p className="text-xs font-semibold text-slate-500">
+                        {comparison ? `Membandingkan ${periodLabel} dengan periode sebelumnya.` : "Pilih tahun atau bulan untuk melihat perbandingan."}
+                    </p>
+                </div>
+            </div>
+            {comparison ? (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    {metrics.map((m) => {
+                        const prevDelta = change(m.value, m.prevValue);
+                        const yoyDelta = change(m.value, m.yoyValue);
+                        return (
+                            <div key={m.key} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+                                <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{m.key}</p>
+                                <p className="mt-1 text-lg font-black text-slate-950">{formatRp(m.value)}</p>
+                                {comparison.prev && (
+                                    <div className="mt-2 flex items-center gap-1.5 text-xs font-bold">
+                                        {prevDelta !== null && prevDelta !== 0 ? (
+                                            prevDelta > 0
+                                                ? <ArrowUp size={13} className="text-red-500" />
+                                                : <ArrowDown size={13} className="text-emerald-500" />
+                                        ) : null}
+                                        <span className={prevDelta !== null && prevDelta > 0 ? "text-red-600" : "text-emerald-600"}>
+                                            {prevDelta !== null ? `${prevDelta > 0 ? "+" : ""}${prevDelta.toFixed(1)}%` : "—"}
+                                        </span>
+                                        <span className="text-slate-400">vs {comparison.prevLabel}</span>
+                                    </div>
+                                )}
+                                {comparison.yoy && (
+                                    <div className="mt-1 flex items-center gap-1.5 text-xs font-bold">
+                                        {yoyDelta !== null && yoyDelta !== 0 ? (
+                                            yoyDelta > 0
+                                                ? <ArrowUp size={13} className="text-red-500" />
+                                                : <ArrowDown size={13} className="text-emerald-500" />
+                                        ) : null}
+                                        <span className={yoyDelta !== null && yoyDelta > 0 ? "text-red-600" : "text-emerald-600"}>
+                                            {yoyDelta !== null ? `${yoyDelta > 0 ? "+" : ""}${yoyDelta.toFixed(1)}%` : "—"}
+                                        </span>
+                                        <span className="text-slate-400">vs {comparison.yoyLabel}</span>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <p className="rounded-lg bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-400">
+                    Gunakan filter tahun atau bulan untuk melihat perbandingan data.
+                </p>
+            )}
+        </section>
+    );
+}
+
 export default function Index({ summaryData = [], vehicleCosts = [], vehicleCostRows = [], operationFlow = [], operationRows = [], filters = {}, filterOptions = {} }) {
     const [activeFilters, setActiveFilters] = useState({
         TAHUN: filters.TAHUN || "ALL",
         BULAN: filters.BULAN || "ALL",
+        WEEK: filters.WEEK || "ALL",
         AREA: filters.AREA || "ALL",
         TIPE: filters.TIPE || "ALL",
         NOPOL: filters.NOPOL || "ALL",
     });
+    const [vehicleSort, setVehicleSort] = useState({ key: "nopol", direction: "asc" });
     const totalBiaya = useMemo(
         () => summaryData.reduce((total, item) => total + Number(item.amount || 0), 0),
         [summaryData],
@@ -487,21 +633,68 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
             ...[...new Set(vehicleCosts.map((row) => row[key]).filter(Boolean).map(String))].sort(),
         ];
 
+        const weekOptions = !isAll(activeFilters.BULAN) || !isAll(activeFilters.TAHUN)
+            ? (() => {
+                let weekRows = operationRows;
+                if (!isAll(activeFilters.BULAN)) {
+                    weekRows = weekRows.filter((row) => String(row.month || "") === activeFilters.BULAN);
+                }
+                if (!isAll(activeFilters.TAHUN)) {
+                    weekRows = weekRows.filter((row) => String(row.year || "") === activeFilters.TAHUN);
+                }
+                const weeks = [...new Set(weekRows.map((row) => row.week).filter(Boolean).map(String))].sort();
+                return weeks.length ? ["ALL", ...weeks] : ["ALL"];
+            })()
+            : filterOptions.WEEK?.length ? filterOptions.WEEK : ["ALL"];
+
         return {
             TAHUN: filterOptions.TAHUN?.length ? filterOptions.TAHUN : ["ALL", ...[...new Set(operationFlow.map((row) => row.year).filter(Boolean).map(String))].sort().reverse()],
             BULAN: filterOptions.BULAN?.length ? filterOptions.BULAN : ["ALL"],
+            WEEK: weekOptions,
             AREA: filterOptions.AREA?.length ? filterOptions.AREA : fromRows("area"),
             TIPE: filterOptions.TIPE?.length ? filterOptions.TIPE : fromRows("tipe"),
             NOPOL: filterOptions.NOPOL?.length ? filterOptions.NOPOL : fromRows("nopol"),
         };
-    }, [filterOptions, operationFlow, vehicleCosts]);
+    }, [filterOptions, operationFlow, operationRows, vehicleCosts, activeFilters]);
+    const vehicleSortColumns = useMemo(() => [
+        { label: "Nopol", key: "nopol", type: "text" },
+        { label: "Area", key: "area", type: "text" },
+        { label: "Tipe", key: "tipe", type: "text" },
+        { label: "Unit", key: "unit", type: "text" },
+        { label: "Legalitas", key: "legalitasTotal", type: "number" },
+        { label: "Maintenance", key: "maintenanceTotal", type: "number" },
+        { label: "Operasional", key: "operasionalTotal", type: "number" },
+        { label: "Total", key: "total", type: "number" },
+        { label: "Riwayat", key: "riwayatTotal", type: "number" },
+    ], []);
+    const sortVehicleCosts = (key) => {
+        setVehicleSort((current) => ({
+            key,
+            direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
+        }));
+    };
     const instantVehicleCosts = useMemo(() => {
         const sourceRows = vehicleCostRows.length ? vehicleCostRows : vehicleCosts;
 
         return sourceRows
             .filter((row) => matchesActiveFilter(row, activeFilters))
+            .map((row) => ({
+                ...row,
+                riwayatTotal: Number(row.serviceCount || 0) + Number(row.banCount || 0) + Number(row.primaryCount || 0) + Number(row.secondaryCount || 0),
+            }))
+            .sort((a, b) => {
+                const column = vehicleSortColumns.find((item) => item.key === vehicleSort.key);
+                const multiplier = vehicleSort.direction === "asc" ? 1 : -1;
+
+                if (column?.type === "number") {
+                    return (Number(a[vehicleSort.key] || 0) - Number(b[vehicleSort.key] || 0)) * multiplier;
+                }
+
+                return String(a[vehicleSort.key] || "")
+                    .localeCompare(String(b[vehicleSort.key] || ""), "id", { numeric: true, sensitivity: "base" }) * multiplier;
+            })
             .slice(0, 300);
-    }, [activeFilters, vehicleCostRows, vehicleCosts]);
+    }, [activeFilters, vehicleCostRows, vehicleCosts, vehicleSort, vehicleSortColumns]);
     const normalizedFlow = useMemo(() => {
         if (operationRows.length) return buildOperationFlow(operationRows, activeFilters);
 
@@ -542,10 +735,12 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
                 filters={activeFilters}
                 options={normalizedFilterOptions}
                 onChange={setActiveFilters}
-                onReset={() => setActiveFilters({ TAHUN: "ALL", BULAN: "ALL", AREA: "ALL", TIPE: "ALL", NOPOL: "ALL" })}
+                onReset={() => setActiveFilters({ TAHUN: "ALL", BULAN: "ALL", WEEK: "ALL", AREA: "ALL", TIPE: "ALL", NOPOL: "ALL" })}
             />
 
             <FlowChart data={normalizedFlow} filters={activeFilters} />
+
+            <DataComparison operationRows={operationRows} filters={activeFilters} />
 
             <section className="mb-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-4 py-4">
@@ -560,11 +755,24 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
                     <table className="w-full min-w-[1080px] border-collapse text-left">
                         <thead className="sticky top-0 z-10 bg-slate-50">
                             <tr>
-                                {["Nopol", "Area", "Tipe", "Unit", "Legalitas", "Maintenance", "Operasional", "Total", "Riwayat"].map((head) => (
-                                    <th key={head} className="border-b border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-slate-500">
-                                        {head}
+                                {vehicleSortColumns.map((column) => {
+                                    const isActive = vehicleSort.key === column.key;
+                                    const SortIcon = isActive && vehicleSort.direction === "desc" ? ArrowDownAZ : ArrowUpAZ;
+
+                                    return (
+                                    <th key={column.key} className="border-b border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                                        <button
+                                            type="button"
+                                            onClick={() => sortVehicleCosts(column.key)}
+                                            className={`inline-flex items-center gap-1.5 rounded-md px-1 py-1 text-left transition hover:bg-cyan-50 hover:text-cyan-700 ${isActive ? "text-cyan-700" : ""}`}
+                                            title={`Urutkan ${column.label}`}
+                                        >
+                                            {column.label}
+                                            <SortIcon size={13} className={isActive ? "text-cyan-600" : "text-slate-300"} />
+                                        </button>
                                     </th>
-                                ))}
+                                    );
+                                })}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">

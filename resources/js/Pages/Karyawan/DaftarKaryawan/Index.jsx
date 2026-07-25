@@ -1,15 +1,13 @@
-import React, { useMemo, useState } from "react";
-import { Head, Link, router } from "@inertiajs/react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
-    BriefcaseBusiness,
-    Building2,
+    BadgeCheck,
     CalendarClock,
     Edit3,
-    IdCard,
     Mail,
-    MapPinned,
     Phone,
     Plus,
+    RefreshCw,
     Search,
     ShieldAlert,
     UserCheck,
@@ -18,65 +16,27 @@ import {
 import AdminLayout from "../../../Layouts/AdminLayout";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
+const tablePageSize = 50;
+const normalizeStatus = (value) => String(value || "").trim().toUpperCase();
+const isInactiveEmployee = (employee) => {
+    const status = normalizeStatus(employee?.status);
+
+    return status === "EXPIRED" || [
+        "EXPIRED",
+        "NON AKTIF",
+        "NON-AKTIF",
+        "TIDAK AKTIF",
+        "INACTIVE",
+        "RESIGN",
+        "KELUAR",
+    ].includes(status);
+};
 
 const statusTone = {
     AKTIF: "border-emerald-100 bg-emerald-50 text-emerald-700",
     EXPIRED: "border-rose-100 bg-rose-50 text-rose-700",
     "HAMPIR EXPIRED": "border-amber-100 bg-amber-50 text-amber-700",
 };
-
-const officeDivisions = [
-    "DIREKSI",
-    "FINANCE ACCOUNTING & TAX",
-    "HR-GA",
-    "MAINTENANCE",
-    "OPERATIONAL",
-    "PRIMARY",
-    "TRUCKING",
-];
-
-const viewModes = [
-    { key: "all", label: "Semua", icon: Users },
-    { key: "ho", label: "Pegawai HO", icon: Building2 },
-    { key: "branch", label: "Kantor Cabang", icon: MapPinned },
-    { key: "driver", label: "Driver", icon: IdCard },
-    { key: "helper", label: "Helper", icon: BriefcaseBusiness },
-];
-
-function employeeMode(employee) {
-    if (employee.jabatan === "DRIVER") {
-        return "driver";
-    }
-
-    if (employee.jabatan === "HELPER") {
-        return "helper";
-    }
-
-    if (officeDivisions.includes(employee.divisi)) {
-        return "ho";
-    }
-
-    return "branch";
-}
-
-function StatCard({ title, value, helper, icon: Icon }) {
-    return (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-                        {title}
-                    </p>
-                    <p className="mt-2 text-2xl font-black text-slate-950">{formatNumber(value)}</p>
-                </div>
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-600">
-                    <Icon size={19} />
-                </div>
-            </div>
-            <p className="mt-3 text-xs font-semibold text-slate-500">{helper}</p>
-        </div>
-    );
-}
 
 function SelectFilter({ label, value, options = [], onChange }) {
     return (
@@ -110,28 +70,20 @@ function StatusPill({ value }) {
     );
 }
 
-function DistributionList({ title, items = [] }) {
-    const total = items.reduce((sum, item) => sum + Number(item.value || 0), 0);
-
+function EmployeeMetricCard({ title, value, helper, icon: Icon, tone }) {
     return (
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">{title}</h2>
-            <div className="mt-4 space-y-3">
-                {items.slice(0, 7).map((item) => {
-                    const percent = total > 0 ? Math.round((Number(item.value || 0) / total) * 100) : 0;
-
-                    return (
-                        <div key={item.label}>
-                            <div className="mb-1 flex items-center justify-between gap-3 text-xs font-black text-slate-600">
-                                <span className="truncate">{item.label}</span>
-                                <span>{formatNumber(item.value)}</span>
-                            </div>
-                            <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                                <div className="h-full rounded-full bg-slate-900" style={{ width: `${Math.max(percent, item.value > 0 ? 4 : 0)}%` }} />
-                            </div>
-                        </div>
-                    );
-                })}
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                        {title}
+                    </p>
+                    <p className="mt-2 text-2xl font-black text-slate-950">{formatNumber(value)}</p>
+                    <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">{helper}</p>
+                </div>
+                <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${tone}`}>
+                    <Icon size={19} />
+                </div>
             </div>
         </div>
     );
@@ -139,34 +91,45 @@ function DistributionList({ title, items = [] }) {
 
 export default function Index({
     employees = [],
-    summary = {},
-    distributions = {},
     filters = {},
 }) {
+    const canManage = (usePage().props.auth?.permissions || []).includes("employees.manage");
     const [search, setSearch] = useState("");
     const [divisi, setDivisi] = useState("all");
     const [jabatan, setJabatan] = useState("all");
     const [area, setArea] = useState("all");
     const [status, setStatus] = useState("all");
-    const [mode, setMode] = useState("all");
+    const [tablePage, setTablePage] = useState(1);
 
-    const modeCounts = useMemo(() => {
-        return employees.reduce(
-            (counts, employee) => {
-                const key = employeeMode(employee);
-                counts.all += 1;
-                counts[key] += 1;
+    const activeEmployees = useMemo(
+        () => employees.filter((employee) => !isInactiveEmployee(employee)),
+        [employees],
+    );
 
-                return counts;
-            },
-            { all: 0, ho: 0, branch: 0, driver: 0, helper: 0 },
-        );
-    }, [employees]);
+    const inactiveEmployees = useMemo(
+        () => employees.filter((employee) => isInactiveEmployee(employee)),
+        [employees],
+    );
+
+    const activeStatusOptions = useMemo(
+        () => (filters.status || []).filter((option) => !isInactiveEmployee({ status: option })),
+        [filters.status],
+    );
+
+    const employeeMetrics = useMemo(() => {
+        return {
+            aktif: activeEmployees.filter((employee) => normalizeStatus(employee.status) === "AKTIF").length,
+            hampirExpired: activeEmployees.filter((employee) => normalizeStatus(employee.status) === "HAMPIR EXPIRED").length,
+            tetap: activeEmployees.filter((employee) => normalizeStatus(employee.status_pkwt) === "TETAP").length,
+            kontrakUlang: activeEmployees.filter((employee) => normalizeStatus(employee.status_pkwt) === "PKWT").length,
+            nonAktif: inactiveEmployees.length,
+        };
+    }, [activeEmployees, inactiveEmployees]);
 
     const filteredEmployees = useMemo(() => {
         const keyword = search.trim().toLowerCase();
 
-        return employees.filter((employee) => {
+        return activeEmployees.filter((employee) => {
             const matchKeyword =
                 !keyword ||
                 [
@@ -184,14 +147,58 @@ export default function Index({
 
             return (
                 matchKeyword &&
-                (mode === "all" || employeeMode(employee) === mode) &&
                 (divisi === "all" || employee.divisi === divisi) &&
                 (jabatan === "all" || employee.jabatan === jabatan) &&
                 (area === "all" || employee.area === area) &&
                 (status === "all" || employee.status === status)
             );
         });
-    }, [employees, search, mode, divisi, jabatan, area, status]);
+    }, [activeEmployees, search, divisi, jabatan, area, status]);
+
+    const archivedEmployees = useMemo(() => {
+        const keyword = search.trim().toLowerCase();
+
+        return inactiveEmployees.filter((employee) => {
+            const matchKeyword =
+                !keyword ||
+                [
+                    employee.nama_karyawan,
+                    employee.nama_panggilan,
+                    employee.nip,
+                    employee.divisi,
+                    employee.jabatan,
+                    employee.area,
+                    employee.no_ponsel,
+                    employee.email,
+                    employee.status,
+                ]
+                    .filter(Boolean)
+                    .some((value) => String(value).toLowerCase().includes(keyword));
+
+            return (
+                matchKeyword &&
+                (divisi === "all" || employee.divisi === divisi) &&
+                (jabatan === "all" || employee.jabatan === jabatan) &&
+                (area === "all" || employee.area === area)
+            );
+        });
+    }, [inactiveEmployees, search, divisi, jabatan, area]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / tablePageSize));
+    const currentPage = Math.min(tablePage, totalPages);
+    const paginatedEmployees = useMemo(
+        () => filteredEmployees.slice((currentPage - 1) * tablePageSize, currentPage * tablePageSize),
+        [filteredEmployees, currentPage],
+    );
+    const visiblePages = useMemo(
+        () => [...new Set([1, currentPage - 1, currentPage, currentPage + 1, totalPages])]
+            .filter((pageNumber) => pageNumber >= 1 && pageNumber <= totalPages),
+        [currentPage, totalPages],
+    );
+
+    useEffect(() => {
+        setTablePage(1);
+    }, [search, divisi, jabatan, area, status]);
 
     return (
         <AdminLayout>
@@ -209,7 +216,7 @@ export default function Index({
                                 Daftar Karyawan
                             </h1>
                             <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-300">
-                                Data pegawai, driver, helper, divisi, area, dan status kontrak dari tabel legacy AppSheet.
+                                Data aktif tampil di tabel kerja. Karyawan non aktif disimpan terpisah di arsip supaya tidak mengganggu pantauan harian.
                             </p>
                         </div>
                         <div className="flex w-full flex-col gap-3 sm:flex-row lg:max-w-xl">
@@ -222,52 +229,60 @@ export default function Index({
                                     className="h-11 w-full rounded-lg border border-white/10 bg-white/10 pl-10 pr-3 text-sm font-semibold text-white placeholder:text-slate-400 outline-none focus:border-cyan-300/60 focus:ring-4 focus:ring-cyan-300/10"
                                 />
                             </div>
-                            <Link
-                                href="/daftar-karyawan/create"
-                                className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-cyan-500 px-4 text-sm font-black text-white shadow-lg shadow-cyan-950/20 transition hover:bg-cyan-400"
-                            >
-                                <Plus size={17} />
-                                Tambah
-                            </Link>
                         </div>
                     </div>
                 </section>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-                    <StatCard title="Total" value={summary.total} helper="Seluruh data pegawai" icon={Users} />
-                    <StatCard title="Aktif" value={summary.aktif} helper="Status aktif" icon={UserCheck} />
-                    <StatCard title="Expired" value={summary.expired} helper="Perlu validasi kontrak" icon={ShieldAlert} />
-                    <StatCard title="Driver" value={summary.driver} helper="Jabatan driver" icon={IdCard} />
-                    <StatCard title="Helper" value={summary.helper} helper="Jabatan helper" icon={BriefcaseBusiness} />
-                    <StatCard title="Kontak" value={summary.kontakTerisi} helper="Nomor ponsel terisi" icon={Phone} />
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <EmployeeMetricCard
+                        title="Karyawan Aktif"
+                        value={employeeMetrics.aktif}
+                        helper="Diambil dari kolom status: AKTIF."
+                        icon={UserCheck}
+                        tone="bg-emerald-50 text-emerald-600"
+                    />
+                    <EmployeeMetricCard
+                        title="Hampir Expired"
+                        value={employeeMetrics.hampirExpired}
+                        helper="Kontrak atau status yang perlu dipantau dekat jatuh tempo."
+                        icon={ShieldAlert}
+                        tone="bg-amber-50 text-amber-600"
+                    />
+                    <EmployeeMetricCard
+                        title="Tetap"
+                        value={employeeMetrics.tetap}
+                        helper="Diambil dari kolom status_pkwt: TETAP."
+                        icon={BadgeCheck}
+                        tone="bg-cyan-50 text-cyan-600"
+                    />
+                    <EmployeeMetricCard
+                        title="Kontrak Ulang"
+                        value={employeeMetrics.kontrakUlang}
+                        helper="Diambil dari kolom status_pkwt: PKWT."
+                        icon={RefreshCw}
+                        tone="bg-indigo-50 text-indigo-600"
+                    />
                 </div>
 
-                <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-                        {viewModes.map((item) => {
-                            const Icon = item.icon;
-                            const isActive = mode === item.key;
-
-                            return (
-                                <button
-                                    key={item.key}
-                                    type="button"
-                                    onClick={() => setMode(item.key)}
-                                    className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-3 text-left transition ${isActive ? "border-cyan-300 bg-cyan-50 text-cyan-700 shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-cyan-200 hover:bg-slate-50"}`}
-                                >
-                                    <span className="flex min-w-0 items-center gap-3">
-                                        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${isActive ? "bg-white text-cyan-600" : "bg-slate-100 text-slate-500"}`}>
-                                            <Icon size={18} />
-                                        </span>
-                                        <span className="min-w-0">
-                                            <span className="block truncate text-sm font-black">{item.label}</span>
-                                            <span className="text-xs font-semibold opacity-75">Subview karyawan</span>
-                                        </span>
-                                    </span>
-                                    <span className="shrink-0 text-lg font-black">{formatNumber(modeCounts[item.key])}</span>
-                                </button>
-                            );
-                        })}
+                <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                                Arsip Karyawan Non Aktif
+                            </p>
+                            <h2 className="mt-1 text-2xl font-black text-slate-950">
+                                {formatNumber(employeeMetrics.nonAktif)} orang
+                            </h2>
+                            <p className="mt-1 text-sm font-semibold text-slate-500">
+                                Tidak ikut dihitung di statistik dan tabel Data Karyawan.
+                            </p>
+                        </div>
+                        <Link
+                            href="/daftar-karyawan/arsip"
+                            className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-950 px-4 text-xs font-black uppercase tracking-wide text-white transition hover:bg-cyan-600"
+                        >
+                            Buka Arsip
+                        </Link>
                     </div>
                 </section>
 
@@ -276,7 +291,7 @@ export default function Index({
                         <SelectFilter label="Divisi" value={divisi} options={filters.divisi} onChange={setDivisi} />
                         <SelectFilter label="Jabatan" value={jabatan} options={filters.jabatan} onChange={setJabatan} />
                         <SelectFilter label="Area" value={area} options={filters.area} onChange={setArea} />
-                        <SelectFilter label="Status" value={status} options={filters.status} onChange={setStatus} />
+                        <SelectFilter label="Status" value={status} options={activeStatusOptions} onChange={setStatus} />
                         <div className="flex items-end">
                             <button
                                 type="button"
@@ -286,7 +301,6 @@ export default function Index({
                                     setJabatan("all");
                                     setArea("all");
                                     setStatus("all");
-                                    setMode("all");
                                 }}
                                 className="h-10 w-full rounded-lg bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-cyan-600"
                             >
@@ -296,12 +310,6 @@ export default function Index({
                     </div>
                 </section>
 
-                <div className="grid gap-4 xl:grid-cols-3">
-                    <DistributionList title="Divisi Terbanyak" items={distributions.divisi} />
-                    <DistributionList title="Jabatan Terbanyak" items={distributions.jabatan} />
-                    <DistributionList title="Area Terbanyak" items={distributions.area} />
-                </div>
-
                 <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                     <div className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -309,18 +317,27 @@ export default function Index({
                                 Data Karyawan
                             </h2>
                             <p className="mt-1 text-xs font-semibold text-slate-500">
-                                Menampilkan {formatNumber(filteredEmployees.length)} dari {formatNumber(employees.length)} data.
+                                Menampilkan {formatNumber(filteredEmployees.length)} dari {formatNumber(activeEmployees.length)} karyawan aktif.
                             </p>
                         </div>
-                        <div className="text-xs font-black uppercase tracking-wide text-slate-400">
-                            Source: hr_manager_db_pegawai
+                        <div className="flex flex-col gap-2 sm:items-end">
+                            {canManage && (
+                                <Link
+                                    href="/daftar-karyawan/create"
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-cyan-500 px-4 text-xs font-black text-white shadow-sm transition hover:bg-cyan-600"
+                                >
+                                    <Plus size={16} />
+                                    Tambah Karyawan
+                                </Link>
+                            )}
                         </div>
                     </div>
 
                     <div className="table-scroll max-h-[62vh] overflow-auto">
                         <table className="w-full min-w-[1120px] text-left text-sm">
-                            <thead className="sticky top-0 z-10 bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500 shadow-[0_1px_0_rgba(226,232,240,1)]">
+                            <thead className="sticky top-0 z-30 bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500 shadow-[0_1px_0_rgba(226,232,240,1)]">
                                 <tr>
+                                    {canManage && <th className="sticky left-0 z-40 w-[92px] bg-slate-50 px-4 py-3 shadow-[1px_0_0_rgba(226,232,240,1)]">Aksi</th>}
                                     <th className="px-4 py-3">Karyawan</th>
                                     <th className="px-4 py-3">NIP</th>
                                     <th className="px-4 py-3">Divisi</th>
@@ -330,14 +347,13 @@ export default function Index({
                                     <th className="px-4 py-3">PKWT</th>
                                     <th className="px-4 py-3">Kontak</th>
                                     <th className="px-4 py-3">Tanggal</th>
-                                    <th className="px-4 py-3">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredEmployees.map((employee) => (
+                                {paginatedEmployees.map((employee) => (
                                     <tr
                                         key={employee.id_key}
-                                        className="cursor-pointer transition hover:bg-cyan-50/40 focus-within:bg-cyan-50/40"
+                                        className="group cursor-pointer transition hover:bg-cyan-50/40 focus-within:bg-cyan-50/40"
                                         tabIndex={0}
                                         onClick={() => router.visit(`/daftar-karyawan/${employee.id_key}`)}
                                         onKeyDown={(event) => {
@@ -347,6 +363,18 @@ export default function Index({
                                             }
                                         }}
                                     >
+                                        {canManage && (
+                                            <td className="sticky left-0 z-20 bg-white px-4 py-3 shadow-[1px_0_0_rgba(226,232,240,1)] group-hover:bg-cyan-50">
+                                                <Link
+                                                    href={`/daftar-karyawan/${employee.id_key}/edit`}
+                                                    onClick={(event) => event.stopPropagation()}
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:border-cyan-300 hover:text-cyan-600"
+                                                    title="Edit karyawan"
+                                                >
+                                                    <Edit3 size={15} />
+                                                </Link>
+                                            </td>
+                                        )}
                                         <td className="px-4 py-3">
                                             <Link
                                                 href={`/daftar-karyawan/${employee.id_key}`}
@@ -409,18 +437,118 @@ export default function Index({
                                                 </div>
                                             </Link>
                                         </td>
+                                    </tr>
+                                ))}
+                                {!filteredEmployees.length && (
+                                    <tr>
+                                        <td colSpan={canManage ? 10 : 9} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
+                                            Tidak ada data karyawan yang cocok.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                    {filteredEmployees.length > 0 && (
+                        <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-xs font-bold text-slate-500">
+                                Menampilkan {formatNumber((currentPage - 1) * tablePageSize + 1)}-{formatNumber(Math.min(currentPage * tablePageSize, filteredEmployees.length))} dari {formatNumber(filteredEmployees.length)} data
+                            </p>
+                            <div className="flex flex-wrap items-center gap-1">
+                                <button
+                                    type="button"
+                                    disabled={currentPage === 1}
+                                    onClick={() => setTablePage(currentPage - 1)}
+                                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    Sebelumnya
+                                </button>
+                                {visiblePages.map((pageNumber, index) => (
+                                    <React.Fragment key={pageNumber}>
+                                        {index > 0 && pageNumber - visiblePages[index - 1] > 1 && (
+                                            <span className="px-1 text-xs font-black text-slate-400">...</span>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => setTablePage(pageNumber)}
+                                            className={`h-9 min-w-9 rounded-lg border px-2 text-xs font-black transition ${pageNumber === currentPage ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                                        >
+                                            {pageNumber}
+                                        </button>
+                                    </React.Fragment>
+                                ))}
+                                <button
+                                    type="button"
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => setTablePage(currentPage + 1)}
+                                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    Berikutnya
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </section>
+
+                <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <div className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">
+                                Arsip Karyawan Non Aktif
+                            </h2>
+                            <p className="mt-1 text-xs font-semibold text-slate-500">
+                                Menampilkan {formatNumber(archivedEmployees.length)} dari {formatNumber(inactiveEmployees.length)} data arsip.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="table-scroll max-h-[360px] overflow-auto">
+                        <table className="w-full min-w-[860px] text-left text-sm">
+                            <thead className="sticky top-0 z-20 bg-slate-50 text-[11px] font-black uppercase tracking-wider text-slate-500 shadow-[0_1px_0_rgba(226,232,240,1)]">
+                                <tr>
+                                    <th className="px-4 py-3">Karyawan</th>
+                                    <th className="px-4 py-3">NIP</th>
+                                    <th className="px-4 py-3">Divisi</th>
+                                    <th className="px-4 py-3">Jabatan</th>
+                                    <th className="px-4 py-3">Area</th>
+                                    <th className="px-4 py-3">Status</th>
+                                    <th className="px-4 py-3">Tanggal</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {archivedEmployees.map((employee) => (
+                                    <tr
+                                        key={employee.id_key}
+                                        className="cursor-pointer transition hover:bg-slate-50"
+                                        onClick={() => router.visit(`/daftar-karyawan/${employee.id_key}`)}
+                                    >
                                         <td className="px-4 py-3">
-                                            <Link
-                                                href={`/daftar-karyawan/${employee.id_key}/edit`}
-                                                onClick={(event) => event.stopPropagation()}
-                                                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:border-cyan-300 hover:text-cyan-600"
-                                            >
-                                                <Edit3 size={14} />
-                                                Edit
-                                            </Link>
+                                            <p className="font-black text-slate-950">{employee.nama_karyawan || "-"}</p>
+                                            <p className="mt-1 text-xs font-semibold text-slate-500">{employee.nama_panggilan || employee.id_key}</p>
+                                        </td>
+                                        <td className="px-4 py-3 font-bold text-slate-700">{employee.nip || "-"}</td>
+                                        <td className="px-4 py-3 font-bold text-slate-700">{employee.divisi || "-"}</td>
+                                        <td className="px-4 py-3 font-bold text-slate-700">{employee.jabatan || "-"}</td>
+                                        <td className="px-4 py-3 font-bold text-slate-700">{employee.area || "-"}</td>
+                                        <td className="px-4 py-3"><StatusPill value={employee.status} /></td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2 font-bold text-slate-700">
+                                                <CalendarClock size={14} className="text-slate-400" />
+                                                {employee.tanggal_bergabung || "-"}
+                                            </div>
+                                            <div className="mt-1 text-xs font-semibold text-slate-500">
+                                                Akhir PKWT: {employee.akhir_pkwt || "-"}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
+                                {!archivedEmployees.length && (
+                                    <tr>
+                                        <td colSpan={7} className="px-4 py-8 text-center text-sm font-semibold text-slate-500">
+                                            Belum ada karyawan non aktif yang masuk arsip.
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>

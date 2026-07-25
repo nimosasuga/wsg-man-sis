@@ -1,5 +1,5 @@
 import React from "react";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     ArrowLeft,
     BriefcaseBusiness,
@@ -58,6 +58,7 @@ function Field({ label, children, wide = false }) {
 }
 
 export default function Detail({ employee }) {
+    const canManage = (usePage().props.auth?.permissions || []).includes("employees.manage");
     const destroy = () => {
         if (window.confirm("Hapus data karyawan ini? Aksi ini tidak bisa dibatalkan.")) {
             router.delete(`/daftar-karyawan/${employee.id_key}`);
@@ -77,7 +78,7 @@ export default function Detail({ employee }) {
                         <ArrowLeft size={16} />
                         Kembali ke Daftar Karyawan
                     </Link>
-                    <div className="flex flex-wrap gap-2">
+                    {canManage && <div className="flex flex-wrap gap-2">
                         <Link
                             href={`/daftar-karyawan/${employee.id_key}/edit`}
                             className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-sm font-black text-white shadow-sm transition hover:bg-cyan-600"
@@ -93,7 +94,7 @@ export default function Detail({ employee }) {
                             <Trash2 size={16} />
                             Hapus
                         </button>
-                    </div>
+                    </div>}
                 </div>
 
                 <section className="rounded-xl bg-slate-950 p-5 text-white shadow-sm">

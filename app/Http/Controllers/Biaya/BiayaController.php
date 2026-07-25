@@ -141,9 +141,10 @@ class BiayaController extends Controller
 
     private function withDateGroups(object $row): object
     {
-        [$year, $month] = $this->dateGroups($row->tanggal ?? null);
+        [$year, $month, $week] = $this->dateGroups($row->tanggal ?? null);
         $row->groupYear = $year;
         $row->groupMonth = $month;
+        $row->groupWeek = $week;
         $row->groupArea = $row->area ?: 'TIDAK DIKETAHUI';
 
         return $row;
@@ -154,22 +155,36 @@ class BiayaController extends Controller
         $date = trim((string) $date);
 
         if ($date === '' || $date === '0000-00-00') {
-            return ['0', '0'];
+            return ['0', '0', '0'];
         }
 
         if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date, $matches)) {
-            return [$matches[3], $this->monthLabel((int) $matches[2])];
+            $parsed = \DateTimeImmutable::createFromFormat('!d/m/Y', $date)
+                ?: \DateTimeImmutable::createFromFormat('!m/d/Y', $date);
+
+            return [$matches[3], $this->monthLabel((int) $matches[2]), $this->weekLabel($parsed)];
         }
 
         if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $date, $matches)) {
-            return [$matches[1], $this->monthLabel((int) $matches[2])];
+            $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+
+            return [$matches[1], $this->monthLabel((int) $matches[2]), $this->weekLabel($parsed)];
         }
 
         if (preg_match('/(\d{4})/', $date, $matches)) {
-            return [$matches[1], '0'];
+            return [$matches[1], '0', '0'];
         }
 
-        return ['0', '0'];
+        return ['0', '0', '0'];
+    }
+
+    private function weekLabel(\DateTimeImmutable|false $date): string
+    {
+        if ($date === false) {
+            return '0';
+        }
+
+        return 'W'.$date->format('W');
     }
 
     private function monthLabel(int $month): string
@@ -342,6 +357,7 @@ class BiayaController extends Controller
         return [
             'TAHUN' => (string) request()->query('TAHUN', 'ALL'),
             'BULAN' => (string) request()->query('BULAN', 'ALL'),
+            'WEEK' => (string) request()->query('WEEK', 'ALL'),
             'AREA' => (string) request()->query('AREA', 'ALL'),
             'TIPE' => (string) request()->query('TIPE', 'ALL'),
             'NOPOL' => (string) request()->query('NOPOL', 'ALL'),
@@ -353,6 +369,7 @@ class BiayaController extends Controller
         return [
             'TAHUN' => 'ALL',
             'BULAN' => 'ALL',
+            'WEEK' => 'ALL',
             'AREA' => 'ALL',
             'TIPE' => 'ALL',
             'NOPOL' => 'ALL',
@@ -400,6 +417,7 @@ class BiayaController extends Controller
             'source' => $source,
             'year' => $row->groupYear,
             'month' => $row->groupMonth,
+            'week' => $row->groupWeek,
             'area' => $row->area,
             'nopol' => $row->nopol,
             'tipe' => $row->tipe,
@@ -478,6 +496,16 @@ class BiayaController extends Controller
             ->unique()
             ->sortDesc()
             ->values();
+        $weeks = DB::table('operasional_primary_input')
+            ->select('tanggal_muat as tanggal')
+            ->whereNotNull('tanggal_muat')
+            ->get()
+            ->merge(DB::table('operasional_secondary_input')->select('tanggal')->whereNotNull('tanggal')->get())
+            ->map(fn ($row) => $this->dateGroups($row->tanggal ?? null)[2])
+            ->filter(fn ($week) => $week && $week !== '0')
+            ->unique()
+            ->sort()
+            ->values();
 
         return [
             'TAHUN' => $this->optionList($years),
@@ -495,6 +523,7 @@ class BiayaController extends Controller
                 'K November',
                 'L Desember',
             ]),
+            'WEEK' => $this->optionList($weeks),
             'AREA' => $this->optionList($inventory->pluck('area')),
             'TIPE' => $this->optionList($inventory->pluck('tipe')),
             'NOPOL' => $this->optionList($inventory->pluck('nopol')),
@@ -517,6 +546,7 @@ class BiayaController extends Controller
     {
         return ($filters['TAHUN'] === 'ALL' || (string) ($row->year ?? $row->groupYear ?? '') === $filters['TAHUN'])
             && ($filters['BULAN'] === 'ALL' || (string) ($row->month ?? $row->groupMonth ?? '') === $filters['BULAN'])
+            && ($filters['WEEK'] === 'ALL' || (string) ($row->week ?? $row->groupWeek ?? '') === $filters['WEEK'])
             && ($filters['AREA'] === 'ALL' || (string) ($row->area ?? '') === $filters['AREA'])
             && ($filters['TIPE'] === 'ALL' || (string) ($row->tipe ?? '') === $filters['TIPE'])
             && ($filters['NOPOL'] === 'ALL' || (string) ($row->nopol ?? '') === $filters['NOPOL']);
@@ -577,10 +607,11 @@ class BiayaController extends Controller
 
     private function dateMatchesFilters(?string $date, array $filters): bool
     {
-        [$year, $month] = $this->dateGroups($date);
+        [$year, $month, $week] = $this->dateGroups($date);
 
         return ($filters['TAHUN'] === 'ALL' || $year === $filters['TAHUN'])
-            && ($filters['BULAN'] === 'ALL' || $month === $filters['BULAN']);
+            && ($filters['BULAN'] === 'ALL' || $month === $filters['BULAN'])
+            && ($filters['WEEK'] === 'ALL' || $week === $filters['WEEK']);
     }
 
     private function unitHasCostInPeriod(string $nopol, string $year, string $month): bool

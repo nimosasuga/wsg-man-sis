@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     ArrowLeft,
     ArrowRight,
@@ -186,6 +186,7 @@ export default function Index({
     banBreakdown = { byArea: [], byType: [], byNopol: [] },
     sourceStatus = {},
 }) {
+    const canManage = (usePage().props.auth?.permissions || []).includes("service.manage");
     const isMenu = mode === "menu";
     const [activeTab, setActiveTab] = useState(mode === "ban" ? "ban" : "service");
     const [search, setSearch] = useState("");
@@ -304,13 +305,13 @@ export default function Index({
                                 <ArrowLeft size={15} />
                                 Kembali ke Menu
                             </Link>
-                            <Link
+                            {canManage && <Link
                                 href={activeTab === "service" ? "/riwayat-service-unit/service-umum/create" : "/riwayat-service-unit/service-ban/create"}
                                 className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-black uppercase tracking-wide text-white transition hover:bg-cyan-700"
                             >
                                 <Plus size={15} />
                                 Tambah Data
-                            </Link>
+                            </Link>}
                         </div>
 
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">

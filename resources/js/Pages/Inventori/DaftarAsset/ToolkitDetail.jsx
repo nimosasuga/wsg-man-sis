@@ -1,6 +1,6 @@
 import React from "react";
-import { Head, Link } from "@inertiajs/react";
-import { ArrowLeft, Check, ChevronRight, ClipboardCheck, X } from "lucide-react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
+import { ArrowLeft, Check, ChevronRight, ClipboardCheck, Edit3, Trash2, X } from "lucide-react";
 import AdminLayout from "../../../Layouts/AdminLayout";
 
 const identityFields = [
@@ -120,8 +120,16 @@ function ChecklistItem({ label, value }) {
 }
 
 export default function ToolkitDetail({ checklist }) {
+    const permissions = usePage().props.auth?.permissions || [];
+    const canManageInventory = permissions.includes("inventory.manage");
+    const checklistKey = checklist?.id_key ? encodeURIComponent(checklist.id_key) : null;
     const checkedCount = checklistFields.filter((field) => isChecked(checklist?.[field.key])).length;
     const issueCount = checklistFields.length - checkedCount;
+
+    const deleteChecklist = () => {
+        if (!checklistKey || !window.confirm("Hapus data Toolkit ini?")) return;
+        router.delete(`/module-records/toolkit/${checklistKey}`);
+    };
 
     return (
         <AdminLayout>
@@ -159,13 +167,34 @@ export default function ToolkitDetail({ checklist }) {
                             </div>
                         </div>
 
-                        <Link
-                            href="/inventori/daftar-asset/toolkit"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
-                        >
-                            <ArrowLeft size={16} />
-                            Kembali
-                        </Link>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                            {canManageInventory && checklistKey && (
+                                <>
+                                    <Link
+                                        href={`/module-records/toolkit/${checklistKey}/edit`}
+                                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-cyan-700"
+                                    >
+                                        <Edit3 size={16} />
+                                        Edit
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={deleteChecklist}
+                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-black text-rose-700 shadow-sm transition hover:bg-rose-100"
+                                    >
+                                        <Trash2 size={16} />
+                                        Delete
+                                    </button>
+                                </>
+                            )}
+                            <Link
+                                href="/inventori/daftar-asset/toolkit"
+                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                            >
+                                <ArrowLeft size={16} />
+                                Kembali
+                            </Link>
+                        </div>
                     </div>
                 </section>
 

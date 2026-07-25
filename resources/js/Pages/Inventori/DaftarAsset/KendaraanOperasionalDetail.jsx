@@ -1,6 +1,6 @@
 import React from "react";
-import { Head, Link } from "@inertiajs/react";
-import { ArrowLeft, Car, ChevronRight, Image as ImageIcon } from "lucide-react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
+import { ArrowLeft, Car, ChevronRight, Edit3, Image as ImageIcon, Trash2 } from "lucide-react";
 import AdminLayout from "../../../Layouts/AdminLayout";
 
 const fields = [
@@ -39,6 +39,15 @@ function InfoItem({ label, value }) {
 }
 
 export default function KendaraanOperasionalDetail({ asset }) {
+    const canManage = (usePage().props.auth?.permissions || []).includes("inventory.manage");
+    const deleteRecord = () => {
+        if (!window.confirm(`Hapus data kendaraan ${asset?.nopol || ""}?`)) {
+            return;
+        }
+
+        router.delete(`/module-records/kendaraan-operasional/${encodeURIComponent(asset.id_key)}`);
+    };
+
     return (
         <AdminLayout>
             <Head title={`${asset?.nopol || "Kendaraan Operasional"} - Detail`} />
@@ -65,13 +74,34 @@ export default function KendaraanOperasionalDetail({ asset }) {
                             </div>
                         </div>
 
-                        <Link
-                            href="/inventori/daftar-asset/kendaraan-operasional"
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
-                        >
-                            <ArrowLeft size={16} />
-                            Kembali
-                        </Link>
+                        <div className="flex flex-wrap gap-2">
+                            {canManage && (
+                                <>
+                                    <Link
+                                        href={`/module-records/kendaraan-operasional/${encodeURIComponent(asset.id_key)}/edit`}
+                                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-500 px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-cyan-600"
+                                    >
+                                        <Edit3 size={16} />
+                                        Edit
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        onClick={deleteRecord}
+                                        className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-black text-rose-600 shadow-sm transition hover:bg-rose-50"
+                                    >
+                                        <Trash2 size={16} />
+                                        Delete
+                                    </button>
+                                </>
+                            )}
+                            <Link
+                                href="/inventori/daftar-asset/kendaraan-operasional"
+                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                            >
+                                <ArrowLeft size={16} />
+                                Kembali
+                            </Link>
+                        </div>
                     </div>
                 </section>
 

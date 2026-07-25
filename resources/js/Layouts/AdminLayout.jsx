@@ -20,6 +20,9 @@ import {
     LogOut,
     Menu,
     X,
+    ShieldCheck,
+    ArrowUpRight,
+    Database,
 } from "lucide-react";
 
 const NAV_BG = "#0f172a";
@@ -30,26 +33,44 @@ const DESKTOP_QUERY = "(min-width: 1024px)";
 const SIDEBAR_STORAGE_KEY = "washeng:admin-sidebar-open";
 
 const menus = [
-    { name: "DASHBOARD", icon: LayoutDashboard, path: "/dashboard" },
-        { name: "BIAYA", icon: DollarSign, path: "/biaya" },
-        { name: "PROFIT UNIT", icon: TrendingUp, path: "/profit-unit" },
+    { name: "DASHBOARD", icon: LayoutDashboard, path: "/dashboard", permission: "dashboard.view" },
+        { name: "BIAYA", icon: DollarSign, path: "/biaya", permission: "biaya.view" },
+        { name: "PROFIT UNIT", icon: TrendingUp, path: "/profit-unit", permission: "profit-unit.view" },
     {
         name: "DAFTAR UNIT",
         icon: Truck,
         path: "/inventori/daftar-unit",
         activePaths: ["/inventori/daftar-unit", "/inventori/pajak", "/inventori/stnk", "/inventori/kir"],
+        permission: "inventory.view",
     },
     {
         name: "DAFTAR ASSET",
         icon: Box,
         path: "/inventori/daftar-asset",
         activePaths: ["/inventori/daftar-asset"],
+        permission: "inventory.view",
     },
-    { name: "ON THE ROAD", icon: Map, path: "/on-the-road" },
-    { name: "NEED APPROVAL", icon: CheckSquare, path: "/need-approval" },
-    { name: "DAFTAR KARYAWAN", icon: Users, path: "/daftar-karyawan" },
-    { name: "RIWAYAT SERVICE UNIT", icon: PenTool, path: "/riwayat-service-unit" },
-    { name: "SYSTEM ACTIVITY LOG", icon: Activity, path: "/system/data-health" },
+    { name: "ON THE ROAD", icon: Map, path: "/on-the-road", permission: "on-the-road.view" },
+    { name: "NEED APPROVAL", icon: CheckSquare, path: "/need-approval", permission: "approval.view" },
+    { name: "DAFTAR KARYAWAN", icon: Users, path: "/daftar-karyawan", permission: "employees.view" },
+    { name: "RIWAYAT SERVICE UNIT", icon: PenTool, path: "/riwayat-service-unit", permission: "service.view" },
+    { name: "SYSTEM ACTIVITY LOG", icon: Activity, path: "/system/data-health", permission: "system.view" },
+    {
+        name: "CRUD DATA",
+        icon: Database,
+        path: "/module-records",
+        activePaths: ["/module-records"],
+        anyPermissions: [
+            "biaya.manage",
+            "profit-unit.manage",
+            "inventory.manage",
+            "on-the-road.manage",
+            "approval.manage",
+            "finance-documents.manage",
+            "system.manage",
+        ],
+    },
+    { name: "ROLE & AKSES", icon: ShieldCheck, path: "/system/access-control", permission: "access-control.manage" },
 ];
 
 export default function AdminLayout({ children }) {
@@ -62,12 +83,26 @@ export default function AdminLayout({ children }) {
     });
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [globalSearch, setGlobalSearch] = useState("");
+    const [globalResults, setGlobalResults] = useState([]);
+    const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
+    const [isGlobalSearchLoading, setIsGlobalSearchLoading] = useState(false);
     const [isDesktop, setIsDesktop] = useState(() =>
         typeof window === "undefined"
             ? true
             : window.matchMedia(DESKTOP_QUERY).matches,
     );
-    const { url } = usePage();
+    const { url, props } = usePage();
+    const auth = props.auth || {};
+    const permissions = auth.permissions || [];
+    const roles = auth.roles || [];
+    const visibleMenus = useMemo(() => menus.filter((menu) => {
+        if (menu.permission) {
+            return permissions.includes(menu.permission);
+        }
+
+        return (menu.anyPermissions || []).some((permission) => permissions.includes(permission));
+    }), [permissions]);
     const activePath = useMemo(() => url?.split("?")[0] || "/dashboard", [url]);
 
     const setDesktopSidebarOpen = (value) => {
@@ -90,6 +125,42 @@ export default function AdminLayout({ children }) {
         return () => mediaQuery.removeEventListener("change", handleChange);
     }, []);
 
+    useEffect(() => {
+        const keyword = globalSearch.trim();
+
+        if (keyword.length < 2) {
+            setGlobalResults([]);
+            setIsGlobalSearchLoading(false);
+            return;
+        }
+
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => {
+            setIsGlobalSearchLoading(true);
+
+            fetch(`/global-search?q=${encodeURIComponent(keyword)}`, {
+                headers: { Accept: "application/json" },
+                signal: controller.signal,
+            })
+                .then((response) => response.ok ? response.json() : { results: [] })
+                .then((payload) => {
+                    setGlobalResults(Array.isArray(payload.results) ? payload.results : []);
+                    setIsGlobalSearchOpen(true);
+                })
+                .catch((error) => {
+                    if (error.name !== "AbortError") {
+                        setGlobalResults([]);
+                    }
+                })
+                .finally(() => setIsGlobalSearchLoading(false));
+        }, 180);
+
+        return () => {
+            window.clearTimeout(timer);
+            controller.abort();
+        };
+    }, [globalSearch]);
+
     const sidebarWidth = isDesktop
         ? isSidebarOpen
             ? SIDEBAR_OPEN_WIDTH
@@ -105,6 +176,13 @@ export default function AdminLayout({ children }) {
             onStart: () => setIsLoggingOut(true),
             onFinish: () => setIsLoggingOut(false),
         });
+    };
+
+    const openGlobalResult = (url) => {
+        setIsGlobalSearchOpen(false);
+        setGlobalSearch("");
+        setGlobalResults([]);
+        router.visit(url);
     };
 
     return (
@@ -156,7 +234,7 @@ export default function AdminLayout({ children }) {
 
                 <div className="flex-1 overflow-y-auto px-2.5 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     <nav className="space-y-1.5" role="navigation">
-                        {menus.map((menu) => {
+                        {visibleMenus.map((menu) => {
                             const activePaths = menu.activePaths || [menu.path];
                             const isActive =
                                 menu.path !== "#" &&
@@ -216,9 +294,57 @@ export default function AdminLayout({ children }) {
                         />
                         <input
                             type="text"
+                            value={globalSearch}
+                            onChange={(event) => {
+                                setGlobalSearch(event.target.value);
+                                setIsGlobalSearchOpen(true);
+                            }}
+                            onFocus={() => setIsGlobalSearchOpen(true)}
+                            onBlur={() => window.setTimeout(() => setIsGlobalSearchOpen(false), 140)}
                             placeholder="Cari data, unit, atau dokumen..."
                             className="h-9 w-full rounded-lg border border-white/10 bg-white/10 pl-9 pr-3 text-[13px] font-semibold text-white placeholder:text-slate-400 outline-none transition focus:border-cyan-300/50 focus:bg-white/15 focus:ring-4 focus:ring-cyan-300/10"
                         />
+                        {isGlobalSearchOpen && globalSearch.trim().length >= 2 && (
+                            <div className="absolute left-0 right-0 top-11 z-50 overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-[0_18px_55px_rgba(15,23,42,0.22)]">
+                                <div className="max-h-[min(420px,70vh)] overflow-y-auto py-2">
+                                    {isGlobalSearchLoading && (
+                                        <div className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-400">
+                                            Mencari data...
+                                        </div>
+                                    )}
+                                    {!isGlobalSearchLoading && globalResults.length === 0 && (
+                                        <div className="px-4 py-3 text-sm font-semibold text-slate-500">
+                                            Belum ada data yang cocok.
+                                        </div>
+                                    )}
+                                    {!isGlobalSearchLoading && globalResults.map((item, index) => (
+                                        <button
+                                            key={`${item.url}-${index}`}
+                                            type="button"
+                                            onMouseDown={(event) => event.preventDefault()}
+                                            onClick={() => openGlobalResult(item.url)}
+                                            className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-cyan-50 focus:bg-cyan-50 focus:outline-none"
+                                        >
+                                            <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-600">
+                                                <Search size={15} />
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-sm font-black text-slate-950">
+                                                    {item.title}
+                                                </span>
+                                                <span className="mt-0.5 block truncate text-xs font-semibold text-slate-500">
+                                                    {item.subtitle || "Detail data tersedia"}
+                                                </span>
+                                                <span className="mt-1 inline-flex max-w-full rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                                                    {item.module}
+                                                </span>
+                                            </span>
+                                            <ArrowUpRight className="mt-1 shrink-0 text-slate-300" size={15} />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -232,8 +358,8 @@ export default function AdminLayout({ children }) {
                     </button>
                     <div className="mx-1 hidden h-8 w-px bg-white/10 sm:block" />
                     <div className="hidden text-right md:block">
-                        <p className="text-xs font-black leading-tight text-white">Admin System</p>
-                        <p className="text-xs font-semibold text-slate-400">Washeng ID</p>
+                        <p className="text-xs font-black leading-tight text-white">{auth.user?.nik || "Pengguna"}</p>
+                        <p className="text-xs font-semibold text-slate-400">{roles[0] ? roles[0].replaceAll("-", " ").toUpperCase() : "Tanpa role"}</p>
                     </div>
                     <button
                         type="button"
@@ -247,14 +373,6 @@ export default function AdminLayout({ children }) {
                     </button>
                 </div>
             </header>
-
-            <div
-                className="pointer-events-none fixed z-10 hidden h-8 w-8 transition-[left] duration-300 ease-out lg:block"
-                style={{ left: shellOffset, top: 56, backgroundColor: NAV_BG }}
-                aria-hidden="true"
-            >
-                <div className="h-full w-full rounded-tl-[100px]" style={{ backgroundColor: PAGE_BG }} />
-            </div>
 
             <main
                 className="app-main custom-scrollbar fixed bottom-0 right-0 overflow-y-auto px-3 py-3 transition-[left] duration-300 ease-out sm:px-4 sm:py-4 lg:px-5 lg:py-5"

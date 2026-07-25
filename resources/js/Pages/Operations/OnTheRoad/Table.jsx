@@ -2,6 +2,7 @@ import React from "react";
 import { Head, Link, router } from "@inertiajs/react";
 import { ArrowLeft, CircleDollarSign, Route, Truck } from "lucide-react";
 import AdminLayout from "../../../Layouts/AdminLayout";
+import { CalendarWidget } from "./Index";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
 const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 })}`;
@@ -36,7 +37,7 @@ export default function Table({ category, title, date, dateOptions = [], rows = 
 
             <div className="space-y-5">
                 <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex min-w-0 items-center gap-3">
                             <Link href={backHref || `/on-the-road?tanggal=${encodeURIComponent(date)}`} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-50"><ArrowLeft size={19} /></Link>
                             <div className="min-w-0">
@@ -44,9 +45,7 @@ export default function Table({ category, title, date, dateOptions = [], rows = 
                                 <h1 className="truncate text-xl font-black uppercase text-slate-950">{title}</h1>
                             </div>
                         </div>
-                        <select value={date} onChange={(event) => changeDate(event.target.value)} className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700">
-                            {dateOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                        </select>
+                        <CalendarWidget date={date} dateOptions={dateOptions} onChange={changeDate} />
                     </div>
                 </section>
 

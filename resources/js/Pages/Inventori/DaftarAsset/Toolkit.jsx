@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import AdminLayout from "../../../Layouts/AdminLayout";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     ArrowDown,
     ArrowUp,
@@ -11,6 +11,8 @@ import {
     ChevronRight,
     PanelLeftClose,
     PanelLeftOpen,
+    Plus,
+    Search,
     SearchX,
     X,
 } from "lucide-react";
@@ -46,6 +48,7 @@ const checklistColumns = [
 ];
 
 const normalize = (value) => (value ? String(value).trim().toUpperCase() : "TIDAK DIKETAHUI");
+const searchText = (row, keys) => keys.map((key) => row?.[key] ?? "").join(" ").toLowerCase();
 
 function isChecked(value) {
     const text = normalize(value);
@@ -110,10 +113,13 @@ function CheckCell({ value }) {
 }
 
 export default function Toolkit({ rawTableData = [] }) {
+    const permissions = usePage().props.auth?.permissions || [];
+    const canManageInventory = permissions.includes("inventory.manage");
     const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
     const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(true);
     const [activeStatus, setActiveStatus] = useState("ALL");
     const [activeArea, setActiveArea] = useState("ALL");
+    const [searchQuery, setSearchQuery] = useState("");
     const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage, setPerPage] = useState(100);
@@ -141,12 +147,24 @@ export default function Toolkit({ rawTableData = [] }) {
     }, [rawTableData]);
 
     const filteredData = useMemo(() => {
+        const query = searchQuery.trim().toLowerCase();
         return rawTableData.filter((item) => {
             const matchStatus = activeStatus === "ALL" || normalize(item.status_checklist) === activeStatus;
             const matchArea = activeArea === "ALL" || item.area === activeArea;
-            return matchStatus && matchArea;
+            const matchSearch =
+                !query ||
+                searchText(item, [
+                    "tanggal",
+                    "nopol",
+                    "tipe_unit",
+                    "area",
+                    "driver",
+                    "status_checklist",
+                    "keluhan",
+                ]).includes(query);
+            return matchStatus && matchArea && matchSearch;
         });
-    }, [rawTableData, activeStatus, activeArea]);
+    }, [rawTableData, activeStatus, activeArea, searchQuery]);
 
     const sortedAndFilteredData = useMemo(() => {
         const rows = [...filteredData];
@@ -241,6 +259,30 @@ export default function Toolkit({ rawTableData = [] }) {
                             {isFilterSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
                         </button>
                     </div>
+                </div>
+                <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+                    <div className="relative w-full sm:w-72">
+                        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                            type="search"
+                            value={searchQuery}
+                            onChange={(event) => {
+                                setSearchQuery(event.target.value);
+                                setCurrentPage(1);
+                            }}
+                            placeholder="Cari nopol, driver, area..."
+                            className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+                        />
+                    </div>
+                    {canManageInventory && (
+                        <Link
+                            href="/module-records/toolkit/create"
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-cyan-600 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-cyan-700 sm:w-auto"
+                        >
+                            <Plus size={16} />
+                            Tambah Data
+                        </Link>
+                    )}
                 </div>
             </div>
 
