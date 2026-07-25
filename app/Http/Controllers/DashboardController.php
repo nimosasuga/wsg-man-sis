@@ -176,8 +176,8 @@ class DashboardController extends Controller
             });
 
         DB::table('operasional_rental_unit_input')
-            ->get(['area', 'tarif_sewa_unit_bln'])
-            ->each(fn ($row) => $add($row->area, (float) $row->tarif_sewa_unit_bln, 0));
+            ->get(['area', 'tarif_sewa_unit_bln', 'biaya_legalitas'])
+            ->each(fn ($row) => $add($row->area, (float) $row->tarif_sewa_unit_bln, (float) ($row->biaya_legalitas ?? 0)));
 
         DB::table('db_chargo_data_paket_masuk')
             ->get(['kota_tujuan', 'total_ongkir'])

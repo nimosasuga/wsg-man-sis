@@ -33,6 +33,66 @@ const workQueue = [
     { task: "Audit dokumen invoice kosong", owner: "Admin Area", due: "Minggu ini", status: "Backlog" },
 ];
 
+const BusinessHealth = memo(function BusinessHealth({ data }) {
+    const pajakActive = data.pajak?.find((p) => p.name === "AKTIF")?.value || 0;
+    const stnkActive = data.stnk?.find((s) => s.name === "AKTIF")?.value || 0;
+    const kirActive = data.kir?.find((k) => k.name === "AKTIF")?.value || 0;
+    const total = data.totalPajak || 1;
+    const complianceScore = Math.round(((pajakActive + stnkActive + kirActive) / (total * 3)) * 100);
+
+    const gp = data.globalProfit || {};
+    const profit = Number(gp.profit || 0);
+    const revenue = Number(gp.revenue || 0);
+    const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+    const marginScore = Math.min(Math.round((margin / 50) * 100), 100);
+
+    const healthScore = Math.round((complianceScore * 0.5) + (marginScore * 0.5));
+    const scoreColor = healthScore >= 75 ? "text-emerald-400" : healthScore >= 50 ? "text-amber-400" : "text-rose-400";
+    const barColor = healthScore >= 75 ? "bg-emerald-400" : healthScore >= 50 ? "bg-amber-400" : "bg-rose-400";
+    const statusLabel = healthScore >= 75 ? "Sehat" : healthScore >= 50 ? "Sedang" : "Kritis";
+
+    const metrics = [
+        { label: "Kepatuhan Dokumen", value: `${complianceScore}%`, detail: `${pajakActive + stnkActive + kirActive} dari ${total * 3} dokumen aktif`, color: complianceScore >= 75 ? "text-emerald-600" : complianceScore >= 50 ? "text-amber-600" : "text-rose-600" },
+        { label: "Margin Profit", value: `${margin.toFixed(1)}%`, detail: `Rp${Number(profit).toLocaleString("id-ID")} dari Rp${Number(revenue).toLocaleString("id-ID")}`, color: margin >= 15 ? "text-emerald-600" : margin >= 5 ? "text-amber-600" : "text-rose-600" },
+    ];
+
+    return (
+        <section className="mb-8 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="grid gap-5 p-5 lg:grid-cols-[1fr_1.2fr] lg:p-6">
+                <div className="flex flex-col justify-center">
+                    <div className="mb-1 inline-flex w-fit items-center gap-2 rounded-lg bg-slate-950 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-white">
+                        <Gauge size={15} />
+                        Business Health
+                    </div>
+                    <h2 className="mt-3 text-2xl font-black text-slate-950">Kesehatan Bisnis</h2>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">Skor gabungan dari kepatuhan dokumen dan profitabilitas.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-xl border border-slate-100 bg-slate-950 p-4 text-white">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Skor Kesehatan</p>
+                        <p className={`mt-1 text-4xl font-black ${scoreColor}`}>{healthScore}<span className="text-xl text-slate-400">/100</span></p>
+                        <p className="mt-1 text-sm font-semibold text-slate-400">Status: <span className={scoreColor}>{statusLabel}</span></p>
+                        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-700">
+                            <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${healthScore}%` }} />
+                        </div>
+                    </div>
+                    <div className="space-y-3">
+                        {metrics.map((m) => (
+                            <div key={m.label} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{m.label}</p>
+                                    <p className={`text-sm font-black ${m.color}`}>{m.value}</p>
+                                </div>
+                                <p className="mt-1 text-xs font-semibold text-slate-500">{m.detail}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+});
+
 // Komponen KPI Card Atas (Analitik Cepat)
 const KpiCard = memo(function KpiCard({
     title,
@@ -268,6 +328,11 @@ export default function Dashboard({ dbChartData }) {
                     </div>
                 </div>
             </section>
+
+            {/* Business Health Widget */}
+            {dbChartData?.pajak && (
+                <BusinessHealth data={dbChartData} />
+            )}
 
             {/* KPI Cards Section */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6 mb-8">

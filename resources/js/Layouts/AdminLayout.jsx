@@ -349,7 +349,7 @@ export default function AdminLayout({ children }) {
                 </div>
 
                 <div className="ml-3 flex shrink-0 items-center gap-2 sm:ml-4 sm:gap-3">
-                    <button className="hidden h-9 w-9 place-items-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white sm:grid" title="Muat Ulang">
+                    <button onClick={() => router.reload()} className="hidden h-9 w-9 place-items-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white sm:grid" title="Muat Ulang">
                         <RefreshCw size={16} />
                     </button>
                     <button className="relative grid h-9 w-9 place-items-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white" title="Notifikasi">
