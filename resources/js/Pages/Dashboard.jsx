@@ -216,6 +216,68 @@ const WorkQueueCard = memo(function WorkQueueCard() {
     );
 });
 
+const AreaHealthTable = memo(function AreaHealthTable({ areas = [] }) {
+    const maxScore = Math.max(...areas.map((a) => a.score || 0), 1);
+
+    return (
+        <section className="mb-8">
+            <div className="mb-4">
+                <h2 className="text-base font-black text-slate-900">Kesehatan Per Area</h2>
+                <p className="mt-1 text-sm font-medium text-slate-500">Skor kepatuhan dokumen dan profitabilitas tiap cabang.</p>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="custom-scrollbar overflow-x-auto">
+                    <table className="w-full min-w-[760px] text-left">
+                        <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400">
+                            <tr>
+                                <th className="px-5 py-3">Area</th>
+                                <th className="px-5 py-3">Unit</th>
+                                <th className="px-5 py-3">Kepatuhan</th>
+                                <th className="px-5 py-3">Margin</th>
+                                <th className="px-5 py-3">Profit</th>
+                                <th className="px-5 py-3">Skor</th>
+                                <th className="px-5 py-3 w-44">Indikator</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {areas.map((item) => {
+                                const barWidth = Math.max((item.score / maxScore) * 100, item.score > 0 ? 5 : 0);
+                                const barColor = item.score >= 75 ? "bg-emerald-500" : item.score >= 50 ? "bg-amber-500" : "bg-rose-500";
+                                const textColor = item.score >= 75 ? "text-emerald-700" : item.score >= 50 ? "text-amber-700" : "text-rose-700";
+                                const badgeBg = item.score >= 75 ? "bg-emerald-50" : item.score >= 50 ? "bg-amber-50" : "bg-rose-50";
+                                const label = item.score >= 75 ? "Sehat" : item.score >= 50 ? "Sedang" : "Kritis";
+
+                                return (
+                                    <tr key={item.area} className="text-xs font-bold text-slate-600">
+                                        <td className="px-5 py-3 font-black text-slate-900">{item.area}</td>
+                                        <td className="px-5 py-3">{item.total}</td>
+                                        <td className="px-5 py-3">{item.compliance}%</td>
+                                        <td className="px-5 py-3">{item.margin}%</td>
+                                        <td className="px-5 py-3">{formatRp(item.profit)}</td>
+                                        <td className="px-5 py-3">
+                                            <span className={`rounded-md px-2.5 py-1 text-xs font-black ${badgeBg} ${textColor}`}>
+                                                {item.score}
+                                            </span>
+                                        </td>
+                                        <td className="w-44 px-5 py-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                                                    <div className={`h-full rounded-full ${barColor}`} style={{ width: `${barWidth}%` }} />
+                                                </div>
+                                                <span className={`text-[11px] font-black ${textColor}`}>{label}</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    );
+});
+
 const GlobalProfitSection = memo(function GlobalProfitSection({ summary = {}, areas = [] }) {
     const maxProfit = Math.max(...areas.map((item) => Math.max(Number(item.profit || 0), 0)), 1);
 
@@ -332,6 +394,10 @@ export default function Dashboard({ dbChartData }) {
             {/* Business Health Widget */}
             {dbChartData?.pajak && (
                 <BusinessHealth data={dbChartData} />
+            )}
+
+            {dbChartData?.areaHealth?.length > 0 && (
+                <AreaHealthTable areas={dbChartData.areaHealth} />
             )}
 
             {/* KPI Cards Section */}

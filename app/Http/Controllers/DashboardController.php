@@ -15,6 +15,7 @@ class DashboardController extends Controller
         $dbChartData = Cache::remember('dashboard.db_chart_data', now()->addMinutes(5), function () {
         // 1. Tarik hanya kolom yang dibutuhkan untuk efisiensi memori
         $inventori = Inventori::select('status_pajak', 'status_stnk', 'status_kir')->get();
+        $inventoriByArea = Inventori::select('area', 'status_pajak', 'status_stnk', 'status_kir')->get()->groupBy('area');
 
         // 2. Kalkulasi Data Pajak
         $pajakCounts = $inventori->countBy('status_pajak');
@@ -93,6 +94,34 @@ class DashboardController extends Controller
         $fatDocSecondary = $this->fatDocByDivision('Secondary - Operasional');
         $globalProfit = $this->globalProfitKpis();
 
+        $areaHealth = [];
+        $profitByArea = collect($globalProfit['areas']);
+        foreach ($inventoriByArea as $areaName => $units) {
+            $total = $units->count();
+            $pajakActive = $units->where('status_pajak', 'AKTIF')->count();
+            $stnkActive = $units->where('status_stnk', 'AKTIF')->count();
+            $kirActive = $units->where('status_kir', 'AKTIF')->count();
+            $compliance = $total > 0 ? round((($pajakActive + $stnkActive + $kirActive) / ($total * 3)) * 100) : 0;
+
+            $areaProfit = $profitByArea->firstWhere('area', mb_strtoupper(trim($areaName) ?: 'TIDAK DIKETAHUI'));
+            $revenue = (float) ($areaProfit['revenue'] ?? 0);
+            $profit = (float) ($areaProfit['profit'] ?? 0);
+            $margin = $revenue > 0 ? round(($profit / $revenue) * 100, 1) : 0;
+            $marginScore = min(round(($margin / 50) * 100), 100);
+
+            $score = round(($compliance * 0.5) + ($marginScore * 0.5));
+            $areaHealth[] = [
+                'area' => $areaName ?: 'TIDAK DIKETAHUI',
+                'score' => $score,
+                'compliance' => $compliance,
+                'margin' => $margin,
+                'total' => $total,
+                'profit' => $profit,
+                'revenue' => $revenue,
+            ];
+        }
+        $areaHealth = collect($areaHealth)->sortByDesc('score')->values()->all();
+
             return [
                 'pajak' => $chartDataPajak,
                 'stnk' => $chartDataStnk,
@@ -112,6 +141,7 @@ class DashboardController extends Controller
                 'totalFatDocSecondary' => $fatDocSecondary['total'],
                 'globalProfit' => $globalProfit['summary'],
                 'profitByArea' => $globalProfit['areas'],
+                'areaHealth' => $areaHealth,
             ];
         });
 
