@@ -6,9 +6,9 @@ import AdminLayout from "../../../Layouts/AdminLayout";
 const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
 const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 })}`;
 
-function StatCard({ title, value, helper, icon: Icon }) {
-    return (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+function StatCard({ title, value, helper, icon: Icon, href }) {
+    const content = (
+        <>
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">{title}</p>
@@ -19,6 +19,20 @@ function StatCard({ title, value, helper, icon: Icon }) {
                 </div>
             </div>
             <p className="mt-3 text-xs font-semibold text-slate-500">{helper}</p>
+        </>
+    );
+
+    if (href) {
+        return (
+            <Link href={href} className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:shadow-lg hover:shadow-slate-200/80">
+                {content}
+            </Link>
+        );
+    }
+
+    return (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            {content}
         </div>
     );
 }
@@ -63,9 +77,9 @@ export default function Index({ summary = {}, sourceStatus = {} }) {
                 </section>
 
                 <div className="grid gap-4 md:grid-cols-4">
-                    <StatCard title="Outstanding" value={formatNumber(summary.outstandingCount)} helper="Status SUBMIT dan RE-CHECK" icon={FileText} />
-                    <StatCard title="Submit" value={formatNumber(summary.submitCount)} helper="Menunggu keputusan" icon={Clock} />
-                    <StatCard title="Re-Check" value={formatNumber(summary.recheckCount)} helper="Perlu dicek ulang" icon={CheckSquare} />
+                    <StatCard title="Outstanding" value={formatNumber(summary.outstandingCount)} helper="Status SUBMIT dan RE-CHECK" icon={FileText} href="/need-approval/outstanding" />
+                    <StatCard title="Submit" value={formatNumber(summary.submitCount)} helper="Menunggu keputusan" icon={Clock} href="/need-approval/outstanding?status=SUBMIT" />
+                    <StatCard title="Re-Check" value={formatNumber(summary.recheckCount)} helper="Perlu dicek ulang" icon={CheckSquare} href="/need-approval/outstanding?status=RE-CHECK" />
                     <StatCard title="Nominal" value={formatRp(summary.paymentAmount)} helper="Total payment amount dalam antrian" icon={Database} />
                 </div>
 

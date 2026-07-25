@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { Head, Link, router } from "@inertiajs/react";
-import { ArrowLeft, CheckSquare, Clock, FileText, RotateCcw, Search } from "lucide-react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
+import { ArrowLeft, CheckCircle, CheckSquare, Clock, FileText, RotateCcw, Search, XCircle } from "lucide-react";
 import AdminLayout from "../../../Layouts/AdminLayout";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
@@ -32,6 +32,8 @@ function StatusPill({ status }) {
 }
 
 export default function Outstanding({ rows = [], summary = {}, filters = {}, filterOptions = {} }) {
+    const { auth = {} } = usePage().props;
+    const canManage = (auth.permissions || []).includes("approval.manage");
     const [search, setSearch] = useState(filters.search || "");
     const [status, setStatus] = useState(filters.status || "ALL");
     const [divisi, setDivisi] = useState(filters.divisi || "ALL");
@@ -127,7 +129,7 @@ export default function Outstanding({ rows = [], summary = {}, filters = {}, fil
                         <table className="w-full border-collapse text-left whitespace-nowrap">
                             <thead className="sticky top-0 z-10 bg-slate-50">
                                 <tr>
-                                    {["Tanggal Invoice", "Due Date", "Days Left", "Regional", "Divisi", "No Invoice", "Vendor", "Invoice Amount", "PPN", "PPh", "Biaya Lainnya", "Payment Amount", "Rekening Tujuan", "Nama Penerima", "Status"].map((head) => (
+                                    {["Tanggal Invoice", "Due Date", "Days Left", "Regional", "Divisi", "No Invoice", "Vendor", "Invoice Amount", "PPN", "PPh", "Biaya Lainnya", "Payment Amount", "Rekening Tujuan", "Nama Penerima", "Status", ...(canManage ? ["Aksi"] : [])].map((head) => (
                                         <th key={head} className="border-b border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-500">{head}</th>
                                     ))}
                                 </tr>
@@ -161,9 +163,29 @@ export default function Outstanding({ rows = [], summary = {}, filters = {}, fil
                                         <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.rekening_tujuan || "-"}</td>
                                         <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.nama_penerima || "-"}</td>
                                         <td className="px-4 py-3"><StatusPill status={row.status_pengajuan} /></td>
+                                        {canManage && (
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); if (confirm("Setujui invoice " + row.no_invoice + "?")) router.post(`/need-approval/outstanding/${row.id_key}/approve`); }}
+                                                        className="rounded-md p-1.5 text-emerald-600 transition hover:bg-emerald-50 hover:text-emerald-700"
+                                                        title="Setujui"
+                                                    >
+                                                        <CheckCircle size={17} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); if (confirm("Tolak invoice " + row.no_invoice + "?")) router.post(`/need-approval/outstanding/${row.id_key}/reject`); }}
+                                                        className="rounded-md p-1.5 text-rose-500 transition hover:bg-rose-50 hover:text-rose-600"
+                                                        title="Tolak"
+                                                    >
+                                                        <XCircle size={17} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 )) : (
-                                    <tr><td colSpan={15} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">Tidak ada data outstanding untuk filter ini.</td></tr>
+                                    <tr><td colSpan={canManage ? 16 : 15} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">Tidak ada data outstanding untuk filter ini.</td></tr>
                                 )}
                             </tbody>
                         </table>

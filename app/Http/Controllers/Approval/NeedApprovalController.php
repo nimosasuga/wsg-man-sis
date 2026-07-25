@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class NeedApprovalController extends Controller
@@ -92,6 +93,44 @@ class NeedApprovalController extends Controller
             'approvalHistory' => $approvalHistory,
             'backUrl' => url()->previous() ?: route('need-approval.outstanding'),
         ]);
+    }
+
+    public function approve(string $id)
+    {
+        $row = DB::table('finance_accounting_tax_mutasi_pembayaran')->where('id_key', $id)->first();
+        abort_if(! $row, 404);
+
+        DB::table('finance_accounting_tax_alur_aproval')->insert([
+            'id_key' => 'APR-' . Str::uuid(),
+            'no_invoice' => $row->no_invoice,
+            'no_payment' => $row->no_payment,
+            'date_time' => now()->format('Y-m-d H:i:s'),
+            'email' => auth()->user()->email,
+            'status_doc' => 'APPROVED',
+            'diajukan' => auth()->user()->name,
+        ]);
+
+        return redirect()->route('need-approval.outstanding')
+            ->with('success', 'Invoice ' . $row->no_invoice . ' berhasil disetujui.');
+    }
+
+    public function reject(string $id)
+    {
+        $row = DB::table('finance_accounting_tax_mutasi_pembayaran')->where('id_key', $id)->first();
+        abort_if(! $row, 404);
+
+        DB::table('finance_accounting_tax_alur_aproval')->insert([
+            'id_key' => 'APR-' . Str::uuid(),
+            'no_invoice' => $row->no_invoice,
+            'no_payment' => $row->no_payment,
+            'date_time' => now()->format('Y-m-d H:i:s'),
+            'email' => auth()->user()->email,
+            'status_doc' => 'REJECTED',
+            'diajukan' => auth()->user()->name,
+        ]);
+
+        return redirect()->route('need-approval.outstanding')
+            ->with('success', 'Invoice ' . $row->no_invoice . ' ditolak.');
     }
 
     private function outstandingRows(): Collection

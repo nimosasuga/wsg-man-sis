@@ -1,6 +1,6 @@
 import React from "react";
-import { Head, Link } from "@inertiajs/react";
-import { ArrowLeft, CheckSquare, Clock, CreditCard, FileText } from "lucide-react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
+import { ArrowLeft, CheckCircle, CheckSquare, Clock, CreditCard, FileText, XCircle } from "lucide-react";
 import AdminLayout from "../../../Layouts/AdminLayout";
 
 const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 })}`;
@@ -23,6 +23,19 @@ function StatusPill({ status }) {
 }
 
 export default function OutstandingDetail({ record = {}, approvalHistory = [], backUrl = "/need-approval/outstanding" }) {
+    const { auth = {} } = usePage().props;
+    const canManage = (auth.permissions || []).includes("approval.manage");
+
+    const handleApprove = () => {
+        if (!confirm("Setujui invoice " + record.no_invoice + "?")) return;
+        router.post(`/need-approval/outstanding/${record.id_key}/approve`);
+    };
+
+    const handleReject = () => {
+        if (!confirm("Tolak invoice " + record.no_invoice + "?")) return;
+        router.post(`/need-approval/outstanding/${record.id_key}/reject`);
+    };
+
     return (
         <AdminLayout>
             <Head title={`Outstanding - ${record.no_invoice || ""}`} />
@@ -72,6 +85,18 @@ export default function OutstandingDetail({ record = {}, approvalHistory = [], b
                             <div className="mt-3"><StatusPill status={record.status_pengajuan} /></div>
                         </div>
                     </div>
+                    {canManage && (
+                        <div className="mt-5 flex gap-3 border-t border-white/10 pt-5">
+                            <button onClick={handleApprove} className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-5 py-2.5 text-xs font-black uppercase tracking-wide text-white transition hover:bg-emerald-600">
+                                <CheckCircle size={16} />
+                                Setujui
+                            </button>
+                            <button onClick={handleReject} className="inline-flex items-center gap-2 rounded-lg border border-white/20 px-5 py-2.5 text-xs font-black uppercase tracking-wide text-white transition hover:bg-white/10">
+                                <XCircle size={16} />
+                                Tolak
+                            </button>
+                        </div>
+                    )}
                 </section>
 
                 <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

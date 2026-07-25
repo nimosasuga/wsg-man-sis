@@ -64,6 +64,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/need-approval', [NeedApprovalController::class, 'index'])->name('need-approval.index');
     Route::get('/need-approval/outstanding', [NeedApprovalController::class, 'outstanding'])->name('need-approval.outstanding');
     Route::get('/need-approval/outstanding/{id}', [NeedApprovalController::class, 'outstandingDetail'])->name('need-approval.outstanding.detail');
+    Route::post('/need-approval/outstanding/{id}/approve', [NeedApprovalController::class, 'approve'])->middleware('permission:approval.manage')->name('need-approval.approve');
+    Route::post('/need-approval/outstanding/{id}/reject', [NeedApprovalController::class, 'reject'])->middleware('permission:approval.manage')->name('need-approval.reject');
     });
 
     Route::middleware('permission:on-the-road.view')->group(function () {
