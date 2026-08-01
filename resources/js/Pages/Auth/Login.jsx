@@ -17,7 +17,7 @@ export default function Login({ status }) {
     };
 
     return (
-        <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-slate-900 font-sans">
+        <div className="relative w-full min-h-screen flex items-center justify-center overflow-hidden bg-slate-900 font-sans">
             <Head title="Log in - Washeng System" />
 
             {/* Efek Background Gradient */}

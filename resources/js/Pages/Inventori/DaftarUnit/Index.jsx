@@ -1,83 +1,127 @@
 import React from "react";
 import { Head, Link } from "@inertiajs/react";
-import { Building2, Truck, ChevronRight } from "lucide-react";
+import { ArrowUpRight, Building2, ChevronRight, Truck, UserRound } from "lucide-react";
 import AdminLayout from "../../../Layouts/AdminLayout";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
 
 const cards = [
-    { slug: "washeng", label: "WASHENG KEKE MANDIRI", title: "Washeng", icon: Building2, tone: "bg-cyan-50 text-cyan-700 ring-cyan-100" },
-    { slug: "rental", label: "RENTAL", title: "Inventaris Rental", icon: Truck, tone: "bg-blue-50 text-blue-700 ring-blue-100" },
+    {
+        slug: "washeng",
+        label: "WASHENG KEKE MANDIRI",
+        title: "Armada Washeng",
+        description: "Unit milik perusahaan yang dipantau sebagai armada utama.",
+        icon: Building2,
+        accent: "bg-[#eef2ff] text-[#635bff]",
+        line: "bg-[#635bff]",
+    },
+    {
+        slug: "rental",
+        label: "RENTAL",
+        title: "Unit Rental",
+        description: "Armada sewa yang tercatat dalam inventori operasional.",
+        icon: Truck,
+        accent: "bg-cyan-50 text-cyan-600",
+        line: "bg-cyan-500",
+    },
+    {
+        slug: "vendor",
+        label: "VENDOR",
+        title: "Unit Vendor",
+        description: "Armada rekanan yang mendukung kebutuhan distribusi.",
+        icon: UserRound,
+        accent: "bg-amber-50 text-amber-600",
+        line: "bg-amber-400",
+    },
 ];
 
 export default function Index({ summary }) {
     const inventaris = summary?.inventaris || [];
+    const totalUnit = Number(summary?.totalUnit || 0);
 
     const getCount = (slug) => {
-        const label = cards.find((c) => c.slug === slug)?.label;
+        const label = cards.find((card) => card.slug === slug)?.label;
         const found = inventaris.find((item) => item.label === label);
-        return found ? found.value : 0;
+
+        return Number(found?.value || 0);
     };
 
     return (
         <AdminLayout>
             <Head title="Daftar Unit" />
 
-            <div className="space-y-6">
-                <div className="flex flex-wrap items-center gap-2 text-sm font-black uppercase tracking-wide text-slate-500">
-                    <Link href="/dashboard" className="transition hover:text-cyan-600">Dashboard</Link>
-                    <ChevronRight size={16} />
-                    <span className="text-slate-950">Daftar Unit</span>
-                </div>
+            <div className="space-y-5">
+                <nav className="flex items-center gap-1.5 text-xs font-semibold text-slate-400">
+                    <Link href="/dashboard" className="transition hover:text-[#635bff]">Dashboard</Link>
+                    <ChevronRight size={14} />
+                    <span className="text-slate-700">Daftar Unit</span>
+                </nav>
 
-                <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-950/5">
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <p className="text-xs font-black uppercase tracking-wide text-cyan-600">Inventori Armada</p>
-                            <h1 className="mt-2 text-2xl font-black text-slate-950">Daftar Unit</h1>
-                            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-500">
-                                Klik card untuk membuka daftar unit berdasarkan inventaris.
+                <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                        <div className="min-w-0">
+                            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-[#f1efff] px-3 py-1.5 text-xs font-bold text-[#635bff]">
+                                <Truck size={14} />
+                                Inventori armada
+                            </div>
+                            <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Daftar Unit</h1>
+                            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                                Pilih kelompok inventori untuk melihat armada, status dokumen, dan rincian setiap unit.
                             </p>
                         </div>
-                        <div className="rounded-xl bg-slate-950 px-5 py-4 text-white">
-                            <p className="text-xs font-black uppercase tracking-wide text-slate-400">Total Unit</p>
-                            <p className="mt-1 text-3xl font-black">{formatNumber(summary?.totalUnit)}</p>
-                        </div>
+
+                        <Link
+                            href="/inventori/daftar-unit/semua"
+                            className="group min-w-[170px] rounded-xl border border-[#e6e4ff] bg-[#fafaff] p-4 transition hover:border-[#bdb8ff] hover:bg-[#f5f3ff]"
+                            title="Lihat semua data unit"
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <p className="text-xs font-semibold text-slate-500">Total armada</p>
+                                <ArrowUpRight size={16} className="text-slate-300 transition group-hover:text-[#635bff]" />
+                            </div>
+                            <p className="mt-1 text-3xl font-bold tracking-tight text-slate-950">{formatNumber(totalUnit)}</p>
+                            <p className="mt-1 text-xs text-slate-400">Lihat semua unit</p>
+                        </Link>
                     </div>
+                    <div className="h-1 bg-gradient-to-r from-[#635bff] via-cyan-400 to-amber-300" />
                 </section>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                    {cards.map((card) => {
-                        const count = getCount(card.slug);
-                        const Icon = card.icon;
+                <section>
+                    <div className="mb-3 flex items-end justify-between gap-4">
+                        <div>
+                            <h2 className="text-base font-bold text-slate-900">Kelompok inventori</h2>
+                            <p className="mt-1 text-sm text-slate-500">Masuk ke kelompok yang ingin Anda pantau.</p>
+                        </div>
+                        <span className="hidden text-xs font-semibold text-slate-400 sm:block">3 kategori</span>
+                    </div>
 
-                        return (
-                            <Link
-                                key={card.slug}
-                                href={`/inventori/daftar-unit/${card.slug}`}
-                                className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-950/5 transition hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-md"
-                            >
-                                <div className="flex items-start justify-between gap-4">
-                                    <div>
-                                        <p className="text-xs font-black uppercase tracking-wide text-slate-400">Inventaris</p>
-                                        <h2 className="mt-2 text-lg font-black text-slate-950">{card.title}</h2>
-                                    </div>
-                                    <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ring-1 ${card.tone}`}>
-                                        <Icon size={21} strokeWidth={2.4} />
-                                    </div>
-                                </div>
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        {cards.map((card) => {
+                            const count = getCount(card.slug);
+                            const Icon = card.icon;
 
-                                <div className="mt-5 flex items-end justify-between gap-4">
-                                    <div>
-                                        <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Unit</p>
-                                        <p className="mt-1 text-3xl font-black text-slate-950">{formatNumber(count)}</p>
+                            return (
+                                <Link
+                                    key={card.slug}
+                                    href={`/inventori/daftar-unit/${card.slug}`}
+                                    className="group relative min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#c7c3ff] hover:shadow-lg hover:shadow-[#635bff]/10"
+                                >
+                                    <div className={`absolute inset-x-0 top-0 h-1 ${card.line}`} />
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${card.accent}`}>
+                                            <Icon size={21} strokeWidth={2} />
+                                        </div>
+                                        <ArrowUpRight size={18} className="text-slate-300 transition group-hover:text-[#635bff]" />
                                     </div>
-                                    <div className="text-right text-xs font-black text-cyan-600">Lihat detail</div>
-                                </div>
-                            </Link>
-                        );
-                    })}
-                </div>
+                                    <p className="mt-5 text-xs font-semibold text-slate-400">{card.title}</p>
+                                    <p className="mt-1 text-3xl font-bold tracking-tight text-slate-950">{formatNumber(count)}</p>
+                                    <p className="mt-3 min-h-10 text-sm leading-5 text-slate-500">{card.description}</p>
+                                    <div className="mt-5 border-t border-slate-100 pt-4 text-sm font-semibold text-[#635bff]">Lihat daftar unit</div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </section>
             </div>
         </AdminLayout>
     );

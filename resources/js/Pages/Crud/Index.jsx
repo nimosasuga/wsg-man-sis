@@ -47,18 +47,18 @@ export default function Index({ module, config, records = [], filters = {} }) {
 
             <div className="space-y-5">
                 <section className="rounded-xl bg-slate-950 p-5 text-white shadow-sm">
-                    <Link href={config.back} className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wide text-cyan-200 transition hover:text-white">
+                    <Link href={config.back} className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wide text-violet-200 transition hover:text-white">
                         <ArrowLeft size={15} />
                         Kembali
                     </Link>
                     <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                         <div>
-                            <p className="text-xs font-black uppercase tracking-wider text-cyan-200">CRUD Modul</p>
+                            <p className="text-xs font-black uppercase tracking-wider text-violet-200">CRUD Modul</p>
                             <h1 className="mt-2 text-2xl font-black tracking-tight">{config.label}</h1>
                         </div>
                         <Link
                             href={`/module-records/${module}/create`}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-cyan-500 px-4 text-sm font-black text-white transition hover:bg-cyan-600"
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-black text-white transition hover:bg-violet-700"
                         >
                             <Plus size={16} />
                             Tambah
@@ -83,7 +83,7 @@ export default function Index({ module, config, records = [], filters = {} }) {
                                     setPage(1);
                                 }}
                                 placeholder="Cari record..."
-                                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm font-semibold text-slate-700 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                                className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm font-semibold text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                             />
                         </div>
                     </div>
@@ -103,12 +103,12 @@ export default function Index({ module, config, records = [], filters = {} }) {
                                     const id = record[config.key];
 
                                     return (
-                                        <tr key={id} className="group hover:bg-cyan-50/40">
-                                            <td className="sticky left-0 z-10 bg-white px-4 py-3 shadow-[1px_0_0_rgba(226,232,240,1)] group-hover:bg-cyan-50">
+                                    <tr key={id} className="group hover:bg-violet-50/50">
+                                            <td className="sticky left-0 z-10 bg-white px-4 py-3 shadow-[1px_0_0_rgba(226,232,240,1)] group-hover:bg-violet-50">
                                                 <div className="flex gap-1.5">
                                                     <Link
                                                         href={`/module-records/${module}/${encodeURIComponent(id)}/edit`}
-                                                        className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-cyan-300 hover:text-cyan-600"
+                                                        className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-violet-300 hover:text-violet-600"
                                                         title="Edit"
                                                     >
                                                         <Edit3 size={14} />

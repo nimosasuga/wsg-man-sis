@@ -96,9 +96,11 @@ createInertiaApp({
             import.meta.glob('./Pages/**/*.jsx'),
         ),
     setup({ el, App, props }) {
-        const root = createRoot(el);
+        if (!el._root) {
+            el._root = createRoot(el);
+        }
 
-        root.render(
+        el._root.render(
             <>
                 <NavigationLoader />
                 <App {...props} />

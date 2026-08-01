@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import AdminLayout from "../../Layouts/AdminLayout";
 import { Head, router } from "@inertiajs/react";
 import { AlertTriangle, ArrowDown, ArrowDownAZ, ArrowUp, ArrowUpAZ, BarChart3, ChevronRight, Filter, Lightbulb, RotateCcw, TrendingUp } from "lucide-react";
@@ -192,7 +192,13 @@ function SearchableSelect({ label, value, options = [], onChange }) {
 
 function FilterPanel({ filters = {}, options = {}, onChange, onReset }) {
     const applyFilter = (key, value) => {
-        onChange({ ...filters, [key]: value });
+        const nextFilters = { ...filters, [key]: value };
+
+        if (["TAHUN", "BULAN"].includes(key)) {
+            nextFilters.WEEK = "ALL";
+        }
+
+        onChange(nextFilters);
     };
 
     const resetFilters = () => {
@@ -240,7 +246,7 @@ function FilterPanel({ filters = {}, options = {}, onChange, onReset }) {
     );
 }
 
-function SmartAnalysis({ summaryData, totalBiaya, operationRows = [], vehicleCosts = [], filters = {} }) {
+function SmartAnalysisLegacy({ summaryData, totalBiaya, operationRows = [], vehicleCosts = [], filters = {} }) {
     const analysis = useMemo(() => {
         const benchmarkMargin = 15;
         const rows = [...summaryData]
@@ -480,7 +486,7 @@ const buildOperationFlow = (rows = [], filters = {}) => {
     });
 };
 
-function DataComparison({ operationRows = [], filters = {} }) {
+function DataComparisonLegacy({ operationRows = [], filters = {} }) {
     const comparison = useMemo(() => {
         const isYearActive = !isAll(filters.TAHUN);
         const isMonthActive = !isAll(filters.BULAN);
@@ -613,7 +619,105 @@ function DataComparison({ operationRows = [], filters = {} }) {
     );
 }
 
-export default function Index({ summaryData = [], vehicleCosts = [], vehicleCostRows = [], operationFlow = [], operationRows = [], filters = {}, filterOptions = {} }) {
+function SmartAnalysis({ analysis = {} }) {
+    const notes = analysis.notes || [];
+
+    return (
+        <section className="mb-5 rounded-xl border border-cyan-100 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex items-start gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-700">
+                        <Lightbulb size={19} />
+                    </div>
+                    <div>
+                        <p className="text-xs font-black uppercase tracking-wider text-cyan-700">Catatan biaya</p>
+                        <h2 className="mt-1 text-lg font-black text-slate-950">Keuntungan dan pengeluaran yang perlu dijaga</h2>
+                        <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">Ringkasan ini dihitung dari filter aktif, supaya pembacaan area dan biaya kendaraan tetap relevan.</p>
+                    </div>
+                </div>
+                {analysis.top && (
+                    <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 lg:min-w-64">
+                        <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-slate-500"><TrendingUp size={14} /> Beban utama</div>
+                        <p className="mt-2 text-sm font-black text-slate-950">{analysis.top.title}</p>
+                        <p className="mt-1 break-words text-lg font-black text-blue-600">{formatRp(analysis.top.amount)}</p>
+                    </div>
+                )}
+            </div>
+
+            {Number(analysis.revenue || 0) > 0 && (
+                <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+                    {[
+                        ["Pendapatan terbaca", formatRp(analysis.revenue)],
+                        ["Pengeluaran kendaraan", formatRp(analysis.expense)],
+                        ["Sisa keuntungan", formatRp(analysis.profit)],
+                        ["Margin / patokan kerja", `${Number(analysis.margin || 0).toFixed(1)}% / ${analysis.benchmarkMargin || 15}%`],
+                    ].map(([label, value]) => (
+                        <div key={label} className="min-w-0 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+                            <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{label}</p>
+                            <p className="mt-1 break-words text-base font-black tabular-nums text-slate-950">{value}</p>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <div className="grid gap-3 lg:grid-cols-2">
+                {notes.map((note, index) => (
+                    <div key={`${index}-${note}`} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-700">
+                        <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded bg-white text-[11px] font-black text-cyan-700">{index + 1}</span>
+                        {note}
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function DataComparison({ data }) {
+    if (!data) {
+        return (
+            <section className="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="rounded-lg bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-400">Gunakan filter tahun atau bulan untuk melihat perbandingan data.</p>
+            </section>
+        );
+    }
+
+    const change = (value, previous) => previous && Number(previous) > 0 ? ((Number(value) - Number(previous)) / Number(previous)) * 100 : null;
+    const metrics = [
+        ["Total", data.current?.total, data.previous?.total],
+        ["Primary", data.current?.primary, data.previous?.primary],
+        ["Secondary", data.current?.secondary, data.previous?.secondary],
+        ["Pendapatan", data.current?.revenue, data.previous?.revenue],
+    ];
+
+    return (
+        <section className="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+                <div className="grid h-9 w-9 place-items-center rounded-lg bg-violet-50 text-violet-700"><BarChart3 size={17} /></div>
+                <div>
+                    <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Perbandingan Data</h2>
+                    <p className="text-xs font-semibold text-slate-500">Membandingkan filter aktif dengan {data.previousLabel || "periode sebelumnya"}.</p>
+                </div>
+            </div>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+                {metrics.map(([label, value, previous]) => {
+                    const delta = change(value, previous);
+                    return (
+                        <div key={label} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+                            <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{label}</p>
+                            <p className="mt-1 break-words text-lg font-black tabular-nums text-slate-950">{formatRp(value)}</p>
+                            <p className="mt-2 text-xs font-bold text-slate-500">
+                                {delta === null ? "Belum ada pembanding" : <span className={delta > 0 ? "text-rose-600" : "text-emerald-600"}>{delta > 0 ? "+" : ""}{delta.toFixed(1)}%</span>}
+                                {data.previous && <span className="ml-1 text-slate-400">vs {data.previousLabel}</span>}
+                            </p>
+                        </div>
+                    );
+                })}
+            </div>
+        </section>
+    );
+}
+
+export default function Index({ summaryData = [], vehicleCosts = {}, operationFlow = [], dataComparison = null, smartAnalysis = {}, filters = {}, filterOptions = {}, sort = "total", direction = "desc" }) {
     const [activeFilters, setActiveFilters] = useState({
         TAHUN: filters.TAHUN || "ALL",
         BULAN: filters.BULAN || "ALL",
@@ -622,40 +726,13 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
         TIPE: filters.TIPE || "ALL",
         NOPOL: filters.NOPOL || "ALL",
     });
-    const [vehicleSort, setVehicleSort] = useState({ key: "nopol", direction: "asc" });
     const totalBiaya = useMemo(
         () => summaryData.reduce((total, item) => total + Number(item.amount || 0), 0),
         [summaryData],
     );
-    const normalizedFilterOptions = useMemo(() => {
-        const fromRows = (key) => [
-            "ALL",
-            ...[...new Set(vehicleCosts.map((row) => row[key]).filter(Boolean).map(String))].sort(),
-        ];
-
-        const weekOptions = !isAll(activeFilters.BULAN) || !isAll(activeFilters.TAHUN)
-            ? (() => {
-                let weekRows = operationRows;
-                if (!isAll(activeFilters.BULAN)) {
-                    weekRows = weekRows.filter((row) => String(row.month || "") === activeFilters.BULAN);
-                }
-                if (!isAll(activeFilters.TAHUN)) {
-                    weekRows = weekRows.filter((row) => String(row.year || "") === activeFilters.TAHUN);
-                }
-                const weeks = [...new Set(weekRows.map((row) => row.week).filter(Boolean).map(String))].sort();
-                return weeks.length ? ["ALL", ...weeks] : ["ALL"];
-            })()
-            : filterOptions.WEEK?.length ? filterOptions.WEEK : ["ALL"];
-
-        return {
-            TAHUN: filterOptions.TAHUN?.length ? filterOptions.TAHUN : ["ALL", ...[...new Set(operationFlow.map((row) => row.year).filter(Boolean).map(String))].sort().reverse()],
-            BULAN: filterOptions.BULAN?.length ? filterOptions.BULAN : ["ALL"],
-            WEEK: weekOptions,
-            AREA: filterOptions.AREA?.length ? filterOptions.AREA : fromRows("area"),
-            TIPE: filterOptions.TIPE?.length ? filterOptions.TIPE : fromRows("tipe"),
-            NOPOL: filterOptions.NOPOL?.length ? filterOptions.NOPOL : fromRows("nopol"),
-        };
-    }, [filterOptions, operationFlow, operationRows, vehicleCosts, activeFilters]);
+    const normalizedFilterOptions = useMemo(() => Object.fromEntries(
+        ["TAHUN", "BULAN", "WEEK", "AREA", "TIPE", "NOPOL"].map((key) => [key, filterOptions[key]?.length ? filterOptions[key] : ["ALL"]]),
+    ), [filterOptions]);
     const vehicleSortColumns = useMemo(() => [
         { label: "Nopol", key: "nopol", type: "text" },
         { label: "Area", key: "area", type: "text" },
@@ -667,45 +744,34 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
         { label: "Total", key: "total", type: "number" },
         { label: "Riwayat", key: "riwayatTotal", type: "number" },
     ], []);
-    const sortVehicleCosts = (key) => {
-        setVehicleSort((current) => ({
-            key,
-            direction: current.key === key && current.direction === "asc" ? "desc" : "asc",
-        }));
+    const vehicleRows = vehicleCosts.data || [];
+    const requestData = (nextFilters = activeFilters, nextPage = 1, nextSort = sort, nextDirection = direction) => {
+        router.get("/biaya", { ...nextFilters, page: nextPage, sort: nextSort, direction: nextDirection }, {
+            only: ["summaryData", "vehicleCosts", "operationFlow", "dataComparison", "smartAnalysis", "filters", "filterOptions", "sort", "direction"],
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+        });
     };
-    const instantVehicleCosts = useMemo(() => {
-        const sourceRows = vehicleCostRows.length ? vehicleCostRows : vehicleCosts;
+    const applyFilters = (nextFilters) => {
+        setActiveFilters(nextFilters);
+        requestData(nextFilters);
+    };
+    const sortVehicleCosts = (key) => {
+        const nextDirection = sort === key && direction === "asc" ? "desc" : "asc";
+        requestData(activeFilters, 1, key, nextDirection);
+    };
 
-        return sourceRows
-            .filter((row) => matchesActiveFilter(row, activeFilters))
-            .map((row) => ({
-                ...row,
-                riwayatTotal: Number(row.serviceCount || 0) + Number(row.banCount || 0) + Number(row.primaryCount || 0) + Number(row.secondaryCount || 0),
-            }))
-            .sort((a, b) => {
-                const column = vehicleSortColumns.find((item) => item.key === vehicleSort.key);
-                const multiplier = vehicleSort.direction === "asc" ? 1 : -1;
-
-                if (column?.type === "number") {
-                    return (Number(a[vehicleSort.key] || 0) - Number(b[vehicleSort.key] || 0)) * multiplier;
-                }
-
-                return String(a[vehicleSort.key] || "")
-                    .localeCompare(String(b[vehicleSort.key] || ""), "id", { numeric: true, sensitivity: "base" }) * multiplier;
-            })
-            .slice(0, 300);
-    }, [activeFilters, vehicleCostRows, vehicleCosts, vehicleSort, vehicleSortColumns]);
-    const normalizedFlow = useMemo(() => {
-        if (operationRows.length) return buildOperationFlow(operationRows, activeFilters);
-
-        if (operationFlow.length) return operationFlow;
-
-        const primary = summaryData.find((item) => item.slug === "operasional-prim")?.amount || 0;
-        const secondary = summaryData.find((item) => item.slug === "operasional-sec")?.amount || 0;
-        const total = Number(primary || 0) + Number(secondary || 0);
-
-        return total > 0 ? [{ year: "Semua", primary, secondary, total }] : [];
-    }, [activeFilters, operationFlow, operationRows, summaryData]);
+    useEffect(() => {
+        setActiveFilters({
+            TAHUN: filters.TAHUN || "ALL",
+            BULAN: filters.BULAN || "ALL",
+            WEEK: filters.WEEK || "ALL",
+            AREA: filters.AREA || "ALL",
+            TIPE: filters.TIPE || "ALL",
+            NOPOL: filters.NOPOL || "ALL",
+        });
+    }, [filters]);
 
     return (
         <AdminLayout>
@@ -724,23 +790,19 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
             </div>
 
             <SmartAnalysis
-                summaryData={summaryData}
-                totalBiaya={totalBiaya}
-                operationRows={operationRows}
-                vehicleCosts={vehicleCostRows.length ? vehicleCostRows : vehicleCosts}
-                filters={activeFilters}
+                analysis={smartAnalysis}
             />
 
             <FilterPanel
                 filters={activeFilters}
                 options={normalizedFilterOptions}
-                onChange={setActiveFilters}
-                onReset={() => setActiveFilters({ TAHUN: "ALL", BULAN: "ALL", WEEK: "ALL", AREA: "ALL", TIPE: "ALL", NOPOL: "ALL" })}
+                onChange={applyFilters}
+                onReset={() => applyFilters({ TAHUN: "ALL", BULAN: "ALL", WEEK: "ALL", AREA: "ALL", TIPE: "ALL", NOPOL: "ALL" })}
             />
 
-            <FlowChart data={normalizedFlow} filters={activeFilters} />
+            <FlowChart data={operationFlow} filters={activeFilters} />
 
-            <DataComparison operationRows={operationRows} filters={activeFilters} />
+            <DataComparison data={dataComparison} />
 
             <section className="mb-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 px-4 py-4">
@@ -756,8 +818,8 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
                         <thead className="sticky top-0 z-10 bg-slate-50">
                             <tr>
                                 {vehicleSortColumns.map((column) => {
-                                    const isActive = vehicleSort.key === column.key;
-                                    const SortIcon = isActive && vehicleSort.direction === "desc" ? ArrowDownAZ : ArrowUpAZ;
+                                    const isActive = sort === column.key;
+                                    const SortIcon = isActive && direction === "desc" ? ArrowDownAZ : ArrowUpAZ;
 
                                     return (
                                     <th key={column.key} className="border-b border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-slate-500">
@@ -776,7 +838,7 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {instantVehicleCosts.map((row) => (
+                            {vehicleRows.map((row) => (
                                 <tr
                                     key={row.nopol}
                                     onClick={() => router.visit(`/inventori/pajak/${encodeURIComponent(row.nopol)}`)}
@@ -802,7 +864,7 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
                                     </td>
                                 </tr>
                             ))}
-                            {!instantVehicleCosts.length && (
+                            {!vehicleRows.length && (
                                 <tr>
                                     <td colSpan={9} className="px-4 py-8 text-center text-sm font-semibold text-slate-500">
                                         Belum ada biaya kendaraan yang bisa dibaca.
@@ -811,6 +873,14 @@ export default function Index({ summaryData = [], vehicleCosts = [], vehicleCost
                             )}
                         </tbody>
                     </table>
+                </div>
+                <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs font-semibold text-slate-500">Menampilkan {vehicleCosts.from || 0}&ndash;{vehicleCosts.to || 0} dari {vehicleCosts.total || 0} kendaraan</p>
+                    <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => requestData(activeFilters, Math.max(1, Number(vehicleCosts.current_page || 1) - 1))} disabled={Number(vehicleCosts.current_page || 1) <= 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Sebelumnya</button>
+                        <span className="text-xs font-black text-slate-600">{vehicleCosts.current_page || 1} / {vehicleCosts.last_page || 1}</span>
+                        <button type="button" onClick={() => requestData(activeFilters, Math.min(Number(vehicleCosts.last_page || 1), Number(vehicleCosts.current_page || 1) + 1))} disabled={Number(vehicleCosts.current_page || 1) >= Number(vehicleCosts.last_page || 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Berikutnya</button>
+                    </div>
                 </div>
             </section>
 

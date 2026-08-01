@@ -13,7 +13,7 @@ function StatCard({ title, value, helper, icon: Icon }) {
                     <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">{title}</p>
                     <p className="mt-2 break-words text-2xl font-black text-slate-950">{value}</p>
                 </div>
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-600">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-600">
                     <Icon size={19} />
                 </div>
             </div>
@@ -74,12 +74,12 @@ export default function User({ logs = [], summary = {}, filters = {} }) {
                 <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex min-w-0 items-center gap-3">
-                            <Link href="/system/data-health" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-700 transition hover:bg-slate-50">
+                            <Link href="/system/activity-log" className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-700 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700">
                                 <ArrowLeft size={19} />
                             </Link>
                             <div className="min-w-0">
-                                <p className="text-[11px] font-black uppercase tracking-wide text-cyan-700">System Activity Log</p>
-                                <h1 className="truncate text-xl font-black uppercase text-slate-950">User Activity Log</h1>
+                                <p className="text-[11px] font-black tracking-wide text-violet-700">System Activity Log</p>
+                                <h1 className="truncate text-xl font-black text-slate-950">User Activity Log</h1>
                             </div>
                         </div>
                     </div>
@@ -87,7 +87,7 @@ export default function User({ logs = [], summary = {}, filters = {} }) {
 
                 <section className="rounded-xl bg-slate-950 p-5 text-white shadow-sm">
                     <div className="max-w-3xl">
-                        <div className="inline-flex items-center gap-2 rounded-lg bg-cyan-400/15 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-cyan-200">
+                        <div className="inline-flex items-center gap-2 rounded-lg bg-violet-400/15 px-3 py-1.5 text-xs font-black tracking-wider text-violet-200">
                             <UserRound size={15} />
                             Read Only Log
                         </div>
@@ -104,7 +104,7 @@ export default function User({ logs = [], summary = {}, filters = {} }) {
                     <StatCard title="Sumber" value={summary.sourceStatus === "ready" ? "Siap" : "Missing"} helper={summary.sourceTable || "-"} icon={Database} />
                 </div>
 
-                <section className="rounded-xl border border-cyan-100 bg-white p-5 shadow-sm">
+                <section className="rounded-xl border border-violet-100 bg-white p-5 shadow-sm">
                     <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Ringkasan cepat</h2>
                     <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                         {topActors.length ? topActors.map(([actor, count]) => (
@@ -119,8 +119,8 @@ export default function User({ logs = [], summary = {}, filters = {} }) {
                 </section>
 
                 <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <form onSubmit={applyFilters} className="grid gap-3 lg:grid-cols-[1fr_220px_auto_auto] lg:items-end">
-                        <label>
+                    <form onSubmit={applyFilters} className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-[minmax(260px,1fr)_220px_auto_auto] 2xl:items-end">
+                        <label className="min-w-0">
                             <span className="mb-2 block text-[11px] font-black uppercase tracking-wide text-slate-500">Cari log</span>
                             <div className="relative">
                                 <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -128,20 +128,20 @@ export default function User({ logs = [], summary = {}, filters = {} }) {
                                     value={search}
                                     onChange={(event) => setSearch(event.target.value)}
                                     placeholder="Cari admin, id key, id record..."
-                                    className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm font-semibold text-slate-700 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                                    className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm font-semibold text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                                 />
                             </div>
                         </label>
-                        <label>
+                        <label className="min-w-0">
                             <span className="mb-2 block text-[11px] font-black uppercase tracking-wide text-slate-500">Tanggal</span>
                             <input
                                 type="date"
                                 value={tanggal}
                                 onChange={(event) => setTanggal(event.target.value)}
-                                className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                                className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                             />
                         </label>
-                        <button type="submit" className="h-11 rounded-lg bg-cyan-600 px-4 text-xs font-black uppercase tracking-wide text-white transition hover:bg-cyan-700">
+                        <button type="submit" className="h-11 rounded-lg bg-violet-600 px-4 text-xs font-black uppercase tracking-wide text-white transition hover:bg-violet-700">
                             Terapkan
                         </button>
                         <button type="button" onClick={resetFilters} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 text-xs font-black uppercase tracking-wide text-slate-600 transition hover:bg-slate-50">
@@ -177,7 +177,7 @@ export default function User({ logs = [], summary = {}, filters = {} }) {
                                         }}
                                         role="button"
                                         tabIndex={0}
-                                        className="cursor-pointer hover:bg-cyan-50/40 focus:bg-cyan-50/60 focus:outline-none"
+                                        className="cursor-pointer hover:bg-violet-50/50 focus:bg-violet-50/70 focus:outline-none"
                                     >
                                         <td className="px-4 py-3 text-xs font-black text-slate-950">{row.tgl_cek_admin || "-"}</td>
                                         <td className="max-w-md px-4 py-3 text-xs font-semibold text-slate-600">

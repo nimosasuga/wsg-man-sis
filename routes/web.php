@@ -20,6 +20,7 @@ use App\Http\Controllers\System\AccessControlController;
 use App\Http\Controllers\Karyawan\DaftarKaryawanController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\ModuleCrudController;
+use App\Http\Controllers\BusinessControlController;
 
 Route::redirect('/', '/dashboard');
 
@@ -37,6 +38,15 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->middleware('permission:dashboard.view')->name('dashboard');
+    Route::get('/api/dashboard/fat-status', [DashboardController::class, 'fatStatusApi'])->middleware('permission:dashboard.view')->name('api.dashboard.fat-status');
+
+    Route::get('/business-control/performance', [BusinessControlController::class, 'performance'])->middleware('permission:dashboard.view')->name('business-control.performance');
+    Route::get('/business-control/health', [BusinessControlController::class, 'health'])->middleware('permission:dashboard.view')->name('business-control.health');
+    Route::get('/business-control/fat-primary', [BusinessControlController::class, 'fatDocumentsPrimary'])->middleware('permission:dashboard.view')->name('business-control.fat-primary');
+    Route::get('/business-control/fat-primary/{id}', [BusinessControlController::class, 'fatDocumentsPrimaryDetail'])->middleware('permission:dashboard.view')->name('business-control.fat-primary.detail');
+    Route::get('/business-control/fat-secondary', [BusinessControlController::class, 'fatDocumentsSecondary'])->middleware('permission:dashboard.view')->name('business-control.fat-secondary');
+    Route::get('/business-control/fat-secondary/{id}', [BusinessControlController::class, 'fatDocumentsSecondaryDetail'])->middleware('permission:dashboard.view')->name('business-control.fat-secondary.detail');
+    Route::get('/api/primary-editor/{id}', [BusinessControlController::class, 'primaryEditor'])->middleware('permission:dashboard.view')->name('api.primary-editor');
 
     Route::prefix('biaya')->name('biaya.')->middleware('permission:biaya.view')->group(function () {
         Route::get('/', [BiayaController::class, 'index'])->name('index');
@@ -159,3 +169,4 @@ Route::middleware(['auth'])->group(function () {
 });
 
 require __DIR__ . '/auth.php';
+

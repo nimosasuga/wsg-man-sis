@@ -41,13 +41,13 @@ const statusTone = {
 function SelectFilter({ label, value, options = [], onChange }) {
     return (
         <label className="block">
-            <span className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-400">
+            <span className="mb-1 block text-xs font-semibold text-slate-400">
                 {label}
             </span>
             <select
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-[#a8a2ff] focus:ring-4 focus:ring-[#f1efff]"
             >
                 <option value="all">Semua</option>
                 {options.map((option) => (
@@ -64,7 +64,7 @@ function StatusPill({ value }) {
     const label = value || "BELUM DIISI";
 
     return (
-        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black uppercase tracking-wide ${statusTone[label] || "border-slate-200 bg-slate-100 text-slate-600"}`}>
+        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide ${statusTone[label] || "border-slate-200 bg-slate-100 text-slate-600"}`}>
             {label}
         </span>
     );
@@ -75,10 +75,10 @@ function EmployeeMetricCard({ title, value, helper, icon: Icon, tone }) {
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                    <p className="text-xs font-semibold text-slate-500">
                         {title}
                     </p>
-                    <p className="mt-2 text-2xl font-black text-slate-950">{formatNumber(value)}</p>
+                    <p className="mt-2 text-2xl font-bold tracking-tight text-slate-950">{formatNumber(value)}</p>
                     <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">{helper}</p>
                 </div>
                 <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${tone}`}>
@@ -205,17 +205,17 @@ export default function Index({
             <Head title="Daftar Karyawan" />
 
             <div className="space-y-5">
-                <section className="rounded-xl bg-slate-950 p-5 text-white shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <div className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
                         <div>
-                            <div className="inline-flex items-center gap-2 rounded-lg bg-cyan-400/15 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-cyan-200">
+                            <div className="inline-flex items-center gap-2 rounded-full bg-[#f1efff] px-3 py-1.5 text-xs font-bold text-[#635bff]">
                                 <Users size={15} />
                                 HR Manager
                             </div>
-                            <h1 className="mt-4 text-2xl font-black tracking-tight">
+                            <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
                                 Daftar Karyawan
                             </h1>
-                            <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-300">
+                            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                                 Data aktif tampil di tabel kerja. Karyawan non aktif disimpan terpisah di arsip supaya tidak mengganggu pantauan harian.
                             </p>
                         </div>
@@ -226,11 +226,12 @@ export default function Index({
                                     value={search}
                                     onChange={(event) => setSearch(event.target.value)}
                                     placeholder="Cari nama, NIP, divisi, area..."
-                                    className="h-11 w-full rounded-lg border border-white/10 bg-white/10 pl-10 pr-3 text-sm font-semibold text-white placeholder:text-slate-400 outline-none focus:border-cyan-300/60 focus:ring-4 focus:ring-cyan-300/10"
+                                    className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none transition focus:border-[#a8a2ff] focus:ring-4 focus:ring-[#f1efff]"
                                 />
                             </div>
                         </div>
                     </div>
+                    <div className="h-1 bg-gradient-to-r from-[#635bff] via-cyan-400 to-emerald-400" />
                 </section>
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -279,7 +280,7 @@ export default function Index({
                         </div>
                         <Link
                             href="/daftar-karyawan/arsip"
-                            className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-950 px-4 text-xs font-black uppercase tracking-wide text-white transition hover:bg-cyan-600"
+                            className="inline-flex h-10 items-center justify-center rounded-lg bg-[#635bff] px-4 text-xs font-semibold text-white transition hover:bg-[#554de8]"
                         >
                             Buka Arsip
                         </Link>
@@ -302,7 +303,7 @@ export default function Index({
                                     setArea("all");
                                     setStatus("all");
                                 }}
-                                className="h-10 w-full rounded-lg bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-cyan-600"
+                                className="h-10 w-full rounded-lg bg-[#635bff] px-4 text-sm font-semibold text-white transition hover:bg-[#554de8]"
                             >
                                 Reset Filter
                             </button>
@@ -313,7 +314,7 @@ export default function Index({
                 <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                     <div className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">
+                            <h2 className="text-base font-bold text-slate-950">
                                 Data Karyawan
                             </h2>
                             <p className="mt-1 text-xs font-semibold text-slate-500">
@@ -324,7 +325,7 @@ export default function Index({
                             {canManage && (
                                 <Link
                                     href="/daftar-karyawan/create"
-                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-cyan-500 px-4 text-xs font-black text-white shadow-sm transition hover:bg-cyan-600"
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#635bff] px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-[#554de8]"
                                 >
                                     <Plus size={16} />
                                     Tambah Karyawan
@@ -353,7 +354,7 @@ export default function Index({
                                 {paginatedEmployees.map((employee) => (
                                     <tr
                                         key={employee.id_key}
-                                        className="group cursor-pointer transition hover:bg-cyan-50/40 focus-within:bg-cyan-50/40"
+                                        className="group cursor-pointer transition hover:bg-[#f5f3ff] focus-within:bg-[#f5f3ff]"
                                         tabIndex={0}
                                         onClick={() => router.visit(`/daftar-karyawan/${employee.id_key}`)}
                                         onKeyDown={(event) => {
@@ -364,11 +365,11 @@ export default function Index({
                                         }}
                                     >
                                         {canManage && (
-                                            <td className="sticky left-0 z-20 bg-white px-4 py-3 shadow-[1px_0_0_rgba(226,232,240,1)] group-hover:bg-cyan-50">
+                                            <td className="sticky left-0 z-20 bg-white px-4 py-3 shadow-[1px_0_0_rgba(226,232,240,1)] group-hover:bg-[#f5f3ff]">
                                                 <Link
                                                     href={`/daftar-karyawan/${employee.id_key}/edit`}
                                                     onClick={(event) => event.stopPropagation()}
-                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:border-cyan-300 hover:text-cyan-600"
+                                                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:border-[#bdb8ff] hover:text-[#635bff]"
                                                     title="Edit karyawan"
                                                 >
                                                     <Edit3 size={15} />
@@ -471,7 +472,7 @@ export default function Index({
                                         <button
                                             type="button"
                                             onClick={() => setTablePage(pageNumber)}
-                                            className={`h-9 min-w-9 rounded-lg border px-2 text-xs font-black transition ${pageNumber === currentPage ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                                            className={`h-9 min-w-9 rounded-lg border px-2 text-xs font-bold transition ${pageNumber === currentPage ? "border-[#635bff] bg-[#635bff] text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
                                         >
                                             {pageNumber}
                                         </button>

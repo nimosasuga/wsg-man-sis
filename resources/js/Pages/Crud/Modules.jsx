@@ -23,7 +23,7 @@ export default function Modules({ modules = [] }) {
 
             <div className="space-y-5">
                 <section className="rounded-xl bg-slate-950 p-5 text-white shadow-sm">
-                    <div className="inline-flex items-center gap-2 rounded-lg bg-cyan-400/15 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-cyan-200">
+                    <div className="inline-flex items-center gap-2 rounded-lg bg-violet-400/15 px-3 py-1.5 text-xs font-black tracking-wider text-violet-200">
                         <Database size={15} />
                         CRUD Data
                     </div>
@@ -43,7 +43,7 @@ export default function Modules({ modules = [] }) {
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Cari modul..."
-                            className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-200/50"
+                            className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-200/50"
                         />
                         {search && (
                             <button
@@ -62,7 +62,7 @@ export default function Modules({ modules = [] }) {
                         <Link
                             key={module.key}
                             href={module.href}
-                            className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-cyan-200 hover:shadow-md"
+                            className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-violet-200 hover:shadow-md"
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
@@ -73,7 +73,7 @@ export default function Modules({ modules = [] }) {
                                         {module.label}
                                     </h2>
                                 </div>
-                                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-600 transition group-hover:bg-cyan-500 group-hover:text-white">
+                                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-600 transition group-hover:bg-violet-600 group-hover:text-white">
                                     <ArrowRight size={18} />
                                 </span>
                             </div>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ProfitUnit;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request;
 use Inertia\Inertia;
@@ -81,32 +82,48 @@ class ProfitUnitController extends Controller
 
     private function secondaryOvtLookup(): array
     {
-        $lookup = [];
+        return Cache::remember('profit.secondary.ovt-lookup.v2', now()->addMinutes(5), function () {
+            $lookup = [];
 
-        DB::table('operasional_absen')
-            ->whereNotNull('nama')
-            ->whereNotNull('tanggal')
-            ->get(['nama', 'tanggal', 'approval_ovt'])
-            ->each(function ($row) use (&$lookup) {
-                $date = \DateTimeImmutable::createFromFormat('m/d/Y', trim((string) $row->tanggal));
-                if (! $date) {
-                    return;
-                }
+            DB::table('operasional_absen')
+                ->whereNotNull('nama')
+                ->whereNotNull('tanggal')
+                ->get(['nama', 'tanggal', 'approval_ovt'])
+                ->each(function ($row) use (&$lookup) {
+                    $date = $this->normalizeDate($row->tanggal);
+                    if (! $date) {
+                        return;
+                    }
 
-                $key = $date->format('Y-m-d').'|'.mb_strtoupper(trim((string) $row->nama));
-                if (! array_key_exists($key, $lookup)) {
-                    $lookup[$key] = (float) ($row->approval_ovt ?: 0);
-                }
-            });
+                    $key = $date.'|'.mb_strtoupper(trim((string) $row->nama));
+                    $lookup[$key] ??= (float) ($row->approval_ovt ?: 0);
+                });
 
-        return $lookup;
+            return $lookup;
+        });
+    }
+
+    private function normalizeDate(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        foreach (['d/m/Y', 'm/d/Y', 'm-d-Y', 'Y-m-d', 'Y-m-d H:i:s'] as $format) {
+            $date = \DateTimeImmutable::createFromFormat('!'.$format, $value);
+            if ($date && $date->format($format) === $value) {
+                return $date->format('Y-m-d');
+            }
+        }
+
+        return null;
     }
 
     private function secondaryMetrics(object $row, array $ovtLookup): array
     {
         $number = static fn ($value): float => (float) ($value ?: 0);
-        $date = \DateTimeImmutable::createFromFormat('m-d-Y', trim((string) ($row->tanggal ?? '')));
-        $dateKey = $date ? $date->format('Y-m-d') : null;
+        $dateKey = $this->normalizeDate($row->tanggal ?? null);
         $ovt = static function ($name) use ($ovtLookup, $dateKey): float {
             if (! $dateKey || ! $name) {
                 return 0;
@@ -153,37 +170,41 @@ class ProfitUnitController extends Controller
 
     private function secondaryRowsWithMetrics()
     {
-        $ovtLookup = $this->secondaryOvtLookup();
+        return collect(Cache::remember('profit.secondary.rows.v3', now()->addMinutes(5), function () {
+            $ovtLookup = $this->secondaryOvtLookup();
 
-        return DB::table('operasional_secondary_input')
-            ->whereIn('project', ['ON DEMAND - FULL SERVICE', 'RENTAL'])
-            ->orderByRaw("STR_TO_DATE(tanggal, '%m-%d-%Y') desc")
-            ->get([
+            return DB::table('operasional_secondary_input')
+                ->whereIn('project', ['ON DEMAND - FULL SERVICE', 'RENTAL'])
+                ->get([
                 'id_key', 'tanggal', 'bulan', 'week', 'hari', 'area', 'nopol', 'tipe_unit', 'order_type', 'driver', 'helper',
                 'tarif_unit', 'total_tarif', 'add_cost_long_route', 'tkbm', 'spsi',
                 'parkir_liar_keamanan', 'penyebrangan_pas_masuk', 'rapid_antigen', 'allowance',
                 'total_subsidi_bbm', 'subsidi_hotel', 'total_biaya_operasional', 'parkir_resmi',
                 'tol', 'kirim_dokumen', 'tarif_gs', 'atk', 'biaya_lainnya',
                 'tarif_sewa_unit_vendor', 'selisih_tagihan_hotel', 'total_non_klaim_bbm', 'add_data',
-            ])
-            ->map(function ($row) use ($ovtLookup) {
-                $metrics = $this->secondaryMetrics($row, $ovtLookup);
+                ])
+                ->map(function ($row) use ($ovtLookup) {
+                    $metrics = $this->secondaryMetrics($row, $ovtLookup);
 
-                return [
-                    'id_key' => $row->id_key,
-                    'tanggal' => $row->tanggal,
-                    'bulan' => $row->bulan,
-                    'week' => $row->week,
-                    'hari' => $row->hari,
-                    'area' => $row->area ?: 'TIDAK DIKETAHUI',
-                    'nopol' => $row->nopol ?: '-',
-                    'tipe' => $row->tipe_unit ?: 'TIDAK DIKETAHUI',
-                    'rute' => $row->order_type ?: '-',
-                    'revenue' => $metrics['tagihan'],
-                    'cost' => $metrics['cost'],
-                    'profit' => $metrics['profit'],
-                ];
-            });
+                    return [
+                        'id_key' => $row->id_key,
+                        'tanggal' => $row->tanggal,
+                        'bulan' => $row->bulan,
+                        'week' => $row->week,
+                        'hari' => $row->hari,
+                        'area' => $row->area ?: 'TIDAK DIKETAHUI',
+                        'nopol' => $row->nopol ?: '-',
+                        'tipe' => $row->tipe_unit ?: 'TIDAK DIKETAHUI',
+                        'rute' => $row->order_type ?: '-',
+                        'revenue' => $metrics['tagihan'],
+                        'cost' => $metrics['cost'],
+                        'profit' => $metrics['profit'],
+                    ];
+                })
+                ->sortByDesc(fn ($row) => $this->normalizeDate($row['tanggal']) ?? '0000-00-00')
+                ->values()
+                ->all();
+        }));
     }
 
 
@@ -192,14 +213,16 @@ class ProfitUnitController extends Controller
         $primaryQuery = DB::table('operasional_primary_input');
         $primaryRevenue = (float) (clone $primaryQuery)->sum('total_tarif');
         $primaryCost = (float) (clone $primaryQuery)->sum('total_biaya');
+        $primaryProfit = (float) (clone $primaryQuery)->sum('profit');
 
         $secondaryRows = $this->secondaryRowsWithMetrics();
-        $secondaryRevenue = (float) $secondaryRows->sum('revenue');
+        // AppSheet memakai PROFIT Primary sebagai nilai referensi penagihan Secondary.
+        $secondaryRevenue = $primaryProfit;
         $secondaryCost = (float) $secondaryRows->sum('cost');
         $secondaryProfit = (float) $secondaryRows->sum('profit');
 
         $rentalRevenue = (float) DB::table('operasional_rental_unit_input')->sum('tarif_sewa_unit_bln');
-        $rentalCost = (float) DB::table('operasional_rental_unit_input')->sum('biaya_legalitas');
+        $rentalCost = 0.0;
 
         $lclQuery = DB::table('db_chargo_data_paket_masuk');
         $lclRevenue = (float) (clone $lclQuery)->sum('total_ongkir');
@@ -212,9 +235,11 @@ class ProfitUnitController extends Controller
                     'title' => 'Profit Primary',
                     'revenue' => $primaryRevenue,
                     'cost' => $primaryCost,
-                    'profit' => $primaryRevenue - $primaryCost,
+                    'profit' => $primaryProfit,
                     'count' => (clone $primaryQuery)->count(),
-                    'includeInAssetSummary' => true,
+                    'revenueLabel' => 'Total Tarif Primary',
+                    'costLabel' => 'Total Biaya Primary',
+                    'formulaNote' => 'SUM total_tarif, total_biaya, dan PROFIT dari operasional Primary.',
                 ],
                 [
                     'slug' => 'secondary',
@@ -223,16 +248,20 @@ class ProfitUnitController extends Controller
                     'cost' => $secondaryCost,
                     'profit' => $secondaryProfit,
                     'count' => $secondaryRows->count(),
-                    'includeInAssetSummary' => true,
+                    'revenueLabel' => 'Referensi Profit Primary',
+                    'costLabel' => 'Biaya Operasional Secondary',
+                    'formulaNote' => 'Secondary memakai PROFIT Primary sebagai nilai referensi; biaya dan PROFIT TRIP berasal dari Secondary.',
                 ],
                 [
                     'slug' => 'rental',
                     'title' => 'Profit Rental',
                     'revenue' => $rentalRevenue,
                     'cost' => $rentalCost,
-                    'profit' => $rentalRevenue - $rentalCost,
+                    'profit' => $rentalRevenue,
                     'count' => DB::table('operasional_rental_unit_input')->count(),
-                    'includeInAssetSummary' => true,
+                    'revenueLabel' => 'Nilai Sewa Unit',
+                    'costLabel' => 'Biaya Dalam Rumus',
+                    'formulaNote' => 'AppSheet menjumlahkan TARIF_SEWA_UNIT_BLN; biaya legalitas tidak menjadi pengurang di rumus ini.',
                 ],
                 [
                     'slug' => 'lcl',
@@ -241,7 +270,9 @@ class ProfitUnitController extends Controller
                     'cost' => $lclCost,
                     'profit' => $lclRevenue - $lclCost,
                     'count' => (clone $lclQuery)->count(),
-                    'includeInAssetSummary' => true,
+                    'revenueLabel' => 'Total Ongkir LCL',
+                    'costLabel' => 'Biaya Dalam Rumus',
+                    'formulaNote' => 'AppSheet menjumlahkan total_ongkir per data paket masuk.',
                 ],
             ],
         ]);
@@ -259,6 +290,8 @@ class ProfitUnitController extends Controller
         $area = $this->filterValue('area', 'AREA');
         $nopol = (string) request()->query('nopol', 'ALL');
         $search = (string) request()->query('search', '');
+        $bulan = (string) request()->query('bulan', '');
+        $tahun = (string) request()->query('tahun', '');
 
         $query = DB::table('operasional_secondary_input')
             ->whereIn('project', ['ON DEMAND - FULL SERVICE', 'RENTAL']);
@@ -279,40 +312,68 @@ class ProfitUnitController extends Controller
                     ->orWhere('driver', 'like', "%{$search}%");
             });
         }
+        if ($bulan !== '') {
+            $query->whereRaw("SUBSTRING(tanggal, 1, 2) = ?", [str_pad($bulan, 2, '0', STR_PAD_LEFT)]);
+        }
+        if ($tahun !== '') {
+            $query->whereRaw("SUBSTRING(tanggal, 7, 4) = ?", [$tahun]);
+        }
+
+        $pageSize = (int) request()->query('per_page', 50);
+        $sort = (string) request()->query('sort', 'tanggal');
+        $direction = (string) request()->query('direction', 'desc');
+
+        $sortable = ['id_key', 'tanggal', 'area', 'nopol', 'tipe_unit', 'driver', 'total_tarif', 'total_biaya_operasional', 'week'];
+        if (! in_array($sort, $sortable, true)) {
+            $sort = 'tanggal';
+            $direction = 'desc';
+        }
 
         $ovtLookup = $this->secondaryOvtLookup();
-        $rows = $query
-            ->orderByRaw("STR_TO_DATE(tanggal, '%m-%d-%Y') desc")
-            ->limit(300)
-            ->get()
-            ->map(function ($row) use ($ovtLookup) {
-                $metrics = $this->secondaryMetrics($row, $ovtLookup);
 
-                return [
-                    'id_key' => $row->id_key,
-                    'tanggal' => $row->tanggal,
-                    'area' => $row->area,
-                    'nopol' => $row->nopol,
-                    'tipe' => $row->tipe_unit,
-                    'tarif' => $metrics['tagihan'],
-                    'biaya' => $metrics['cost'],
-                    'profit' => $metrics['profit'],
-                    'week' => $row->week ? 'W'.$row->week : '-',
-                ];
-            });
+        $paginator = $query
+            ->orderBy($sort, $direction === 'asc' ? 'asc' : 'desc')
+            ->paginate($pageSize);
+
+        $paginator->through(fn ($row) => $this->secondaryTableRow($row, $ovtLookup));
+
+        $currentRows = $paginator->items();
 
         return Inertia::render('ProfitUnit/OperationTable', [
             'title' => 'Tabel Profit Secondary',
             'type' => 'secondary',
-            'rows' => $rows,
-            'filters' => ['AREA' => $area, 'NOPOL' => $nopol, 'SEARCH' => $search],
+            'rows' => $paginator,
+            'filters' => ['AREA' => $area, 'NOPOL' => $nopol, 'SEARCH' => $search, 'SORT' => $sort, 'DIRECTION' => $direction],
             'summary' => [
-                'count' => $rows->count(),
-                'revenue' => $rows->sum('tarif'),
-                'cost' => $rows->sum('biaya'),
-                'profit' => $rows->sum('profit'),
+                'count' => count($currentRows),
+                'revenue' => array_sum(array_column($currentRows, 'total_tarif')),
+                'cost' => array_sum(array_column($currentRows, 'total_biaya_operasional')),
+                'profit' => array_sum(array_column($currentRows, 'profit')),
             ],
         ]);
+    }
+
+    private function secondaryTableRow($row, array $ovtLookup): array
+    {
+        $profit = (float) ($row->total_tarif ?? 0) - (float) ($row->total_biaya_operasional ?? 0);
+
+        return [
+            'id_key' => $row->id_key,
+            'tanggal' => $row->tanggal,
+            'area' => $row->area,
+            'nopol' => $row->nopol,
+            'tipe' => $row->tipe_unit,
+            'editor' => $row->nama_admin ?? '-',
+            'lama_cek_data' => $row->crosscek_date ?? '-',
+            'admin_cross_cek' => $row->admin_cross_cek ?? '-',
+            'jam_mulai' => $row->jam_mulai ?? '-',
+            'jam_selesai' => $row->jam_selesai ?? '-',
+            'tarif_unit' => (float) ($row->tarif_unit ?? 0),
+            'total_tarif' => (float) ($row->total_tarif ?? 0),
+            'total_biaya_operasional' => (float) ($row->total_biaya_operasional ?? 0),
+            'profit' => $profit,
+            'week' => $row->week ? 'W'.$row->week : '-',
+        ];
     }
 
     public function secondaryDetail(string $id)
@@ -1189,6 +1250,8 @@ class ProfitUnitController extends Controller
         $area = $this->filterValue('area', 'AREA');
         $nopol = (string) request()->query('nopol', 'ALL');
         $search = (string) request()->query('search', '');
+        $bulan = (string) request()->query('bulan', '');
+        $tahun = (string) request()->query('tahun', '');
 
         $query = DB::table('operasional_primary_input');
 
@@ -1208,33 +1271,83 @@ class ProfitUnitController extends Controller
                     ->orWhere('jenis', 'like', "%{$search}%");
             });
         }
+        if ($bulan !== '') {
+            $query->whereRaw("SUBSTRING(tanggal_muat, 4, 2) = ?", [str_pad($bulan, 2, '0', STR_PAD_LEFT)]);
+        }
+        if ($tahun !== '') {
+            $query->whereRaw("SUBSTRING(tanggal_muat, 7, 4) = ?", [$tahun]);
+        }
 
-        $rows = $query
-            ->orderByDesc('tanggal_muat')
-            ->limit(300)
-            ->get()
-            ->map(fn ($row) => [
-                'id_key' => $row->id_key,
-                'tanggal' => $row->tanggal_muat,
-                'area' => $row->area,
-                'nopol' => $row->nopol_driver,
-                'tipe' => $row->jenis,
-                'tarif' => (float) $row->total_tarif,
-                'biaya' => (float) $row->total_biaya,
-                'profit' => (float) $row->total_tarif - (float) $row->total_biaya,
-                'week' => $row->week ? 'W'.$row->week : '-',
-            ]);
+        $pageSize = (int) request()->query('per_page', 50);
+        $sort = (string) request()->query('sort', 'tanggal_muat');
+        $direction = (string) request()->query('direction', 'desc');
+
+        $sortable = ['id_key', 'tanggal_muat', 'area', 'nopol_driver', 'jenis', 'status_dokument', 'create_data', 'total_tarif', 'total_biaya', 'week'];
+        if (! in_array($sort, $sortable, true)) {
+            $sort = 'tanggal_muat';
+            $direction = 'desc';
+        }
+
+        $paginator = $query
+            ->orderBy($sort, $direction === 'asc' ? 'asc' : 'desc')
+            ->paginate($pageSize);
+
+        $idKeys = $paginator->pluck('id_key');
+
+        $latestUpdates = collect();
+        $kategoriMap = collect();
+        $regionalAreaList = collect();
+
+        if ($idKeys->isNotEmpty()) {
+            $latestUpdates = DB::table('operasional_catatan_update')
+                ->whereIn('id_record', $idKeys)
+                ->orderBy('tgl_cek_admin', 'desc')
+                ->get()
+                ->groupBy('id_record')
+                ->map(fn ($items) => $items->first());
+
+            $regionalAreaList = $paginator->map(fn ($r) => ($r->regional ?? '') . '||' . ($r->area ?? ''))->unique()->filter();
+
+            if ($regionalAreaList->isNotEmpty()) {
+                $kategoriRows = DB::table('dropdownlist_area_primary')
+                    ->get(['regional', 'area', 'katagori']);
+                $kategoriMap = $kategoriRows
+                    ->groupBy(fn ($r) => ($r->regional ?? '') . '||' . ($r->area ?? ''))
+                    ->map(fn ($items) => $items->first()->katagori);
+            }
+        }
+
+        $paginator->through(fn ($row) => [
+            'id_key' => $row->id_key,
+            'tanggal' => $row->tanggal_muat,
+            'tahun' => strlen($row->tanggal_muat) >= 10 ? substr($row->tanggal_muat, 6, 4) : '-',
+            'bulan' => strlen($row->tanggal_muat) >= 10 ? (int) substr($row->tanggal_muat, 3, 2) : '-',
+            'jarak_waktu' => $row->create_data ?? '-',
+            'status_doc_fat' => empty($row->status_dokument) ? 'BELUM NAIK' : 'DITERIMA FAT',
+            'kategori' => $kategoriMap[($row->regional ?? '') . '||' . ($row->area ?? '')] ?? '-',
+            'end_time' => optional($latestUpdates->get($row->id_key))->tgl_cek_admin ?? '-',
+            'editor' => optional($latestUpdates->get($row->id_key))->nama_admin ?? '-',
+            'area' => $row->area,
+            'nopol' => $row->nopol_driver,
+            'tipe' => $row->jenis,
+            'tarif' => (float) $row->total_tarif,
+            'biaya' => (float) $row->total_biaya,
+            'profit' => (float) $row->total_tarif - (float) $row->total_biaya,
+            'week' => $row->week ? 'W'.$row->week : '-',
+        ]);
+
+        $currentRows = $paginator->items();
 
         return Inertia::render('ProfitUnit/OperationTable', [
             'title' => 'Tabel Profit Primary',
             'type' => 'primary',
-            'rows' => $rows,
-            'filters' => ['AREA' => $area, 'NOPOL' => $nopol, 'SEARCH' => $search],
+            'rows' => $paginator,
+            'filters' => ['AREA' => $area, 'NOPOL' => $nopol, 'SEARCH' => $search, 'SORT' => $sort, 'DIRECTION' => $direction],
             'summary' => [
-                'count' => $rows->count(),
-                'revenue' => $rows->sum('tarif'),
-                'cost' => $rows->sum('biaya'),
-                'profit' => $rows->sum('profit'),
+                'count' => count($currentRows),
+                'revenue' => array_sum(array_column($currentRows, 'tarif')),
+                'cost' => array_sum(array_column($currentRows, 'biaya')),
+                'profit' => array_sum(array_column($currentRows, 'profit')),
             ],
         ]);
     }
@@ -1244,26 +1357,40 @@ class ProfitUnitController extends Controller
         $row = DB::table('operasional_primary_input')->where('id_key', $id)->first();
         abort_if(! $row, 404);
 
+        $editor = DB::table('operasional_catatan_update')
+            ->where('id_record', $id)
+            ->orderBy('tgl_cek_admin', 'desc')
+            ->first();
+
         return Inertia::render('ProfitUnit/OperationDetail', [
             'title' => 'Detail Profit Primary',
             'type' => 'primary',
             'backUrl' => $this->tableBackUrl('profit-unit.primary.table'),
             'detail' => [
                 'id_key' => $row->id_key,
-                'tanggal' => $row->tanggal_muat,
+                'create' => $row->create_data ?? '-',
+                'tanggal_muat' => $row->tanggal_muat,
                 'tanggal_terima' => $row->tanggal_terima,
+                'regional' => $row->regional ?? '-',
                 'area' => $row->area,
+                'rute_asal' => $row->rute_asal ?? '-',
+                'rute_tujuan' => $row->rute_tujuan ?? '-',
                 'nopol' => $row->nopol_driver,
-                'tipe' => $row->jenis,
-                'tarif' => (float) $row->total_tarif,
-                'biaya' => (float) $row->total_biaya,
-                'profit' => (float) $row->total_tarif - (float) $row->total_biaya,
+                'driver' => $row->nopol_driver,
+                'vendor' => $row->vendor ?? '-',
+                'qty' => (int) $row->qty,
+                'jenis' => $row->jenis,
+                'total' => (float) $row->total,
+                'tarif' => (float) $row->tarif,
+                'total_tarif' => (float) $row->total_tarif,
+                'total_biaya' => (float) $row->total_biaya,
+                'profit' => (float) $row->profit,
                 'week' => $row->week ? 'W'.$row->week : '-',
-                'rute' => trim(($row->rute_asal ?: '-').' - '.($row->rute_tujuan ?: '-')),
-                'vendor' => $row->vendor,
                 'no_po' => $row->no_po,
                 'no_si' => $row->no_si,
                 'no_sj' => $row->no_sj,
+                'editor' => optional($editor)->nama_admin ?? '-',
+                'edit_time' => optional($editor)->tgl_cek_admin ?? '-',
             ],
         ]);
     }

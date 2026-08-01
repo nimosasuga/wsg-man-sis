@@ -94,7 +94,7 @@ export default function Category({ rawTableData = [], category }) {
             <div className="mb-4 flex flex-col justify-between gap-4 md:flex-row md:items-end">
                 <div>
                     <div className="mb-2 flex items-center text-xs font-bold uppercase tracking-widest text-gray-500">
-                        <Link href="/inventori/daftar-unit" className="hover:text-blue-600">
+                        <Link href="/inventori/daftar-unit" className="hover:text-violet-600">
                             DAFTAR UNIT
                         </Link>
                         <ChevronRight size={14} className="mx-1" />
@@ -106,7 +106,7 @@ export default function Category({ rawTableData = [], category }) {
                         </h1>
                         <button
                             onClick={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
-                            className="rounded-md border border-gray-200 bg-white p-1.5 text-gray-400 shadow-sm transition-colors hover:text-blue-600"
+                            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-400 shadow-sm transition-colors hover:border-violet-200 hover:text-violet-600"
                         >
                             {isFilterSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
                         </button>
@@ -114,9 +114,9 @@ export default function Category({ rawTableData = [], category }) {
                 </div>
             </div>
 
-            <div className="flex h-[calc(100vh-180px)] flex-col gap-4 overflow-hidden md:flex-row">
+            <div className="flex min-w-0 flex-col gap-4 overflow-hidden lg:h-[calc(100vh-180px)] lg:flex-row">
                 <div
-                    className={`flex shrink-0 origin-left flex-col rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300 ease-in-out ${isFilterSidebarOpen ? "w-full opacity-100 md:w-64" : "w-0 overflow-hidden border-0 opacity-0"}`}
+                    className={`flex shrink-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-300 ease-in-out ${isFilterSidebarOpen ? "w-full opacity-100 lg:w-64" : "h-0 w-0 overflow-hidden border-0 opacity-0 lg:h-auto"}`}
                 >
                     <div
                         onClick={() => {
@@ -124,9 +124,9 @@ export default function Category({ rawTableData = [], category }) {
                             setActiveArea("ALL");
                             setIsFilterMenuOpen(!isFilterMenuOpen);
                         }}
-                        className={`flex cursor-pointer items-center justify-between border-b border-gray-100 p-3 transition-colors ${activeValue === "ALL" && activeArea === "ALL" ? "border-blue-100 bg-blue-50" : "hover:bg-gray-50"}`}
+                        className={`flex cursor-pointer items-center justify-between border-b border-slate-100 p-3 transition-colors ${activeValue === "ALL" && activeArea === "ALL" ? "border-violet-100 bg-violet-50" : "hover:bg-slate-50"}`}
                     >
-                        <span className={`text-sm font-bold ${activeValue === "ALL" && activeArea === "ALL" ? "text-blue-800" : "text-gray-700"}`}>
+                        <span className={`text-sm font-bold ${activeValue === "ALL" && activeArea === "ALL" ? "text-violet-800" : "text-slate-700"}`}>
                             Semua Data
                         </span>
                         <span className="flex items-center gap-2">
@@ -173,7 +173,7 @@ export default function Category({ rawTableData = [], category }) {
                     </div>
                 </div>
 
-                <div className="relative flex flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300">
+                <div className="relative flex min-h-[420px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-300">
                     <div className="custom-scrollbar flex-1 overflow-auto">
                         {sortedData.length > 0 ? (
                             <table className="w-full border-collapse text-left whitespace-nowrap">

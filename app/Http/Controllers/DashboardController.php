@@ -48,44 +48,40 @@ class DashboardController extends Controller
         }
 
         // 5. Kalkulasi Dokumen Invoice
-        $invoiceCounts = DB::table('finance_accounting_tax_input_fat')
-            ->select('status_dokumen_asli', DB::raw('COUNT(*) as total'))
-            ->groupBy('status_dokumen_asli')
+        $invoiceRows = DB::table('finance_accounting_tax_input_fat')
+            ->select('status_dokumen_asli')
             ->get();
+        $invoiceCounts = $invoiceRows
+            ->groupBy(fn ($row) => empty($row->status_dokumen_asli) ? 'TIDAK DIKETAHUI' : $row->status_dokumen_asli);
         $chartDataInvoice = [];
         $totalInvoice = 0;
-        foreach ($invoiceCounts as $row) {
-            $name = empty($row->status_dokumen_asli) ? 'TIDAK DIKETAHUI' : strtoupper($row->status_dokumen_asli);
-            $chartDataInvoice[] = ['name' => $name, 'value' => (int) $row->total];
-            $totalInvoice += (int) $row->total;
+        foreach ($invoiceCounts as $name => $rows) {
+            $chartDataInvoice[] = ['name' => strtoupper($name), 'value' => $rows->count()];
+            $totalInvoice += $rows->count();
         }
 
         $activityPrimary = DB::table('operasional_primary_input')
-            ->selectRaw("
-                CASE
-                    WHEN tanggal_muat IS NULL OR tanggal_muat = '' THEN 'TIDAK DIKETAHUI'
-                    ELSE DATE_FORMAT(STR_TO_DATE(tanggal_muat, '%d/%m/%Y'), '%M')
-                END as name,
-                COUNT(*) as value
-            ")
-            ->groupBy('name')
-            ->orderByRaw("MIN(STR_TO_DATE(tanggal_muat, '%d/%m/%Y'))")
+            ->select('tanggal_muat')
+            ->whereNotNull('tanggal_muat')
+            ->where('tanggal_muat', '!=', '')
             ->get()
-            ->map(fn ($row) => [
-                'name' => $this->monthNameId($row->name),
-                'value' => (int) $row->value,
+            ->groupBy(fn ($row) => substr($row->tanggal_muat, 3, 2))
+            ->sortKeys()
+            ->map(fn ($rows, $bulan) => [
+                'name' => $this->monthNumToId($bulan),
+                'value' => $rows->count(),
             ])
             ->values();
         $totalActivityPrimary = $activityPrimary->sum('value');
 
         $activitySecondary = DB::table('operasional_secondary_input')
-            ->selectRaw("COALESCE(NULLIF(bulan, ''), 'TIDAK DIKETAHUI') as name, COUNT(*) as value")
-            ->groupBy('name')
-            ->orderBy('name')
+            ->select('bulan')
             ->get()
-            ->map(fn ($row) => [
-                'name' => $this->cleanMonthLabel($row->name),
-                'value' => (int) $row->value,
+            ->groupBy(fn ($row) => empty($row->bulan) ? 'TIDAK DIKETAHUI' : $row->bulan)
+            ->sortKeys()
+            ->map(fn ($rows, $name) => [
+                'name' => $this->cleanMonthLabel($name),
+                'value' => $rows->count(),
             ])
             ->values();
         $totalActivitySecondary = $activitySecondary->sum('value');
@@ -142,10 +138,92 @@ class DashboardController extends Controller
                 'globalProfit' => $globalProfit['summary'],
                 'profitByArea' => $globalProfit['areas'],
                 'areaHealth' => $areaHealth,
+                'fatPrimaryStatus' => $this->fatPrimaryStatusCounts(),
+                'fatSecondaryStatus' => $this->fatSecondaryStatusCounts(),
             ];
         });
 
-        // 6. Lempar data matang ke Frontend
+        // 7. Hitung Aktivitas Primary di luar cache agar selalu segar
+        $rawDates = DB::table('operasional_primary_input')
+            ->select('tanggal_muat')
+            ->whereNotNull('tanggal_muat')
+            ->where('tanggal_muat', '!=', '')
+            ->whereRaw('LENGTH(tanggal_muat) >= 10')
+            ->get()
+            ->groupBy(fn ($row) => substr($row->tanggal_muat, 6, 4))
+            ->filter(fn ($items, $tahun) => ctype_digit($tahun) && (int) $tahun > 2000);
+
+        $activityByYear = $rawDates
+            ->map(function ($items, $tahun) {
+                $byMonth = $items->groupBy(fn ($row) => substr($row->tanggal_muat, 3, 2));
+                $months = collect();
+                foreach (range(1, 12) as $m) {
+                    $key = str_pad((string) $m, 2, '0', STR_PAD_LEFT);
+                    $months->push([
+                        'bulan' => $m,
+                        'value' => optional($byMonth->get($key))->count() ?? 0,
+                    ]);
+                }
+                return ['tahun' => (int) $tahun, 'months' => $months];
+            })->sortKeysDesc()->values();
+
+        $availableYears = $activityByYear->pluck('tahun')->values();
+        $dbChartData['primaryActivityByYear'] = $activityByYear;
+        $dbChartData['primaryActivityYears'] = $availableYears;
+
+        // 8. Hitung Aktivitas Secondary per Tahun di luar cache
+        $rawSecondary = DB::table('operasional_secondary_input')
+            ->select('tanggal', 'tahun')
+            ->whereNotNull('tanggal')
+            ->where('tanggal', '!=', '')
+            ->get()
+            ->groupBy(fn ($row) => (int) $row->tahun)
+            ->filter(fn ($items, $tahun) => $tahun > 2000);
+
+        $secondaryActivityByYear = $rawSecondary
+            ->map(function ($items, $tahun) {
+                $byMonth = $items->groupBy(function ($row) {
+                    $date = \DateTimeImmutable::createFromFormat('!m-d-Y', trim((string) $row->tanggal));
+                    if ($date === false) {
+                        $date = \DateTimeImmutable::createFromFormat('!m/d/Y', trim((string) $row->tanggal));
+                    }
+                    if ($date === false) {
+                        $date = \DateTimeImmutable::createFromFormat('!d-m-Y', trim((string) $row->tanggal));
+                    }
+                    return $date !== false ? (int) $date->format('n') : null;
+                })->filter(fn ($items, $bulan) => $bulan !== null);
+
+                $months = collect();
+                foreach (range(1, 12) as $m) {
+                    $months->push([
+                        'bulan' => $m,
+                        'value' => $byMonth->get($m)?->count() ?? 0,
+                    ]);
+                }
+                return ['tahun' => (int) $tahun, 'months' => $months];
+            })->sortKeysDesc()->values();
+
+        $secondaryAvailableYears = $secondaryActivityByYear->pluck('tahun')->values();
+        $dbChartData['secondaryActivityByYear'] = $secondaryActivityByYear;
+        $dbChartData['secondaryActivityYears'] = $secondaryAvailableYears;
+
+        // 9. Recent Activity — 5 record terbaru
+        $dbChartData['recentActivity'] = DB::table('operasional_primary_input')
+            ->select('id_key', 'tanggal_muat', 'area', 'nopol_driver')
+            ->whereNotNull('tanggal_muat')
+            ->where('tanggal_muat', '!=', '')
+            ->orderByDesc('tanggal_muat')
+            ->limit(5)
+            ->get()
+            ->map(fn ($row) => [
+                'id_key' => $row->id_key,
+                'tanggal' => $row->tanggal_muat,
+                'area' => $row->area,
+                'nopol' => $row->nopol_driver,
+            ]);
+
+        Cache::put('dashboard.db_chart_data', $dbChartData, now()->addMinutes(5));
+
         return Inertia::render('Dashboard', [
             'dbChartData' => $dbChartData,
         ]);
@@ -164,8 +242,10 @@ class DashboardController extends Controller
         };
 
         DB::table('operasional_primary_input')
-            ->get(['area', 'total_tarif', 'total_biaya'])
-            ->each(fn ($row) => $add($row->area, (float) $row->total_tarif, (float) $row->total_biaya));
+            ->selectRaw('area, SUM(COALESCE(total_tarif, 0)) as revenue, SUM(COALESCE(total_biaya, 0)) as cost')
+            ->groupBy('area')
+            ->get()
+            ->each(fn ($row) => $add($row->area, (float) $row->revenue, (float) $row->cost));
 
         $ovtLookup = [];
         DB::table('operasional_absen')->get(['nama', 'tanggal', 'approval_ovt'])->each(function ($row) use (&$ovtLookup) {
@@ -206,12 +286,16 @@ class DashboardController extends Controller
             });
 
         DB::table('operasional_rental_unit_input')
-            ->get(['area', 'tarif_sewa_unit_bln', 'biaya_legalitas'])
-            ->each(fn ($row) => $add($row->area, (float) $row->tarif_sewa_unit_bln, (float) ($row->biaya_legalitas ?? 0)));
+            ->selectRaw('area, SUM(COALESCE(tarif_sewa_unit_bln, 0)) as revenue, SUM(COALESCE(biaya_legalitas, 0)) as cost')
+            ->groupBy('area')
+            ->get()
+            ->each(fn ($row) => $add($row->area, (float) $row->revenue, (float) $row->cost));
 
         DB::table('db_chargo_data_paket_masuk')
-            ->get(['kota_tujuan', 'total_ongkir'])
-            ->each(fn ($row) => $add($row->kota_tujuan, (float) $row->total_ongkir, 0));
+            ->selectRaw('kota_tujuan, SUM(COALESCE(total_ongkir, 0)) as revenue')
+            ->groupBy('kota_tujuan')
+            ->get()
+            ->each(fn ($row) => $add($row->kota_tujuan, (float) $row->revenue, 0));
 
         $ranked = collect(array_values($areas))->sortByDesc('profit')->values();
         $revenue = (float) $ranked->sum('revenue');
@@ -249,18 +333,71 @@ class DashboardController extends Controller
         return null;
     }
 
+    private function fatPrimaryStatusCounts(): array
+    {
+        $counts = DB::table('operasional_primary_input')
+            ->select(DB::raw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status_dokument = 'DITERIMA' THEN 1 ELSE 0 END) as diterima,
+                SUM(CASE WHEN status_dokument IS NULL OR status_dokument = '' OR status_dokument = '0' THEN 1 ELSE 0 END) as belum_naik
+            "))
+            ->first();
+
+        $total = (int) $counts->total;
+        $diterima = (int) $counts->diterima;
+        $belumNaik = (int) $counts->belum_naik;
+        $na = $total - $diterima - $belumNaik;
+
+        return [
+            'data' => [
+                ['name' => 'DITERIMA FAT', 'value' => $diterima],
+                ['name' => 'BELUM NAIK', 'value' => $belumNaik],
+                ['name' => 'N/A', 'value' => $na],
+            ],
+            'total' => $total,
+        ];
+    }
+
+    private function fatSecondaryStatusCounts(): array
+    {
+        $counts = DB::table('operasional_secondary_input')
+            ->whereIn('project', ['ON DEMAND - FULL SERVICE', 'RENTAL'])
+            ->select(DB::raw("
+                COUNT(*) as total,
+                SUM(CASE WHEN status_dokument = 'DITERIMA' THEN 1 ELSE 0 END) as diterima,
+                SUM(CASE WHEN status_dokument IS NULL OR status_dokument = '' OR status_dokument = '0' THEN 1 ELSE 0 END) as belum_naik
+            "))
+            ->first();
+
+        $total = (int) $counts->total;
+        $diterima = (int) $counts->diterima;
+        $belumNaik = (int) $counts->belum_naik;
+        $na = $total - $diterima - $belumNaik;
+
+        return [
+            'data' => [
+                ['name' => 'DITERIMA FAT', 'value' => $diterima],
+                ['name' => 'BELUM NAIK', 'value' => $belumNaik],
+                ['name' => 'N/A', 'value' => $na],
+            ],
+            'total' => $total,
+        ];
+    }
+
     private function fatDocByDivision(string $division): array
     {
-        $data = DB::table('finance_accounting_tax_input_fat')
-            ->selectRaw("COALESCE(NULLIF(status_dokumen_asli, ''), 'TIDAK DIKETAHUI') as name, COUNT(*) as value")
+        $rows = DB::table('finance_accounting_tax_input_fat')
+            ->select('status_dokumen_asli')
             ->where('divisi', $division)
-            ->groupBy('name')
-            ->orderByDesc('value')
             ->get()
-            ->map(fn ($row) => [
-                'name' => strtoupper($row->name),
-                'value' => (int) $row->value,
+            ->groupBy(fn ($row) => empty($row->status_dokumen_asli) ? 'TIDAK DIKETAHUI' : $row->status_dokumen_asli);
+
+        $data = $rows
+            ->map(fn ($group, $name) => [
+                'name' => strtoupper($name),
+                'value' => $group->count(),
             ])
+            ->sortByDesc('value')
             ->values();
 
         return [
@@ -294,5 +431,19 @@ class DashboardController extends Controller
             'November' => 'November',
             'December' => 'Desember',
         ][$month] ?? ($month ?: 'TIDAK DIKETAHUI');
+    }
+
+    private function monthNumToId(string $num): string
+    {
+        $months = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        return $months[(int) $num] ?? 'TIDAK DIKETAHUI';
+    }
+
+    public function fatStatusApi()
+    {
+        return response()->json([
+            'fatPrimaryStatus' => $this->fatPrimaryStatusCounts(),
+            'fatSecondaryStatus' => $this->fatSecondaryStatusCounts(),
+        ]);
     }
 }

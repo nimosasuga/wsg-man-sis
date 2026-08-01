@@ -1,461 +1,445 @@
-import React, { memo } from "react";
+import React, { memo, useState, useEffect } from "react";
 import AdminLayout from "../Layouts/AdminLayout";
-import { Head } from "@inertiajs/react";
+import { Head, router } from "@inertiajs/react";
 import {
-    AlertCircle,
-    ArrowDownRight,
-    ArrowUpRight,
-    CalendarClock,
-    CheckCircle2,
-    ClipboardList,
-    FileCheck,
-    Gauge,
-    ShieldAlert,
-    Truck,
-    WalletCards,
+    AlertTriangle, CheckCircle, Clock, FileText, Truck,
+    ArrowUpRight, Activity,
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
-const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", {
-    maximumFractionDigits: 0,
-})}`;
+const formatNum = (value) => Number(value || 0).toLocaleString("id-ID");
 
-const complianceItems = [
-    { label: "Pajak aktif", value: "259", helper: "15 unit perlu tindakan", tone: "blue" },
-    { label: "STNK aktif", value: "262", helper: "15 dokumen expired", tone: "emerald" },
-    { label: "KIR aktif", value: "229", helper: "31 hampir expired", tone: "amber" },
-    { label: "Invoice lengkap", value: "2,507", helper: "836 belum lengkap", tone: "rose" },
-];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
-const workQueue = [
-    { task: "Validasi legalitas kendaraan", owner: "Inventori", due: "Hari ini", status: "Prioritas" },
-    { task: "Follow up KIR hampir expired", owner: "Operasional", due: "7 hari", status: "Aktif" },
-    { task: "Rekonsiliasi FAT Doc Primary", owner: "Finance", due: "Bulan ini", status: "Dipantau" },
-    { task: "Audit dokumen invoice kosong", owner: "Admin Area", due: "Minggu ini", status: "Backlog" },
-];
+const COLORS_PALETTE = { AKTIF: "#16a34a", "HAMPIR EXPIRED": "#f59e0b", EXPIRED: "#ef4444" };
+const STATUS_LABELS = { AKTIF: "Aktif", "HAMPIR EXPIRED": "Perlu diperhatikan", EXPIRED: "Lewat jatuh tempo" };
 
-const BusinessHealth = memo(function BusinessHealth({ data }) {
-    const pajakActive = data.pajak?.find((p) => p.name === "AKTIF")?.value || 0;
-    const stnkActive = data.stnk?.find((s) => s.name === "AKTIF")?.value || 0;
-    const kirActive = data.kir?.find((k) => k.name === "AKTIF")?.value || 0;
-    const total = data.totalPajak || 1;
-    const complianceScore = Math.round(((pajakActive + stnkActive + kirActive) / (total * 3)) * 100);
+const pct = (val, total) => (total > 0 ? ((val / total) * 100).toFixed(1) : 0);
 
-    const gp = data.globalProfit || {};
-    const profit = Number(gp.profit || 0);
-    const revenue = Number(gp.revenue || 0);
-    const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
-    const marginScore = Math.min(Math.round((margin / 50) * 100), 100);
+const ColorDot = memo(function ColorDot({ color }) {
+    return <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: color }} />;
+});
 
-    const healthScore = Math.round((complianceScore * 0.5) + (marginScore * 0.5));
-    const scoreColor = healthScore >= 75 ? "text-emerald-400" : healthScore >= 50 ? "text-amber-400" : "text-rose-400";
-    const barColor = healthScore >= 75 ? "bg-emerald-400" : healthScore >= 50 ? "bg-amber-400" : "bg-rose-400";
-    const statusLabel = healthScore >= 75 ? "Sehat" : healthScore >= 50 ? "Sedang" : "Kritis";
-
-    const metrics = [
-        { label: "Kepatuhan Dokumen", value: `${complianceScore}%`, detail: `${pajakActive + stnkActive + kirActive} dari ${total * 3} dokumen aktif`, color: complianceScore >= 75 ? "text-emerald-600" : complianceScore >= 50 ? "text-amber-600" : "text-rose-600" },
-        { label: "Margin Profit", value: `${margin.toFixed(1)}%`, detail: `Rp${Number(profit).toLocaleString("id-ID")} dari Rp${Number(revenue).toLocaleString("id-ID")}`, color: margin >= 15 ? "text-emerald-600" : margin >= 5 ? "text-amber-600" : "text-rose-600" },
-    ];
-
+const StatCard = memo(function StatCard({ icon: Icon, label, value, sub, color }) {
+    const dot = { emerald: "bg-emerald-700/10 text-emerald-700", amber: "bg-amber-600/10 text-amber-600", rose: "bg-red-600/10 text-red-600", neutral: "bg-neutral-100 text-neutral-700" };
     return (
-        <section className="mb-8 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="grid gap-5 p-5 lg:grid-cols-[1fr_1.2fr] lg:p-6">
-                <div className="flex flex-col justify-center">
-                    <div className="mb-1 inline-flex w-fit items-center gap-2 rounded-lg bg-slate-950 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-white">
-                        <Gauge size={15} />
-                        Business Health
-                    </div>
-                    <h2 className="mt-3 text-2xl font-black text-slate-950">Kesehatan Bisnis</h2>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">Nilai ini ngukur sehat nggaknya bisnis dari dua sisi: urusan dokumen kendaraan (pajak, STNK, KIR) sama untung rugi usahanya. Masing-masing bobotnya setengah, jadi kalau dokumen rapi tapi profit jeblok ya tetap kuning, begitu juga sebaliknya.</p>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="rounded-xl border border-slate-100 bg-slate-950 p-4 text-white">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Skor Kesehatan</p>
-                        <p className={`mt-1 text-4xl font-black ${scoreColor}`}>{healthScore}<span className="text-xl text-slate-400">/100</span></p>
-                        <p className="mt-1 text-sm font-semibold text-slate-400">Status: <span className={scoreColor}>{statusLabel}</span></p>
-                        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-700">
-                            <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${healthScore}%` }} />
-                        </div>
-                    </div>
-                    <div className="space-y-3">
-                        {metrics.map((m) => (
-                            <div key={m.label} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{m.label}</p>
-                                    <p className={`text-sm font-black ${m.color}`}>{m.value}</p>
-                                </div>
-                                <p className="mt-1 text-xs font-semibold text-slate-500">{m.detail}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm shadow-slate-200/50 transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+            <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${dot[color]}`}>
+                <Icon size={17} strokeWidth={2.5} />
             </div>
-        </section>
+            <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold tracking-wide text-slate-500">{label}</p>
+                <p className="mt-0.5 text-2xl font-extrabold tracking-tight text-slate-950">{value}</p>
+                {sub && <p className="mt-0.5 text-xs font-medium text-slate-500">{sub}</p>}
+            </div>
+        </div>
     );
 });
 
-// Komponen KPI Card Atas (Analitik Cepat)
-const KpiCard = memo(function KpiCard({
-    title,
-    value,
-    icon: Icon,
-    trend,
-    trendLabel,
-    colorClass,
-    description,
-}) {
-    const isPositive = trend === "up";
+const MiniDonut = memo(function MiniDonut({ data = [], total, label, basePath, color }) {
+    const [hovered, setHovered] = useState(null);
+    const goToStatus = (status) => router.visit(`${basePath}?status=${encodeURIComponent(status)}`);
+    const active = data.find((d) => d.name === "AKTIF")?.value || 0;
 
     return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/80">
-        <div className="flex justify-between items-start">
-            <div>
-                <p className="text-[11px] font-black text-slate-400 tracking-wider uppercase mb-1">
-                    {title}
+        <div className="flex flex-col items-center gap-3">
+            <div className="relative">
+                <ResponsiveContainer width={110} height={110}>
+                    <PieChart>
+                        <Pie data={data} cx="50%" cy="50%" innerRadius={34} outerRadius={50}
+                            dataKey="value" paddingAngle={2}
+                            activeIndex={hovered !== null ? data.findIndex((d) => d.name === hovered) : undefined}
+                            activeShape={{ outerRadius: 54 }}
+                            cursor="pointer"
+                            onClick={(entry) => goToStatus(entry.name)}
+                            onMouseEnter={(entry) => setHovered(entry.name)}
+                            onMouseLeave={() => setHovered(null)}
+                        >
+                            {data.map((entry) => <Cell key={entry.name} fill={COLORS_PALETTE[entry.name] || "#94a3b8"} />)}
+                        </Pie>
+                    </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <p className="text-xs font-bold text-neutral-900">{total}</p>
+                </div>
+            </div>
+            <div className="w-full space-y-1">
+                {data.map((item) => {
+                    const c = COLORS_PALETTE[item.name] || "#94a3b8";
+                    return (
+                        <button key={item.name} onClick={() => goToStatus(item.name)}
+                            onMouseEnter={() => setHovered(item.name)} onMouseLeave={() => setHovered(null)}
+                            className={`flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left transition ${
+                                hovered === item.name ? "bg-neutral-100" : "hover:bg-neutral-50"
+                            }`}
+                        >
+                            <ColorDot color={c} />
+                            <span className="flex-1 text-[11px] font-medium text-neutral-500">{STATUS_LABELS[item.name] || item.name}</span>
+                            <span className="text-[11px] font-bold text-neutral-900">{item.value}</span>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+});
+
+const ActivityChart = memo(function ActivityChart({ dataByYear = [], years = [], baseRoute }) {
+    const cy = new Date().getFullYear();
+    const [tahun, setTahun] = useState(
+        years.includes(cy) && dataByYear.find((d) => d.tahun === cy)?.months?.some((m) => m.value > 0)
+            ? cy : (years[0] || cy)
+    );
+    const yearData = dataByYear.find((d) => d.tahun === tahun);
+    const chartData = yearData?.months?.map((m) => ({ name: MONTHS[m.bulan - 1] || m.bulan, value: m.value })) || [];
+    const totalYear = chartData.reduce((s, d) => s + d.value, 0);
+    const maxVal = Math.max(...chartData.map((d) => d.value), 1);
+
+    return (
+        <div>
+            <div className="mb-4 flex items-center justify-between">
+                <p className="text-xs font-medium text-neutral-500">
+                    Total: <span className="font-bold text-neutral-900">{formatNum(totalYear)}</span> pengiriman
                 </p>
-                <h4 className="text-2xl font-black text-slate-900">{value}</h4>
+                <select value={tahun} onChange={(e) => setTahun(Number(e.target.value))}
+                    className="h-8 rounded-md border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-600 outline-none focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200">
+                    {years.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
             </div>
-            <div className={`p-3 rounded-lg ${colorClass}`}>
-                <Icon size={22} strokeWidth={2.5} />
-            </div>
+            <ResponsiveContainer width="100%" height={210}>
+                <BarChart data={chartData} margin={{ top: 6, right: 4, left: -16, bottom: 0 }}>
+                    <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 600, fill: "#737373" }} axisLine={false} tickLine={false} />
+                    <YAxis hide domain={[0, maxVal]} />
+                    <Tooltip contentStyle={{ borderRadius: 4, border: "1px solid #e5e5e5", fontSize: 11, fontWeight: 600, boxShadow: "0 2px 6px rgba(0,0,0,0.06)" }}
+                        formatter={(val) => [val, "Pengiriman"]} />
+                    <Bar dataKey="value" fill="#2563eb" radius={[6, 6, 0, 0]} barSize={22}
+                        cursor="pointer" onClick={(entry, index) => router.visit(`${baseRoute}?bulan=${index + 1}&tahun=${tahun}`)} />
+                </BarChart>
+            </ResponsiveContainer>
         </div>
-        <p className="mt-3 min-h-[36px] text-sm font-medium leading-5 text-slate-500">
-            {description}
-        </p>
-        <div className="mt-4 flex items-center text-xs font-bold">
-            <span className={isPositive ? "inline-flex items-center gap-1 text-emerald-600" : "inline-flex items-center gap-1 text-rose-600"}>
-                {isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                {trendLabel}
-            </span>
-            <span className="text-slate-400 ml-2">dibanding bulan lalu</span>
-        </div>
-    </div>
     );
 });
 
-const SummaryCard = memo(function SummaryCard({ title, value, helper, icon: Icon }) {
-    return (
-        <div className="rounded-xl border border-white/10 bg-white/10 p-4 text-white">
-            <div className="flex items-center justify-between gap-4">
-                <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-cyan-100/80">
-                        {title}
-                    </p>
-                    <p className="mt-2 text-2xl font-black">{value}</p>
+const FAT_PALETTE = {
+    "DITERIMA FAT": "#047857",
+    "BELUM NAIK": "#d97706",
+    "N/A": "#737373",
+};
+
+const FAT_LABELS = {
+    "DITERIMA FAT": "Diterima",
+    "BELUM NAIK": "Belum Naik",
+    "N/A": "N/A",
+};
+
+const FatStatusCard = memo(function FatStatusCard({ title, icon: Icon, data: rawData, total: rawTotal, basePath, loading }) {
+    const items = Array.isArray(rawData) ? rawData : [];
+    const total = Number(rawTotal) || 0;
+    const [hovered, setHovered] = useState(null);
+
+    if (loading) {
+        return (
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
+                <div className="flex animate-pulse items-center gap-3 border-b border-neutral-200 px-5 py-4">
+                    <div className="grid h-8 w-8 place-items-center rounded-md bg-neutral-200 text-neutral-400">
+                        <Icon size={16} className="text-neutral-300" />
+                    </div>
+                    <div className="flex-1">
+                        <div className="h-3 w-32 rounded bg-neutral-200" />
+                        <div className="mt-2 h-2.5 w-20 rounded bg-neutral-100" />
+                    </div>
                 </div>
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-white text-slate-950">
-                    <Icon size={22} />
-                </div>
-            </div>
-            <p className="mt-3 text-sm font-medium text-slate-300">{helper}</p>
-        </div>
-    );
-});
-
-const SectionHeader = memo(function SectionHeader({ title, description }) {
-    return (
-        <div className="mb-4">
-            <h2 className="text-base font-black text-slate-900">{title}</h2>
-            <p className="mt-1 text-sm font-medium text-slate-500">{description}</p>
-        </div>
-    );
-});
-
-const ComplianceCard = memo(function ComplianceCard() {
-    const toneClass = {
-        blue: "bg-blue-50 text-blue-700",
-        emerald: "bg-emerald-50 text-emerald-700",
-        amber: "bg-amber-50 text-amber-700",
-        rose: "bg-rose-50 text-rose-700",
-    };
-
-    return (
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <SectionHeader
-                title="Kondisi Dokumen Hari Ini"
-                description="Bagian yang sudah aman, yang mendekati jatuh tempo, dan yang perlu dibereskan dulu."
-            />
-            <div className="space-y-3">
-                {complianceItems.map((item) => (
-                    <div key={item.label} className="flex items-center justify-between gap-4 rounded-lg border border-slate-100 p-3">
-                        <div>
-                            <p className="text-sm font-black text-slate-800">{item.label}</p>
-                            <p className="mt-0.5 text-xs font-semibold text-slate-500">{item.helper}</p>
+                <div className="space-y-3 p-5">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex animate-pulse items-center gap-3 px-4 py-3">
+                            <div className="h-10 w-10 shrink-0 rounded-md bg-neutral-200" />
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between">
+                                    <div className="h-3 w-16 rounded bg-neutral-200" />
+                                    <div className="h-3 w-8 rounded bg-neutral-100" />
+                                </div>
+                                <div className="mt-2 h-2 w-full rounded-sm bg-neutral-100" />
+                            </div>
                         </div>
-                        <span className={`rounded-lg px-3 py-1.5 text-sm font-black ${toneClass[item.tone]}`}>
-                            {item.value}
-                        </span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-});
-
-const WorkQueueCard = memo(function WorkQueueCard() {
-    return (
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <SectionHeader
-                title="Pekerjaan Yang Perlu Dikejar"
-                description="Daftar kecil supaya follow up tidak tercecer di tengah operasional."
-            />
-            <div className="overflow-hidden rounded-lg border border-slate-100">
-                {workQueue.map((item) => (
-                    <div key={item.task} className="grid gap-2 border-b border-slate-100 p-3 last:border-b-0 sm:grid-cols-[1fr_110px_86px] sm:items-center">
-                        <div>
-                            <p className="text-sm font-black text-slate-800">{item.task}</p>
-                            <p className="mt-0.5 text-xs font-semibold text-slate-500">{item.owner}</p>
-                        </div>
-                        <p className="text-xs font-bold text-slate-500">{item.due}</p>
-                        <span className="w-fit rounded-md bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-700">
-                            {item.status}
-                        </span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-});
-
-const AreaHealthTable = memo(function AreaHealthTable({ areas = [] }) {
-    const maxScore = Math.max(...areas.map((a) => a.score || 0), 1);
-
-    return (
-        <section className="mb-8">
-            <div className="mb-4">
-                <h2 className="text-base font-black text-slate-900">Kesehatan Per Area</h2>
-                <p className="mt-1 text-sm font-medium text-slate-500">Skor kepatuhan dokumen dan profitabilitas tiap cabang.</p>
-            </div>
-            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold leading-relaxed text-slate-500">
-                Skor tiap area dihitung dari dua hal: pertama, seberapa banyak unit di area itu yang dokumen pajak, STNK, dan KIR-nya masih aktif —
-                makin banyak yang aktif, makin tinggi skor kepatuhannya. Kedua, margin profit area itu dibanding target 50% — kalau margin 50% atau
-                lebih, dapet skor penuh. Dua nilai ini digabung 50:50 jadi skor akhir. Hijau artinya sehat (≥75), kuning artinya cukup (50–74),
-                merah artinya perlu perhatian (&lt;50).
-            </div>
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="custom-scrollbar overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-left">
-                        <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400">
-                            <tr>
-                                <th className="px-5 py-3">Area</th>
-                                <th className="px-5 py-3">Unit</th>
-                                <th className="px-5 py-3">Kepatuhan</th>
-                                <th className="px-5 py-3">Margin</th>
-                                <th className="px-5 py-3">Profit</th>
-                                <th className="px-5 py-3">Skor</th>
-                                <th className="px-5 py-3 w-44">Indikator</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {areas.map((item) => {
-                                const barWidth = Math.max((item.score / maxScore) * 100, item.score > 0 ? 5 : 0);
-                                const barColor = item.score >= 75 ? "bg-emerald-500" : item.score >= 50 ? "bg-amber-500" : "bg-rose-500";
-                                const textColor = item.score >= 75 ? "text-emerald-700" : item.score >= 50 ? "text-amber-700" : "text-rose-700";
-                                const badgeBg = item.score >= 75 ? "bg-emerald-50" : item.score >= 50 ? "bg-amber-50" : "bg-rose-50";
-                                const label = item.score >= 75 ? "Sehat" : item.score >= 50 ? "Sedang" : "Kritis";
-
-                                return (
-                                    <tr key={item.area} className="text-xs font-bold text-slate-600">
-                                        <td className="px-5 py-3 font-black text-slate-900">{item.area}</td>
-                                        <td className="px-5 py-3">{item.total}</td>
-                                        <td className="px-5 py-3">{item.compliance}%</td>
-                                        <td className="px-5 py-3">{item.margin}%</td>
-                                        <td className="px-5 py-3">{formatRp(item.profit)}</td>
-                                        <td className="px-5 py-3">
-                                            <span className={`rounded-md px-2.5 py-1 text-xs font-black ${badgeBg} ${textColor}`}>
-                                                {item.score}
-                                            </span>
-                                        </td>
-                                        <td className="w-44 px-5 py-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-                                                    <div className={`h-full rounded-full ${barColor}`} style={{ width: `${barWidth}%` }} />
-                                                </div>
-                                                <span className={`text-[11px] font-black ${textColor}`}>{label}</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                    ))}
                 </div>
             </div>
-        </section>
-    );
-});
+        );
+    }
 
-const GlobalProfitSection = memo(function GlobalProfitSection({ summary = {}, areas = [] }) {
-    const maxProfit = Math.max(...areas.map((item) => Math.max(Number(item.profit || 0), 0)), 1);
-
-    return (
-        <section className="mb-8">
-            <SectionHeader
-                title="Kinerja Profit Global"
-                description="Gabungan Primary, Secondary, Rental, dan LCL untuk melihat hasil usaha dan kontribusi tiap area."
-            />
-            <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                {[
-                    ["Total Pendapatan", formatRp(summary.revenue), "Nilai pekerjaan yang tercatat."],
-                    ["Total Biaya", formatRp(summary.cost), "Beban operasional Primary dan Secondary."],
-                    ["Profit Bersih", formatRp(summary.profit), "Sisa pendapatan setelah biaya."],
-                    ["Margin Global", `${Number(summary.margin || 0).toFixed(1)}%`, "Porsi profit dari seluruh pendapatan."],
-                    ["Area Teratas", summary.topArea || "-", `${formatRp(summary.topAreaProfit)} profit.`],
-                ].map(([label, value, helper]) => (
-                    <div key={label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{label}</p>
-                        <p className="mt-2 break-words text-xl font-black text-slate-950">{value}</p>
-                        <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">{helper}</p>
+    if (!total || items.length === 0) {
+        return (
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
+                <div className="flex items-center gap-3 border-b border-neutral-200 px-5 py-4">
+                    <div className="grid h-8 w-8 place-items-center rounded-md bg-neutral-100 text-neutral-400">
+                        <Icon size={16} />
                     </div>
-                ))}
-            </div>
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex flex-col gap-1 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h3 className="text-sm font-black uppercase text-slate-950">Keuntungan Per Area</h3>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">Sepuluh area dengan profit terbesar dari seluruh grup usaha.</p>
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-500">{title}</h3>
+                        <p className="mt-0.5 text-sm text-neutral-400">Belum ada data</p>
                     </div>
-                    <span className="text-xs font-black text-cyan-700">{Number(summary.areaCount || 0).toLocaleString("id-ID")} area tercatat</span>
-                </div>
-                <div className="custom-scrollbar overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-left">
-                        <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400">
-                            <tr><th className="px-5 py-3">Area</th><th className="px-5 py-3">Pendapatan</th><th className="px-5 py-3">Biaya</th><th className="px-5 py-3">Profit</th><th className="px-5 py-3">Margin</th><th className="px-5 py-3">Kontribusi</th></tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {areas.map((item) => {
-                                const margin = Number(item.revenue || 0) > 0 ? Number(item.profit || 0) / Number(item.revenue) * 100 : 0;
-                                const width = Math.max(Number(item.profit || 0) / maxProfit * 100, 0);
-                                return <tr key={item.area} className="text-xs font-bold text-slate-600">
-                                    <td className="px-5 py-3 font-black text-slate-900">{item.area}</td>
-                                    <td className="px-5 py-3">{formatRp(item.revenue)}</td>
-                                    <td className="px-5 py-3">{formatRp(item.cost)}</td>
-                                    <td className={`px-5 py-3 font-black ${Number(item.profit) >= 0 ? "text-emerald-700" : "text-rose-600"}`}>{formatRp(item.profit)}</td>
-                                    <td className="px-5 py-3">{margin.toFixed(1)}%</td>
-                                    <td className="w-44 px-5 py-3"><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-cyan-500" style={{ width: `${width}%` }} /></div></td>
-                                </tr>;
-                            })}
-                        </tbody>
-                    </table>
                 </div>
             </div>
-        </section>
+        );
+    }
+
+    const mainStatus = items[0]?.name || "";
+    const tint = mainStatus === "DITERIMA FAT" || mainStatus === "LENGKAP" ? "emerald"
+        : mainStatus === "BELUM NAIK" || mainStatus === "BELUM DIUPLOAD" ? "amber"
+        : "indigo";
+    const tintBg = tint === "emerald" ? "bg-emerald-50/40" : tint === "amber" ? "bg-amber-50/40" : "bg-indigo-50/40";
+
+    const goToStatus = (status) => router.visit(`${basePath}?status=${encodeURIComponent(status)}`);
+
+    return (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
+            <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-violet-50 text-violet-700">
+                    <Icon size={16} />
+                </div>
+                <div>
+                    <h3 className="text-sm font-bold text-slate-900">{title}</h3>
+                    <p className="mt-0.5 text-xs font-medium text-slate-500">{total} dokumen tercatat</p>
+                </div>
+            </div>
+            <div className="space-y-2 p-5 sm:p-6">
+                {items.map((item) => {
+                    const c = FAT_PALETTE[item.name] || "#737373";
+                    const pct = total > 0 ? (item.value / total) * 100 : 0;
+                    const isHovered = hovered === item.name;
+                    return (
+                        <button key={item.name}
+                            onClick={() => goToStatus(item.name)}
+                            onMouseEnter={() => setHovered(item.name)}
+                            onMouseLeave={() => setHovered(null)}
+                            className={`flex w-full items-center gap-3 rounded-md px-4 py-3 text-left transition ${
+                                isHovered ? "bg-slate-100" : "hover:bg-slate-50"
+                            }`}
+                        >
+                            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-md text-xs font-bold transition ${
+                                isHovered ? "scale-110" : ""
+                            }`} style={{ backgroundColor: c + "25", color: c }}>
+                                {item.value}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-neutral-600">{FAT_LABELS[item.name] || item.name}</span>
+                                    <span className="text-sm font-bold text-neutral-900">{pct.toFixed(0)}%</span>
+                                </div>
+                                <div className="mt-1.5 h-2 w-full overflow-hidden rounded-sm bg-neutral-100">
+                                    <div className="h-full rounded-sm transition-all duration-300"
+                                        style={{ width: `${pct}%`, backgroundColor: c }} />
+                                </div>
+                            </div>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
     );
 });
 
 export default function Dashboard({ dbChartData }) {
+    const {
+        pajak = [], stnk = [], kir = [],
+        primaryActivityByYear = [], primaryActivityYears = [],
+        secondaryActivityByYear = [], secondaryActivityYears = [],
+    } = dbChartData || {};
+
+    const [fatData, setFatData] = useState(null);
+    const [fatLoading, setFatLoading] = useState(true);
+
+    useEffect(() => {
+        fetch("/api/dashboard/fat-status")
+            .then((r) => r.json())
+            .then((data) => {
+                setFatData(data);
+                setFatLoading(false);
+            })
+            .catch(() => {
+                setFatData(null);
+                setFatLoading(false);
+            });
+    }, []);
+
+    const [tab, setTab] = useState("primary");
+
+    const totalUnit = pajak.reduce((s, d) => s + d.value, 0);
+    const pajakActive = pajak.find((d) => d.name === "AKTIF")?.value || 0;
+    const stnkActive = stnk.find((d) => d.name === "AKTIF")?.value || 0;
+    const kirActive = kir.find((d) => d.name === "AKTIF")?.value || 0;
+    const totalExpired = [pajak, stnk, kir].reduce((s, arr) => s + (arr.find((d) => d.name === "EXPIRED")?.value || 0), 0);
+    const totalHampir = [pajak, stnk, kir].reduce((s, arr) => s + (arr.find((d) => d.name === "HAMPIR EXPIRED")?.value || 0), 0);
+    const totalDocEntries = totalUnit * 3;
+    const totalActive = pajakActive + stnkActive + kirActive;
+    const complianceRate = totalDocEntries > 0 ? Math.round((totalActive / totalDocEntries) * 100) : 0;
+
+    // Overall status distribution across all docs
+    const overallStatus = [
+        { name: "AKTIF", value: totalActive },
+        { name: "HAMPIR EXPIRED", value: totalHampir },
+        { name: "EXPIRED", value: totalExpired },
+    ];
+
     return (
         <AdminLayout>
-            <Head title="Dashboard Analitik" />
+            <Head title="Dashboard" />
 
-            <section className="mb-6 overflow-hidden rounded-xl bg-slate-950 shadow-xl shadow-slate-200">
-                <div className="grid gap-5 p-5 text-white lg:grid-cols-[1.4fr_1fr] lg:p-6">
+            {/* ── Hero + Quick Stats ── */}
+            <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
+                <div className="grid gap-5 p-5 lg:grid-cols-[1.3fr_1fr] lg:gap-8 lg:p-7">
                     <div>
-                        <div className="mb-4 flex flex-wrap items-center gap-2">
-                            <span className="rounded-lg bg-cyan-400/15 px-3 py-1 text-xs font-black uppercase tracking-wider text-cyan-200">
-                                Pusat Kendali
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-700">
+                                <Activity size={13} /> Pusat kendali
                             </span>
-                            <span className="rounded-lg bg-white/10 px-3 py-1 text-xs font-bold text-slate-300">
+                            <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
                                 Periode berjalan
                             </span>
                         </div>
-                        <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
-                            Dashboard Operasional
+                        <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
+                            Kendali operasional, dalam satu layar
                         </h1>
-                        <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-300">
-                            Gambaran cepat kondisi armada, dokumen, finance, dan pekerjaan yang perlu dikejar hari ini.
+                        <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
+                            Lihat kondisi armada, kelengkapan dokumen, dan aktivitas pengiriman sebelum pekerjaan menumpuk.
                         </p>
-                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                            <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Area kerja</p>
-                                <p className="mt-1 text-sm font-black text-white">Fleet, Finance, Tax</p>
-                            </div>
-                            <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Prioritas</p>
-                                <p className="mt-1 text-sm font-black text-white">Yang expired dan yang belum lengkap</p>
-                            </div>
-                            <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Status kerja</p>
-                                <p className="mt-1 text-sm font-black text-emerald-300">Data siap dipantau</p>
-                            </div>
+                        <div className="mt-5 flex flex-wrap gap-2">
+                            {[
+                                { label: "Fleet" },
+                                { label: "Finance" },
+                                { label: "Tax" },
+                            ].map((b) => (
+                                <span key={b.label} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
+                                    {b.label}
+                                </span>
+                            ))}
                         </div>
                     </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                        <SummaryCard
-                            title="Unit Terpantau"
-                            value="262"
-                            helper="Unit aktif yang masuk pantauan harian."
-                            icon={Gauge}
-                        />
-                        <SummaryCard
-                            title="Dokumen Finance"
-                            value="7,625"
-                            helper="FAT primary dan secondary yang sudah tercatat."
-                            icon={WalletCards}
-                        />
+                    <div className="grid grid-cols-2 gap-3">
+                        <StatCard icon={Truck} label="Total Unit" value={formatNum(totalUnit)} sub="Unit terdaftar" color="neutral" />
+                        <StatCard icon={CheckCircle} label={`Kepatuhan`} value={`${complianceRate}%`} sub={`${formatNum(totalActive)} dokumen aktif`} color="emerald" />
+                        <StatCard icon={AlertTriangle} label="Expired" value={formatNum(totalExpired)} sub="Perlu tindakan segera" color="rose" />
+                        <StatCard icon={Clock} label="Hampir Expired" value={formatNum(totalHampir)} sub="Jatuh tempo dekat" color="amber" />
                     </div>
                 </div>
             </section>
 
-            {/* Business Health Widget */}
-            {dbChartData?.pajak && (
-                <BusinessHealth data={dbChartData} />
-            )}
+            {/* ── Compliance Overview ── */}
+            <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
+                <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
+                    <div className="flex items-center gap-3">
+                        <div className="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-700">
+                            <FileText size={16} />
+                        </div>
+                        <div>
+                            <h2 className="text-sm font-bold text-slate-900">Kepatuhan dokumen armada</h2>
+                            <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                Status Pajak, STNK, dan KIR per unit
+                            </p>
+                        </div>
+                    </div>
+                    <div className="hidden items-center gap-1.5 text-xs font-medium text-neutral-500 sm:flex">
+                        <ColorDot color={COLORS_PALETTE.AKTIF} /> {STATUS_LABELS.AKTIF}
+                        <ColorDot color={COLORS_PALETTE["HAMPIR EXPIRED"]} /> {STATUS_LABELS["HAMPIR EXPIRED"]}
+                        <ColorDot color={COLORS_PALETTE.EXPIRED} /> {STATUS_LABELS.EXPIRED}
+                    </div>
+                </div>
+                <div className="grid gap-4 p-5 sm:grid-cols-3 sm:p-6">
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                        <p className="mb-3 text-center text-sm font-bold text-slate-800">Pajak kendaraan</p>
+                        <MiniDonut data={pajak} total={totalUnit} basePath="/inventori/pajak" />
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                        <p className="mb-3 text-center text-sm font-bold text-slate-800">STNK</p>
+                        <MiniDonut data={stnk} total={totalUnit} basePath="/inventori/stnk" />
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                        <p className="mb-3 text-center text-sm font-bold text-slate-800">KIR</p>
+                        <MiniDonut data={kir} total={totalUnit} basePath="/inventori/kir" />
+                    </div>
+                </div>
+                <div className="border-t border-neutral-200 px-5 py-4">
+                    <div className="flex items-center gap-4">
+                        <span className="text-xs font-bold uppercase tracking-widest text-neutral-500">Status Keseluruhan</span>
+                        <div className="flex h-3 flex-1 overflow-hidden rounded-sm bg-neutral-100">
+                            {overallStatus.map((item) => {
+                                const w = totalDocEntries > 0 ? (item.value / totalDocEntries) * 100 : 0;
+                                return w > 0 ? <div key={item.name} className="h-full transition-all" style={{ width: `${w}%`, backgroundColor: COLORS_PALETTE[item.name] || "#737373" }} /> : null;
+                            })}
+                        </div>
+                        <div className="flex shrink-0 gap-3">
+                            {overallStatus.map((item) => {
+                                const w = totalDocEntries > 0 ? (item.value / totalDocEntries) * 100 : 0;
+                                return (
+                                    <div key={item.name} className="flex items-center gap-1.5 text-[11px]">
+                                        <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: COLORS_PALETTE[item.name] || "#737373" }} />
+                                        <span className="font-medium text-neutral-500">{STATUS_LABELS[item.name]}</span>
+                                        <span className="font-bold text-neutral-900">{w.toFixed(0)}%</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-            {dbChartData?.areaHealth?.length > 0 && (
-                <AreaHealthTable areas={dbChartData.areaHealth} />
-            )}
-
-            {/* KPI Cards Section */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-6 mb-8">
-                <KpiCard
-                    title="Total Armada Aktif"
-                    value="262"
-                    icon={Truck}
-                    trend="up"
-                    trendLabel="4.2%"
-                    colorClass="bg-blue-50 text-blue-600"
-                    description="Unit aktif yang menjadi dasar pengecekan operasional harian."
+            {/* ── FAT Document Status ── */}
+            <section className="mb-6 grid gap-6 lg:grid-cols-2">
+                <FatStatusCard
+                    title="FAT Document Primary"
+                    icon={FileText}
+                    data={fatData?.fatPrimaryStatus?.data || []}
+                    total={fatData?.fatPrimaryStatus?.total || 0}
+                    basePath="/business-control/fat-primary"
+                    loading={fatLoading}
                 />
-                <KpiCard
-                    title="Dokumen Lengkap"
-                    value="2,507"
-                    icon={FileCheck}
-                    trend="up"
-                    trendLabel="12.5%"
-                    colorClass="bg-emerald-50 text-emerald-600"
-                    description="Invoice yang sudah lengkap dan aman untuk proses berikutnya."
+                <FatStatusCard
+                    title="FAT Document Secondary"
+                    icon={FileText}
+                    data={fatData?.fatSecondaryStatus?.data || []}
+                    total={fatData?.fatSecondaryStatus?.total || 0}
+                    basePath="/business-control/fat-secondary"
+                    loading={fatLoading}
                 />
-                <KpiCard
-                    title="Pajak Expired"
-                    value="15"
-                    icon={AlertCircle}
-                    trend="down"
-                    trendLabel="2.1%"
-                    colorClass="bg-rose-50 text-rose-600"
-                    description="Unit yang pajaknya lewat masa berlaku dan perlu segera dicek."
-                />
-                <KpiCard
-                    title="KIR Hampir Expired"
-                    value="31"
-                    icon={ShieldAlert}
-                    trend="up"
-                    trendLabel="8.4%"
-                    colorClass="bg-amber-50 text-amber-600"
-                    description="KIR yang sudah dekat jatuh tempo, bagusnya mulai dijadwalkan."
-                />
-            </div>
+            </section>
 
-            <GlobalProfitSection
-                summary={dbChartData?.globalProfit || {}}
-                areas={dbChartData?.profitByArea || []}
-            />
-
-            <div className="mb-8 grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.1fr] xl:gap-6">
-                <ComplianceCard />
-                <WorkQueueCard />
-            </div>
-
+            {/* ── Activity Overview ── */}
+            <section className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+                    <div className="flex items-center gap-3">
+                        <div className="grid h-9 w-9 place-items-center rounded-xl bg-violet-50 text-violet-700">
+                            <Activity size={16} />
+                        </div>
+                        <div>
+                            <h2 className="text-sm font-bold text-slate-900">Pergerakan pengiriman</h2>
+                            <p className="mt-0.5 text-xs font-medium text-slate-500">
+                                Volume perjalanan per bulan
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
+                        <button onClick={() => setTab("primary")}
+                            className={`rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition ${
+                                tab === "primary" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                            }`}
+                        >Primary</button>
+                        <button onClick={() => setTab("secondary")}
+                            className={`rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition ${
+                                tab === "secondary" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                            }`}
+                        >Secondary</button>
+                    </div>
+                </div>
+                <div className="px-5 pb-5 pt-4">
+                    {tab === "primary" ? (
+                        <ActivityChart dataByYear={primaryActivityByYear} years={primaryActivityYears}
+                            baseRoute="/profit-unit/primary/table" />
+                    ) : (
+                        <ActivityChart dataByYear={secondaryActivityByYear} years={secondaryActivityYears}
+                            baseRoute="/profit-unit/secondary/table" />
+                    )}
+                </div>
+            </section>
         </AdminLayout>
     );
 }

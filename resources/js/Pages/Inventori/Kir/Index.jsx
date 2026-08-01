@@ -15,10 +15,10 @@ import {
     ArrowDown,
 } from "lucide-react";
 
-export default function Index({ rawTableData = [] }) {
+export default function Index({ rawTableData = [], filterStatus = null }) {
     const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
     const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(true);
-    const [activeStatus, setActiveStatus] = useState("ALL");
+    const [activeStatus, setActiveStatus] = useState(filterStatus || "ALL");
     const [activeArea, setActiveArea] = useState("ALL");
 
     // STATE UNTUK SORTING
@@ -100,7 +100,7 @@ export default function Index({ rawTableData = [] }) {
             <div className="mb-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                     <div className="flex items-center text-xs font-bold text-gray-500 tracking-widest uppercase mb-2">
-                        <Link href="/dashboard" className="hover:text-blue-600">
+                        <Link href="/dashboard" className="hover:text-violet-600">
                             DASHBOARD
                         </Link>
                         <ChevronRight size={14} className="mx-1" />
@@ -114,7 +114,7 @@ export default function Index({ rawTableData = [] }) {
                             onClick={() =>
                                 setIsFilterSidebarOpen(!isFilterSidebarOpen)
                             }
-                            className="text-gray-400 hover:text-blue-600 bg-white border border-gray-200 p-1.5 rounded-md shadow-sm transition-colors"
+                            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-400 shadow-sm transition-colors hover:border-violet-200 hover:text-violet-600"
                         >
                             {isFilterSidebarOpen ? (
                                 <PanelLeftClose size={18} />
@@ -125,16 +125,16 @@ export default function Index({ rawTableData = [] }) {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 shadow-[0_4px_12px_rgba(37,99,235,0.2)] transition-all">
+                    <button className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-[0_4px_12px_rgba(124,58,237,0.2)] transition-all hover:bg-violet-700">
                         + Tambah Data
                     </button>
                 </div>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-180px)] overflow-hidden">
+            <div className="flex min-w-0 flex-col gap-4 overflow-hidden lg:h-[calc(100vh-180px)] lg:flex-row">
                 {/* SIDEBAR FILTER */}
                 <div
-                    className={`bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col shrink-0 transition-all duration-300 ease-in-out origin-left ${isFilterSidebarOpen ? "w-full md:w-64 opacity-100" : "w-0 opacity-0 border-0 overflow-hidden"}`}
+                    className={`flex shrink-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-300 ease-in-out ${isFilterSidebarOpen ? "w-full opacity-100 lg:w-64" : "h-0 w-0 overflow-hidden border-0 opacity-0 lg:h-auto"}`}
                 >
                     <div
                         onClick={() => {
@@ -217,11 +217,17 @@ export default function Index({ rawTableData = [] }) {
                 </div>
 
                 {/* MAIN TABLE */}
-                <div className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col relative overflow-hidden transition-all duration-300">
+                <div className="relative flex min-h-[420px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-300">
+                    {filterStatus && (
+                        <div className="flex items-center gap-3 border-b border-cyan-200 bg-cyan-50 px-4 py-2.5">
+                            <span className="text-[11px] font-black uppercase tracking-wide text-cyan-800">Filter: <span className="text-cyan-950">{filterStatus}</span></span>
+                            <a href="/inventori/kir" className="ml-auto rounded-md border border-cyan-200 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-cyan-700 transition hover:bg-cyan-100">Reset</a>
+                        </div>
+                    )}
                     <div className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1">
                         {sortedAndFilteredData.length > 0 ? (
                             <table className="w-full text-left border-collapse whitespace-nowrap">
-                                <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200 shadow-sm">
+                                <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 shadow-sm">
                                     <tr>
                                         {columns.map((col, idx) => (
                                             <th
@@ -271,7 +277,7 @@ export default function Index({ rawTableData = [] }) {
                                                     `/inventori/kir/${row.nopol}`,
                                                 )
                                             }
-                                            className="hover:bg-blue-50/50 transition-colors group cursor-pointer"
+                                            className="group cursor-pointer transition-colors hover:bg-violet-50/60"
                                         >
                                             <td className="px-4 py-2.5 border-r border-gray-50">
                                                 <span

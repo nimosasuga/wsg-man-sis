@@ -73,36 +73,45 @@ export function CalendarWidget({ date, dateOptions = [], onChange, dark }) {
     );
 }
 
-function StatCard({ title, value, helper, icon: Icon }) {
+function StatCard({ title, value, helper, icon: Icon, tone = "violet" }) {
+    const tones = {
+        violet: "bg-[#f1efff] text-[#635bff]",
+        cyan: "bg-cyan-50 text-cyan-600",
+        amber: "bg-amber-50 text-amber-600",
+        emerald: "bg-emerald-50 text-emerald-600",
+        rose: "bg-rose-50 text-rose-600",
+    };
+
     return (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-[#d8d5ff] hover:shadow-md hover:shadow-[#635bff]/5">
             <div className="flex items-start justify-between gap-3">
-                <div>
-                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">{title}</p>
-                    <p className="mt-2 break-words text-2xl font-black text-slate-950">{value}</p>
+                <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-500">{title}</p>
+                    <p className="mt-2 break-words text-2xl font-bold tracking-tight text-slate-950">{value}</p>
                 </div>
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-600"><Icon size={19} /></div>
+                <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tones[tone]}`}><Icon size={19} /></div>
             </div>
-            <p className="mt-3 text-xs font-semibold text-slate-500">{helper}</p>
+            <p className="mt-3 text-xs leading-5 text-slate-400">{helper}</p>
         </div>
     );
 }
 
 function UnitCard({ item }) {
     return (
-        <Link href={item.href} className="group block rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:shadow-lg hover:shadow-slate-200/80">
+        <Link href={item.href} className="group relative block min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#c7c3ff] hover:shadow-lg hover:shadow-[#635bff]/10">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#635bff] to-cyan-400" />
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <p className="text-[11px] font-black uppercase tracking-wider text-cyan-700">{item.label}</p>
-                    <h2 className="mt-2 text-3xl font-black text-slate-950">{formatNumber(item.count)}</h2>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">unit berjalan pada tanggal ini</p>
+                    <p className="text-xs font-semibold text-slate-500">{item.label}</p>
+                    <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{formatNumber(item.count)}</h2>
+                    <p className="mt-1 text-xs text-slate-400">unit berjalan pada tanggal ini</p>
                 </div>
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-slate-950 text-white transition group-hover:bg-cyan-600"><ArrowRight size={19} /></div>
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#f1efff] text-[#635bff] transition group-hover:bg-[#635bff] group-hover:text-white"><ArrowRight size={19} /></div>
             </div>
-            <div className="mt-5 grid gap-2 text-xs font-semibold text-slate-600">
+            <div className="mt-5 grid gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
                 <div className="flex justify-between gap-3"><span>Tarif</span><span className="font-black text-slate-950">{formatRp(item.tarif)}</span></div>
                 <div className="flex justify-between gap-3"><span>Biaya</span><span className="font-black text-slate-950">{formatRp(item.biaya)}</span></div>
-                <div className="flex justify-between gap-3"><span>Profit</span><span className="font-black text-blue-600">{formatRp(item.profit)}</span></div>
+                <div className="flex justify-between gap-3"><span>Profit</span><span className="font-black text-emerald-600">{formatRp(item.profit)}</span></div>
             </div>
         </Link>
     );
@@ -111,17 +120,17 @@ function UnitCard({ item }) {
 function Breakdown({ title, items = [] }) {
     return (
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">{title}</h2>
+            <h2 className="text-base font-bold text-slate-950">{title}</h2>
             <div className="mt-4 divide-y divide-slate-100">
                 {items.length ? items.map((item) => (
                     <Link
                         key={item.name}
                         href={item.href}
-                        className="flex items-center justify-between gap-3 py-3 transition hover:bg-cyan-50/60"
+                        className="flex items-center justify-between gap-3 py-3 transition hover:bg-[#f5f3ff]"
                     >
                         <p className="truncate text-sm font-black text-slate-900">{item.name}</p>
                         <div className="flex items-center gap-2">
-                            <p className="text-sm font-black text-blue-600">{formatNumber(item.value)}</p>
+                            <p className="text-sm font-bold text-[#635bff]">{formatNumber(item.value)}</p>
                             <ArrowRight size={15} className="text-slate-300" />
                         </div>
                     </Link>
@@ -201,8 +210,9 @@ const LatestPositionMap = memo(function LatestPositionMap({ positions = [] }) {
             <div className="border-b border-slate-100 p-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                        <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Monitoring Unit</h2>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">Titik terakhir yang dikirim melalui form AppSheet untuk setiap nopol.</p>
+                        <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#f1efff] px-3 py-1.5 text-xs font-bold text-[#635bff]"><MapPin size={13} /> Lokasi terbaru</div>
+                        <h2 className="text-lg font-bold tracking-tight text-slate-950">Monitoring Unit</h2>
+                        <p className="mt-1 text-sm text-slate-500">Titik terakhir yang dikirim melalui form AppSheet untuk setiap nopol.</p>
                     </div>
                     <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:items-center">
                         <div className="relative w-full sm:w-80">
@@ -212,10 +222,10 @@ const LatestPositionMap = memo(function LatestPositionMap({ positions = [] }) {
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 placeholder="Cari nopol, driver, lokasi..."
-                                className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-bold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                                className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#a8a2ff] focus:ring-4 focus:ring-[#f1efff]"
                             />
                         </div>
-                        <span className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-cyan-50 px-3 text-xs font-black text-cyan-700">
+                        <span className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-[#f1efff] px-3 text-xs font-bold text-[#635bff]">
                             {validPositions.length} titik
                         </span>
                     </div>
@@ -239,7 +249,7 @@ const LatestPositionMap = memo(function LatestPositionMap({ positions = [] }) {
                             <Link
                                 key={item.id}
                                 href={`/on-the-road/position/${encodeURIComponent(item.id)}`}
-                                className="group block border-b border-slate-100 p-4 transition last:border-b-0 hover:bg-cyan-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-500"
+                                className="group block border-b border-slate-100 p-4 transition last:border-b-0 hover:bg-[#f5f3ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#635bff]"
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0"><p className="truncate text-sm font-black text-slate-950">{item.nopol}</p><p className="mt-1 truncate text-xs font-semibold text-slate-500">{item.nama_driver || "Driver belum diisi"}</p></div>
@@ -269,37 +279,39 @@ export default function Index({ date, dateOptions = [], summary = {}, cards = []
             <Head title="On The Road" />
 
             <div className="space-y-5">
-                <section className="rounded-xl bg-slate-950 p-5 text-white shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                         <div>
-                            <div className="inline-flex items-center gap-2 rounded-lg bg-cyan-400/15 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-cyan-200"><Map size={15} /> On The Road</div>
-                            <h1 className="mt-4 text-2xl font-black tracking-tight">Unit yang sedang jalan</h1>
-                            <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-300">Cek unit jalan, unit standby, tarif, biaya, dan profit untuk tanggal yang dipilih.</p>
+                            <div className="inline-flex items-center gap-2 rounded-full bg-[#f1efff] px-3 py-1.5 text-xs font-bold text-[#635bff]"><Map size={14} /> Operasional lapangan</div>
+                            <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Unit yang sedang jalan</h1>
+                            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Pantau unit jalan, unit standby, tarif, biaya, dan profit pada tanggal yang dipilih.</p>
                         </div>
-                        <CalendarWidget date={date} dateOptions={dateOptions} onChange={changeDate} dark />
+                        <CalendarWidget date={date} dateOptions={dateOptions} onChange={changeDate} />
                     </div>
+                    <div className="h-1 bg-gradient-to-r from-[#635bff] via-cyan-400 to-emerald-400" />
                 </section>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    <StatCard title="Total Unit" value={formatNumber(summary.totalUnit)} helper="Armada terdaftar" icon={Truck} />
-                    <StatCard title="Unit Jalan" value={formatNumber(summary.runningCount)} helper="Masuk data jalan tanggal ini" icon={Route} />
-                    <StatCard title="Unit Standby" value={formatNumber(summary.standbyCount)} helper="Belum muncul di data jalan" icon={Truck} />
-                    <StatCard title="Total Tarif" value={formatRp(summary.totalTarif)} helper="Tagihan dari unit yang jalan" icon={CircleDollarSign} />
-                    <StatCard title="Profit Hari Ini" value={formatRp(summary.totalProfit)} helper="Tarif dikurangi biaya" icon={CircleDollarSign} />
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                    <StatCard title="Total Unit" value={formatNumber(summary.totalUnit)} helper="Armada terdaftar" icon={Truck} tone="violet" />
+                    <StatCard title="Unit Jalan" value={formatNumber(summary.runningCount)} helper="Masuk data jalan tanggal ini" icon={Route} tone="cyan" />
+                    <StatCard title="Unit Standby" value={formatNumber(summary.standbyCount)} helper="Belum muncul di data jalan" icon={Truck} tone="amber" />
+                    <StatCard title="Total Tarif" value={formatRp(summary.totalTarif)} helper="Tagihan dari unit yang jalan" icon={CircleDollarSign} tone="emerald" />
+                    <StatCard title="Profit Hari Ini" value={formatRp(summary.totalProfit)} helper="Tarif dikurangi biaya" icon={CircleDollarSign} tone="rose" />
                 </div>
 
                 <LatestPositionMap positions={latestPositions} />
 
                 <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
                     {cards.map((item) => <UnitCard key={item.slug} item={item} />)}
-                    <Link href={standbyHref} className="group block rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:shadow-lg hover:shadow-slate-200/80">
+                    <Link href={standbyHref} className="group relative block min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#c7c3ff] hover:shadow-lg hover:shadow-[#635bff]/10">
+                        <div className="absolute inset-x-0 top-0 h-1 bg-amber-400" />
                         <div className="flex items-start justify-between gap-4">
                             <div>
-                                <p className="text-[11px] font-black uppercase tracking-wider text-cyan-700">UNIT STANDBY</p>
-                                <h2 className="mt-2 text-3xl font-black text-slate-950">{formatNumber(summary.standbyCount)}</h2>
-                                <p className="mt-1 text-xs font-semibold text-slate-500">unit siap jalan</p>
+                                <p className="text-xs font-semibold text-slate-500">Unit standby</p>
+                                <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{formatNumber(summary.standbyCount)}</h2>
+                                <p className="mt-1 text-xs text-slate-400">unit siap jalan</p>
                             </div>
-                            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-slate-950 text-white transition group-hover:bg-cyan-600"><ArrowRight size={19} /></div>
+                            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600 transition group-hover:bg-amber-500 group-hover:text-white"><ArrowRight size={19} /></div>
                         </div>
                     </Link>
                 </div>
@@ -311,8 +323,8 @@ export default function Index({ date, dateOptions = [], summary = {}, cards = []
 
                 <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                     <div className="border-b border-slate-100 p-4">
-                        <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Cuplikan Unit Jalan</h2>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">Beberapa data unit yang jalan pada tanggal ini.</p>
+                        <h2 className="text-base font-bold text-slate-950">Cuplikan Unit Jalan</h2>
+                        <p className="mt-1 text-sm text-slate-500">Beberapa data unit yang jalan pada tanggal ini.</p>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[900px] text-left">

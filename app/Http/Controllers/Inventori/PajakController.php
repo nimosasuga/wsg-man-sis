@@ -12,7 +12,9 @@ class PajakController extends Controller
 {
     public function index()
     {
-        $dataInventori = Inventori::select(
+        $status = request()->query('status');
+
+        $query = Inventori::select(
             'id_key',
             'nopol',
             'area',
@@ -25,10 +27,17 @@ class PajakController extends Controller
             'status_pajak',
             'foto_stnk',
             'foto_pajak'
-        )->get();
+        );
+
+        if ($status && in_array(strtoupper($status), ['AKTIF', 'EXPIRED', 'HAMPIR EXPIRED'], true)) {
+            $query->where('status_pajak', strtoupper($status));
+        }
+
+        $dataInventori = $query->get();
 
         return Inertia::render('Inventori/Pajak/Index', [
-            'rawTableData' => $dataInventori
+            'rawTableData' => $dataInventori,
+            'filterStatus' => $status ? strtoupper($status) : null,
         ]);
     }
 

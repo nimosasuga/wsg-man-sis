@@ -53,7 +53,7 @@ function TimelineTable({ title, rows = [], type }) {
                                 }}
                                 role="button"
                                 tabIndex={0}
-                                className="cursor-pointer hover:bg-cyan-50/40 focus:bg-cyan-50/60 focus:outline-none"
+                                className="cursor-pointer hover:bg-violet-50/50 focus:bg-violet-50/70 focus:outline-none"
                             >
                                 {type === "service" ? (
                                     <>
@@ -106,12 +106,12 @@ export default function Detail({ record = {}, unit = {}, related = {}, backUrl =
                                 <ArrowLeft size={19} />
                             </Link>
                             <div className="min-w-0">
-                                <p className="text-[11px] font-black uppercase tracking-wide text-cyan-700">Riwayat Service Unit</p>
-                                <h1 className="truncate text-xl font-black uppercase text-slate-950">Detail Service Umum</h1>
+                                <p className="text-[11px] font-black tracking-wide text-violet-700">Riwayat Service Unit</p>
+                                <h1 className="truncate text-xl font-black text-slate-950">Detail Service Umum</h1>
                             </div>
                         </div>
                         {canManage && <div className="flex flex-wrap gap-2">
-                            <Link href={`/riwayat-service-unit/service-umum/${record.id_key}/edit`} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-cyan-600 px-4 text-xs font-black uppercase tracking-wide text-white transition hover:bg-cyan-700">
+                            <Link href={`/riwayat-service-unit/service-umum/${record.id_key}/edit`} className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 text-xs font-black uppercase tracking-wide text-white transition hover:bg-violet-700">
                                 <Pencil size={15} />
                                 Edit
                             </Link>
@@ -126,7 +126,7 @@ export default function Detail({ record = {}, unit = {}, related = {}, backUrl =
                 <section className="rounded-xl bg-slate-950 p-5 text-white shadow-xl shadow-slate-200">
                     <div className="grid gap-5 lg:grid-cols-[1fr_0.75fr_0.75fr_0.75fr]">
                         <div>
-                            <div className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-cyan-200">
+                            <div className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-violet-200">
                                 <Truck size={15} />
                                 Unit Service
                             </div>

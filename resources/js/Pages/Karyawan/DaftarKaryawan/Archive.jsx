@@ -17,13 +17,13 @@ const statusTone = {
 function SelectFilter({ label, value, options = [], onChange }) {
     return (
         <label className="block">
-            <span className="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-400">
+            <span className="mb-1 block text-xs font-semibold text-slate-400">
                 {label}
             </span>
             <select
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-[#a8a2ff] focus:ring-4 focus:ring-[#f1efff]"
             >
                 <option value="all">Semua</option>
                 {options.map((option) => (
@@ -40,7 +40,7 @@ function StatusPill({ value }) {
     const label = value || "BELUM DIISI";
 
     return (
-        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black uppercase tracking-wide ${statusTone[label] || "border-slate-200 bg-slate-100 text-slate-600"}`}>
+        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold tracking-wide ${statusTone[label] || "border-slate-200 bg-slate-100 text-slate-600"}`}>
             {label}
         </span>
     );
@@ -105,17 +105,17 @@ export default function Archive({ employees = [], filters = {} }) {
             <Head title="Arsip Karyawan Non Aktif" />
 
             <div className="space-y-5">
-                <section className="rounded-xl bg-slate-950 p-5 text-white shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <div className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
                         <div>
-                            <div className="inline-flex items-center gap-2 rounded-lg bg-rose-400/15 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-rose-200">
+                            <div className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-600">
                                 <Users size={15} />
                                 Arsip HR
                             </div>
-                            <h1 className="mt-4 text-2xl font-black tracking-tight">
+                            <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
                                 Karyawan Expired / Non Aktif
                             </h1>
-                            <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-slate-300">
+                            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                                 Halaman ini khusus untuk data karyawan yang sudah expired atau tidak aktif. Data tidak ikut tabel kerja harian.
                             </p>
                         </div>
@@ -126,18 +126,19 @@ export default function Archive({ employees = [], filters = {} }) {
                                     value={search}
                                     onChange={(event) => setSearch(event.target.value)}
                                     placeholder="Cari nama, NIP, divisi, area..."
-                                    className="h-11 w-full rounded-lg border border-white/10 bg-white/10 pl-10 pr-3 text-sm font-semibold text-white placeholder:text-slate-400 outline-none focus:border-cyan-300/60 focus:ring-4 focus:ring-cyan-300/10"
+                                    className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm font-semibold text-slate-700 placeholder:text-slate-400 outline-none transition focus:border-rose-300 focus:ring-4 focus:ring-rose-50"
                                 />
                             </div>
                             <Link
                                 href="/daftar-karyawan"
-                                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-black text-slate-950 transition hover:bg-cyan-100"
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#f1efff] px-4 text-sm font-semibold text-[#635bff] transition hover:bg-[#e6e4ff]"
                             >
                                 <ArrowLeft size={16} />
                                 Kembali
                             </Link>
                         </div>
                     </div>
+                    <div className="h-1 bg-gradient-to-r from-rose-500 via-amber-400 to-[#635bff]" />
                 </section>
 
                 <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -156,7 +157,7 @@ export default function Archive({ employees = [], filters = {} }) {
                                     setArea("all");
                                     setStatus("all");
                                 }}
-                                className="h-10 w-full rounded-lg bg-slate-950 px-4 text-sm font-black text-white transition hover:bg-cyan-600"
+                                className="h-10 w-full rounded-lg bg-[#635bff] px-4 text-sm font-semibold text-white transition hover:bg-[#554de8]"
                             >
                                 Reset Filter
                             </button>
@@ -167,7 +168,7 @@ export default function Archive({ employees = [], filters = {} }) {
                 <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                     <div className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">
+                            <h2 className="text-base font-bold text-slate-950">
                                 Data Arsip Karyawan
                             </h2>
                             <p className="mt-1 text-xs font-semibold text-slate-500">
@@ -262,7 +263,7 @@ export default function Archive({ employees = [], filters = {} }) {
                                         <button
                                             type="button"
                                             onClick={() => setTablePage(pageNumber)}
-                                            className={`h-9 min-w-9 rounded-lg border px-2 text-xs font-black transition ${pageNumber === currentPage ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                                            className={`h-9 min-w-9 rounded-lg border px-2 text-xs font-bold transition ${pageNumber === currentPage ? "border-[#635bff] bg-[#635bff] text-white" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
                                         >
                                             {pageNumber}
                                         </button>

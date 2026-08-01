@@ -41,8 +41,8 @@ export default function UserDetail({ log = {}, backUrl = "/system/activity-log/u
                             <ArrowLeft size={19} />
                         </Link>
                         <div className="min-w-0">
-                            <p className="text-[11px] font-black uppercase tracking-wide text-cyan-700">User Activity Log</p>
-                            <h1 className="truncate text-xl font-black uppercase text-slate-950">Detail Aktivitas User</h1>
+                            <p className="text-[11px] font-black tracking-wide text-violet-700">User Activity Log</p>
+                            <h1 className="truncate text-xl font-black text-slate-950">Detail Aktivitas User</h1>
                         </div>
                     </div>
                 </section>
@@ -50,7 +50,7 @@ export default function UserDetail({ log = {}, backUrl = "/system/activity-log/u
                 <section className="rounded-xl bg-slate-950 p-5 text-white shadow-xl shadow-slate-200">
                     <div className="grid gap-5 lg:grid-cols-[1fr_0.75fr_0.75fr_0.75fr]">
                         <div>
-                            <div className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-cyan-200">
+                            <div className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-violet-200">
                                 <UserRound size={15} />
                                 Aktivitas User
                             </div>
@@ -107,7 +107,7 @@ export default function UserDetail({ log = {}, backUrl = "/system/activity-log/u
                 <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
                     <div className="border-b border-slate-100 px-5 py-4">
                         <div className="flex items-center gap-2">
-                            <Fingerprint size={17} className="text-cyan-700" />
+                            <Fingerprint size={17} className="text-violet-700" />
                             <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Raw Log</h2>
                         </div>
                         <p className="mt-1 text-xs font-semibold text-slate-500">Nilai mentah dari database, berguna kalau hasil parsing perlu dicek ulang.</p>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Biaya;
 use App\Http\Controllers\Controller;
 use App\Models\Inventori;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 class BiayaController extends Controller
@@ -22,25 +23,53 @@ class BiayaController extends Controller
     public function index()
     {
         $filters = $this->filters();
-        $vehicleCostRows = $this->vehicleCosts($this->emptyFilters())->values();
-        $operationRows = $this->operationRows()->values();
-        $summary = collect($this->categories)->map(function ($category, $slug) {
-            return [
-                'slug' => $slug,
-                'title' => $category['title'],
-                'amount' => $this->sumCategory($category),
-                'actionLabel' => 'LIHAT RINCIAN BIAYA',
-            ];
-        })->values();
+        $sort = (string) request()->query('sort', 'total');
+        $direction = request()->query('direction') === 'asc' ? 'asc' : 'desc';
+        $page = max(1, (int) request()->query('page', 1));
+        $perPage = 50;
+        $operationRows = collect(Cache::remember(
+            'biaya.operation-rows.v3',
+            now()->addMinutes(5),
+            fn () => $this->operationRows()->values()->all()
+        ));
+        $filterOptions = $this->filterOptions($filters, $operationRows);
+
+        if ($filters['WEEK'] !== 'ALL' && ! in_array($filters['WEEK'], $filterOptions['WEEK'], true)) {
+            $filters['WEEK'] = 'ALL';
+        }
+
+        $cacheSuffix = md5(json_encode($filters));
+
+        $allVehicleCosts = collect(Cache::remember(
+            "biaya.vehicle-costs.v3.{$cacheSuffix}",
+            now()->addMinutes(3),
+            fn () => $this->vehicleCosts($filters)->values()->all()
+        ));
+        $summary = $this->summaryFromVehicleCosts($allVehicleCosts);
+        $sortedVehicleCosts = $this->sortVehicleCosts($allVehicleCosts, $sort, $direction);
+        $totalRows = $sortedVehicleCosts->count();
+        $lastPage = max(1, (int) ceil($totalRows / $perPage));
+        $page = min($page, $lastPage);
+        $items = $sortedVehicleCosts->forPage($page, $perPage)->values();
 
         return Inertia::render('Biaya/Index', [
             'summaryData' => $summary,
-            'vehicleCosts' => $vehicleCostRows,
-            'vehicleCostRows' => $vehicleCostRows,
+            'vehicleCosts' => [
+                'data' => $items,
+                'current_page' => $page,
+                'last_page' => $lastPage,
+                'per_page' => $perPage,
+                'total' => $totalRows,
+                'from' => $totalRows ? (($page - 1) * $perPage) + 1 : 0,
+                'to' => min($page * $perPage, $totalRows),
+            ],
             'operationFlow' => $this->operationFlow($filters, $operationRows),
-            'operationRows' => $operationRows,
+            'dataComparison' => $this->comparisonData($filters, $operationRows),
+            'smartAnalysis' => $this->smartAnalysis($summary, $allVehicleCosts, $filters, $operationRows),
             'filters' => $filters,
-            'filterOptions' => $this->filterOptions(),
+            'sort' => $sort,
+            'direction' => $direction,
+            'filterOptions' => $filterOptions,
         ]);
     }
 
@@ -302,7 +331,12 @@ class BiayaController extends Controller
                     'tipe' => $unit->tipe,
                     'unit' => trim(implode(' ', array_filter([$unit->pabrikan, $unit->model]))),
                     'total' => $summary['total'],
+                    'pajakTahunanTotal' => $summary['pajakTahunanTotal'],
+                    'pajakLimaTahunTotal' => $summary['pajakLimaTahunTotal'],
+                    'kirTotal' => $summary['kirTotal'],
                     'legalitasTotal' => $summary['legalitasTotal'],
+                    'serviceUmumTotal' => $summary['serviceUmumTotal'],
+                    'serviceBanTotal' => $summary['serviceBanTotal'],
                     'maintenanceTotal' => $summary['maintenanceTotal'],
                     'operasionalPrimaryTotal' => $summary['operasionalPrimaryTotal'],
                     'operasionalSecondaryTotal' => $summary['operasionalSecondaryTotal'],
@@ -325,31 +359,106 @@ class BiayaController extends Controller
 
     private function operationFlow(array $filters, $operationRows = null): array
     {
-        $rows = ($operationRows ?? $this->operationRows())
+        $rows = collect($operationRows ?? $this->operationRows())
             ->filter(fn ($row) => $this->matchesOperationFilters((object) $row, $filters));
 
-        $primaryRows = $rows->where('source', 'primary');
-        $secondaryRows = $rows->where('source', 'secondary');
+        $group = $filters['WEEK'] !== 'ALL'
+            ? 'week'
+            : ($filters['TAHUN'] !== 'ALL' && $filters['BULAN'] !== 'ALL' ? 'week' : ($filters['TAHUN'] !== 'ALL' ? 'month' : 'year'));
+        $keyField = $group === 'week' ? 'week' : ($group === 'month' ? 'month' : 'year');
+        $timeline = collect($group === 'month'
+            ? ($filters['BULAN'] === 'ALL' ? $this->monthOptions() : [$filters['BULAN']])
+            : $rows->pluck($keyField)->filter(fn ($value) => $value && $value !== '0')->unique()->sort()->values());
 
-        $years = $primaryRows
-            ->pluck('year')
-            ->merge($secondaryRows->pluck('year'))
-            ->filter(fn ($year) => $year && $year !== '0')
-            ->unique()
-            ->sort()
-            ->values();
-
-        return $years->map(function ($year) use ($primaryRows, $secondaryRows) {
-            $primary = (float) $primaryRows->where('year', $year)->sum('nominal');
-            $secondary = (float) $secondaryRows->where('year', $year)->sum('nominal');
+        return $timeline->map(function ($key) use ($rows, $keyField, $group) {
+            $groupedRows = $rows->where($keyField, $key);
+            $primary = (float) $groupedRows->where('source', 'primary')->sum('nominal');
+            $secondary = (float) $groupedRows->where('source', 'secondary')->sum('nominal');
 
             return [
-                'year' => $year,
+                'key' => $key,
+                'label' => $group === 'month' ? preg_replace('/^[A-L]\s+/', '', $key) : $key,
                 'primary' => $primary,
                 'secondary' => $secondary,
                 'total' => $primary + $secondary,
             ];
         })->values()->all();
+    }
+
+    private function summaryFromVehicleCosts($rows)
+    {
+        return collect([
+            ['slug' => 'operasional-prim', 'title' => 'Operasional Prim.', 'key' => 'operasionalPrimaryTotal'],
+            ['slug' => 'operasional-sec', 'title' => 'Operasional Sec.', 'key' => 'operasionalSecondaryTotal'],
+            ['slug' => 'pajak-1-tahun', 'title' => 'Pajak 1 tahun', 'key' => 'pajakTahunanTotal'],
+            ['slug' => 'biaya-kir', 'title' => 'Biaya KIR', 'key' => 'kirTotal'],
+            ['slug' => 'pajak-5-tahun', 'title' => 'Pajak 5 tahun', 'key' => 'pajakLimaTahunTotal'],
+            ['slug' => 'service-ban', 'title' => 'Service Ban', 'key' => 'serviceBanTotal'],
+            ['slug' => 'service-umum', 'title' => 'Service umum', 'key' => 'serviceUmumTotal'],
+        ])->map(fn ($item) => [
+            'slug' => $item['slug'],
+            'title' => $item['title'],
+            'amount' => (float) $rows->sum($item['key']),
+            'actionLabel' => 'LIHAT RINCIAN BIAYA',
+        ])->values();
+    }
+
+    private function sortVehicleCosts($rows, string $sort, string $direction)
+    {
+        $allowed = ['nopol', 'area', 'tipe', 'unit', 'legalitasTotal', 'maintenanceTotal', 'operasionalTotal', 'total', 'riwayatTotal'];
+        $sort = in_array($sort, $allowed, true) ? $sort : 'total';
+
+        return $rows->map(function ($row) {
+            $row['riwayatTotal'] = (int) ($row['serviceCount'] ?? 0)
+                + (int) ($row['banCount'] ?? 0)
+                + (int) ($row['primaryCount'] ?? 0)
+                + (int) ($row['secondaryCount'] ?? 0);
+
+            return $row;
+        })->sortBy(
+            $sort,
+            SORT_REGULAR,
+            $direction === 'desc'
+        )->values();
+    }
+
+    private function comparisonData(array $filters, $operationRows): ?array
+    {
+        if ($filters['TAHUN'] === 'ALL') {
+            return null;
+        }
+
+        $aggregate = fn ($rows) => [
+            'primary' => (float) $rows->where('source', 'primary')->sum('nominal'),
+            'secondary' => (float) $rows->where('source', 'secondary')->sum('nominal'),
+            'total' => (float) $rows->whereIn('source', ['primary', 'secondary'])->sum('nominal'),
+            'revenue' => (float) $rows->sum('revenue'),
+        ];
+        $currentRows = $operationRows->filter(fn ($row) => (string) $row['year'] === $filters['TAHUN']
+            && ($filters['BULAN'] === 'ALL' || (string) $row['month'] === $filters['BULAN'])
+            && ($filters['WEEK'] === 'ALL' || (string) $row['week'] === $filters['WEEK'])
+            && $this->matchesOperationFilters((object) $row, $filters));
+
+        $previousLabel = null;
+        $previousRows = collect();
+        if ($filters['BULAN'] !== 'ALL') {
+            $months = $this->monthOptions();
+            $monthIndex = array_search($filters['BULAN'], $months, true);
+            $previousMonth = $monthIndex > 0 ? $months[$monthIndex - 1] : end($months);
+            $previousYear = $monthIndex > 0 ? $filters['TAHUN'] : (string) ((int) $filters['TAHUN'] - 1);
+            $previousLabel = preg_replace('/^[A-L]\s+/', '', $previousMonth).' '.$previousYear;
+            $previousRows = $operationRows->filter(fn ($row) => (string) $row['year'] === $previousYear && (string) $row['month'] === $previousMonth);
+        } else {
+            $previousYear = (string) ((int) $filters['TAHUN'] - 1);
+            $previousLabel = $previousYear;
+            $previousRows = $operationRows->where('year', $previousYear);
+        }
+
+        return [
+            'current' => $aggregate($currentRows),
+            'previous' => $previousRows->isNotEmpty() ? $aggregate($previousRows) : null,
+            'previousLabel' => $previousLabel,
+        ];
     }
 
     private function filters(): array
@@ -373,6 +482,77 @@ class BiayaController extends Controller
             'AREA' => 'ALL',
             'TIPE' => 'ALL',
             'NOPOL' => 'ALL',
+        ];
+    }
+
+    private function monthOptions(): array
+    {
+        return [
+            'A Januari',
+            'B Februari',
+            'C Maret',
+            'D April',
+            'E Mei',
+            'F Juni',
+            'G Juli',
+            'H Agustus',
+            'I September',
+            'J Oktober',
+            'K November',
+            'L Desember',
+        ];
+    }
+
+    private function smartAnalysis($summary, $vehicleCosts, array $filters, $operationRows): array
+    {
+        $totalBiaya = (float) $summary->sum('amount');
+        $periodActive = $filters['TAHUN'] !== 'ALL' || $filters['BULAN'] !== 'ALL' || $filters['WEEK'] !== 'ALL';
+        $operations = $operationRows->filter(fn ($row) => $this->matchesOperationFilters((object) $row, $filters));
+        $revenue = (float) $operations->sum('revenue');
+        $expense = $periodActive ? (float) $operations->sum('nominal') : (float) $vehicleCosts->sum('total');
+        $profit = $revenue - $expense;
+        $margin = $revenue > 0 ? ($profit / $revenue) * 100 : 0;
+        $top = $summary->sortByDesc('amount')->first();
+        $areaTotals = $operations->groupBy(fn ($row) => $row['area'] ?: 'TIDAK DIKETAHUI')
+            ->map(fn ($rows, $area) => [
+                'name' => $area,
+                'revenue' => (float) $rows->sum('revenue'),
+                'expense' => $periodActive ? (float) $rows->sum('nominal') : (float) $vehicleCosts->where('area', $area)->sum('total'),
+            ])->map(function ($item) {
+                $item['profit'] = $item['revenue'] - $item['expense'];
+                $item['margin'] = $item['revenue'] > 0 ? ($item['profit'] / $item['revenue']) * 100 : 0;
+
+                return $item;
+            })->filter(fn ($item) => $item['revenue'] > 0)->values();
+        $bestArea = $areaTotals->sortByDesc('profit')->first();
+        $weakestArea = $areaTotals->sortBy('margin')->first();
+        $notes = [];
+
+        if ($top && $totalBiaya > 0) {
+            $notes[] = sprintf('%s menjadi beban terbesar: Rp%s, sekitar %.1f%% dari total biaya.', $top['title'], number_format($top['amount'], 0, ',', '.'), ($top['amount'] / $totalBiaya) * 100);
+        }
+        if ($revenue > 0) {
+            $notes[] = sprintf('Margin yang terbaca %.1f%%. Patokan kerja internal saat ini 15%%; angka di bawah itu perlu dicek bersama tarif, ritase, dan biaya lapangan.', $margin);
+        }
+        if ($bestArea) {
+            $notes[] = sprintf('%s memberi sisa keuntungan area terbesar, Rp%s, dengan margin %.1f%%.', $bestArea['name'], number_format($bestArea['profit'], 0, ',', '.'), $bestArea['margin']);
+        }
+        if ($weakestArea && (!$bestArea || $weakestArea['name'] !== $bestArea['name'])) {
+            $notes[] = sprintf('%s punya margin paling tipis, %.1f%%. Cek tarif dan biaya unit sebelum menambah pekerjaan.', $weakestArea['name'], $weakestArea['margin']);
+        }
+        if (!$notes) {
+            $notes[] = 'Belum ada pendapatan atau biaya yang cocok dengan filter ini. Periksa periode dan sumber data yang dipilih.';
+        }
+        $notes[] = 'Mulai dari kategori biaya terbesar, lalu buka rincian kendaraan untuk memastikan biaya sejalan dengan aktivitas unitnya.';
+
+        return [
+            'top' => $top,
+            'revenue' => $revenue,
+            'expense' => $expense,
+            'profit' => $profit,
+            'margin' => $margin,
+            'benchmarkMargin' => 15,
+            'notes' => array_slice($notes, 0, 6),
         ];
     }
 
@@ -479,29 +659,24 @@ class BiayaController extends Controller
         return null;
     }
 
-    private function filterOptions(): array
+    private function filterOptions(array $filters, $operationRows): array
     {
         $inventory = Inventori::select('nopol', 'area', 'tipe')
             ->whereNotNull('nopol')
             ->where('nopol', '!=', '')
             ->get();
 
-        $years = DB::table('operasional_primary_input')
-            ->select('tanggal_muat as tanggal')
-            ->whereNotNull('tanggal_muat')
-            ->get()
-            ->merge(DB::table('operasional_secondary_input')->select('tanggal')->whereNotNull('tanggal')->get())
-            ->map(fn ($row) => $this->dateGroups($row->tanggal ?? null)[0])
+        $operationRows = collect($operationRows);
+        $years = $operationRows
+            ->pluck('year')
             ->filter(fn ($year) => $year && $year !== '0')
             ->unique()
             ->sortDesc()
             ->values();
-        $weeks = DB::table('operasional_primary_input')
-            ->select('tanggal_muat as tanggal')
-            ->whereNotNull('tanggal_muat')
-            ->get()
-            ->merge(DB::table('operasional_secondary_input')->select('tanggal')->whereNotNull('tanggal')->get())
-            ->map(fn ($row) => $this->dateGroups($row->tanggal ?? null)[2])
+        $weeks = $operationRows
+            ->filter(fn ($row) => ($filters['TAHUN'] === 'ALL' || (string) $row['year'] === $filters['TAHUN'])
+                && ($filters['BULAN'] === 'ALL' || (string) $row['month'] === $filters['BULAN']))
+            ->pluck('week')
             ->filter(fn ($week) => $week && $week !== '0')
             ->unique()
             ->sort()
@@ -509,20 +684,7 @@ class BiayaController extends Controller
 
         return [
             'TAHUN' => $this->optionList($years),
-            'BULAN' => $this->optionList([
-                'A Januari',
-                'B Februari',
-                'C Maret',
-                'D April',
-                'E Mei',
-                'F Juni',
-                'G Juli',
-                'H Agustus',
-                'I September',
-                'J Oktober',
-                'K November',
-                'L Desember',
-            ]),
+            'BULAN' => $this->optionList($this->monthOptions()),
             'WEEK' => $this->optionList($weeks),
             'AREA' => $this->optionList($inventory->pluck('area')),
             'TIPE' => $this->optionList($inventory->pluck('tipe')),
@@ -593,7 +755,12 @@ class BiayaController extends Controller
 
         return [
             'total' => $pajakTahunan + $pajakLimaTahun + $kir + $serviceUmum + $serviceBan + $operasionalTotal,
+            'pajakTahunanTotal' => $pajakTahunan,
+            'pajakLimaTahunTotal' => $pajakLimaTahun,
+            'kirTotal' => $kir,
             'legalitasTotal' => $pajakTahunan + $pajakLimaTahun + $kir,
+            'serviceUmumTotal' => $serviceUmum,
+            'serviceBanTotal' => $serviceBan,
             'maintenanceTotal' => $serviceUmum + $serviceBan,
             'operasionalPrimaryTotal' => $operasionalPrimary,
             'operasionalSecondaryTotal' => $operasionalSecondary,

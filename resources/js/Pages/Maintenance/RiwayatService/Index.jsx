@@ -41,7 +41,7 @@ function SummaryCard({ title, value, helper, icon: Icon }) {
                     <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">{title}</p>
                     <p className="mt-2 break-words text-2xl font-black text-slate-950">{value}</p>
                 </div>
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-600">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-600">
                     <Icon size={19} />
                 </div>
             </div>
@@ -58,7 +58,7 @@ function FilterSelect({ label, value, options, onChange }) {
                 <select
                     value={value}
                     onChange={(event) => onChange(event.target.value)}
-                    className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                    className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                 >
                     {options.map((option) => (
                         <option key={option} value={option}>{option}</option>
@@ -69,7 +69,7 @@ function FilterSelect({ label, value, options, onChange }) {
                     type="date"
                     value={value}
                     onChange={(event) => onChange(event.target.value)}
-                    className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+                    className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                 />
             )}
         </label>
@@ -80,7 +80,7 @@ function MenuCard({ title, helper, href, icon: Icon, count, amount, tone }) {
     return (
         <Link
             href={href}
-            className="group block rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-cyan-200 hover:shadow-lg hover:shadow-slate-200/80"
+            className="group block rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-lg hover:shadow-slate-200/80"
         >
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
@@ -91,7 +91,7 @@ function MenuCard({ title, helper, href, icon: Icon, count, amount, tone }) {
                     <h2 className="mt-4 text-2xl font-black text-slate-950">{formatRp(amount)}</h2>
                     <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">{helper}</p>
                 </div>
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-slate-950 text-white transition group-hover:bg-cyan-600">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-slate-950 text-white transition group-hover:bg-violet-600">
                     <ArrowRight size={19} />
                 </div>
             </div>
@@ -132,20 +132,20 @@ function SmartAnalysis({ activeTab, rows, breakdown }) {
     }, [activeTab, rows, breakdown]);
 
     return (
-        <section className="rounded-xl border border-cyan-100 bg-white p-5 shadow-sm">
+        <section className="rounded-xl border border-violet-100 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-start gap-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-700">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-700">
                     <Lightbulb size={19} />
                 </div>
                 <div>
-                    <p className="text-xs font-black uppercase tracking-wider text-cyan-700">Catatan service</p>
+                    <p className="text-xs font-black tracking-wider text-violet-700">Catatan service</p>
                     <h2 className="mt-1 text-lg font-black text-slate-950">Yang perlu dicek dulu</h2>
                 </div>
             </div>
             <div className="grid gap-3 lg:grid-cols-2">
                 {notes.map((note, index) => (
                     <div key={note} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-700">
-                        <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded bg-white text-[11px] font-black text-cyan-700">{index + 1}</span>
+                        <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded bg-white text-[11px] font-black text-violet-700">{index + 1}</span>
                         {note}
                     </div>
                 ))}
@@ -235,7 +235,7 @@ export default function Index({
                 <section className="rounded-xl bg-slate-950 p-5 text-white shadow-sm">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                         <div>
-                            <div className="inline-flex items-center gap-2 rounded-lg bg-cyan-400/15 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-cyan-200">
+                            <div className="inline-flex items-center gap-2 rounded-lg bg-violet-400/15 px-3 py-1.5 text-xs font-black tracking-wider text-violet-200">
                                 <PenTool size={15} />
                                 Maintenance
                             </div>
@@ -253,7 +253,7 @@ export default function Index({
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                                 placeholder="Cari nopol, area, driver, keluhan..."
-                                className="h-11 w-full rounded-lg border border-white/10 bg-white/10 pl-10 pr-3 text-sm font-semibold text-white placeholder:text-slate-400 outline-none focus:border-cyan-300/60 focus:ring-4 focus:ring-cyan-300/10"
+                                className="h-11 w-full rounded-lg border border-white/10 bg-white/10 pl-10 pr-3 text-sm font-semibold text-white placeholder:text-slate-400 outline-none focus:border-violet-300/60 focus:ring-4 focus:ring-violet-300/10"
                             />
                         </div>
                         )}
@@ -270,7 +270,7 @@ export default function Index({
                                 icon={Wrench}
                                 count={summary.totalService || 0}
                                 amount={summary.totalBiayaService || 0}
-                                tone="bg-cyan-50 text-cyan-700"
+                                tone="bg-violet-50 text-violet-700"
                             />
                             <MenuCard
                                 title="Service Ban Berkala"
@@ -307,7 +307,7 @@ export default function Index({
                             </Link>
                             {canManage && <Link
                                 href={activeTab === "service" ? "/riwayat-service-unit/service-umum/create" : "/riwayat-service-unit/service-ban/create"}
-                                className="inline-flex items-center gap-2 rounded-lg bg-cyan-600 px-3 py-2 text-xs font-black uppercase tracking-wide text-white transition hover:bg-cyan-700"
+                                className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-2 text-xs font-black uppercase tracking-wide text-white transition hover:bg-violet-700"
                             >
                                 <Plus size={15} />
                                 Tambah Data
@@ -375,7 +375,7 @@ export default function Index({
                                             key={key}
                                             type="button"
                                             onClick={() => setActiveTab(key)}
-                                            className={`rounded-md px-3 py-2 text-xs font-black transition ${activeTab === key ? "bg-white text-cyan-700 shadow-sm" : "text-slate-500 hover:text-slate-900"}`}
+                                            className={`rounded-md px-3 py-2 text-xs font-black transition ${activeTab === key ? "bg-white text-violet-700 shadow-sm" : "text-slate-500 hover:text-slate-900"}`}
                                         >
                                             {label} ({count})
                                         </button>
@@ -413,7 +413,7 @@ export default function Index({
                                                 }}
                                                 role="button"
                                                 tabIndex={0}
-                                                className="cursor-pointer hover:bg-cyan-50/40 focus:bg-cyan-50/60 focus:outline-none"
+                                                className="cursor-pointer hover:bg-violet-50/50 focus:bg-violet-50/70 focus:outline-none"
                                             >
                                                 {activeTab === "service" ? (
                                                     <>

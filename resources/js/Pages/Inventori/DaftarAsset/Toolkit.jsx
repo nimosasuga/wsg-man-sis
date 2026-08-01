@@ -286,9 +286,9 @@ export default function Toolkit({ rawTableData = [] }) {
                 </div>
             </div>
 
-            <div className="flex h-[calc(100vh-180px)] flex-col gap-4 overflow-hidden md:flex-row">
+            <div className="flex min-w-0 flex-col gap-4 overflow-hidden lg:h-[calc(100vh-180px)] lg:flex-row">
                 <div
-                    className={`flex shrink-0 origin-left flex-col rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300 ease-in-out ${isFilterSidebarOpen ? "w-full opacity-100 md:w-64" : "w-0 overflow-hidden border-0 opacity-0"}`}
+                    className={`flex shrink-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-300 ease-in-out ${isFilterSidebarOpen ? "w-full opacity-100 lg:w-64" : "h-0 w-0 overflow-hidden border-0 opacity-0 lg:h-auto"}`}
                 >
                     <div
                         onClick={() => {
@@ -341,7 +341,7 @@ export default function Toolkit({ rawTableData = [] }) {
                     </div>
                 </div>
 
-                <div className="relative flex flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300">
+                <div className="relative flex min-h-[420px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-300">
                     <div className="flex flex-col justify-between gap-3 border-b border-gray-100 bg-white px-4 py-3 md:flex-row md:items-center">
                         <div>
                             <p className="text-xs font-black uppercase tracking-wider text-gray-400">Data Toolkit</p>

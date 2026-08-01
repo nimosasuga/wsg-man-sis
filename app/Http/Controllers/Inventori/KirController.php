@@ -12,7 +12,9 @@ class KirController extends Controller
 {
     public function index()
     {
-        $dataInventori = Inventori::select(
+        $status = request()->query('status');
+
+        $query = Inventori::select(
             'id_key',
             'nopol',
             'area',
@@ -29,10 +31,17 @@ class KirController extends Controller
             'foto_stnk',
             'foto_pajak',
             'keterangan_proses_keur'
-        )->get();
+        );
+
+        if ($status && in_array(strtoupper($status), ['AKTIF', 'EXPIRED', 'HAMPIR EXPIRED'], true)) {
+            $query->where('status_kir', strtoupper($status));
+        }
+
+        $dataInventori = $query->get();
 
         return Inertia::render('Inventori/Kir/Index', [
-            'rawTableData' => $dataInventori
+            'rawTableData' => $dataInventori,
+            'filterStatus' => $status ? strtoupper($status) : null,
         ]);
     }
 

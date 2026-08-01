@@ -28,7 +28,7 @@ function StatusPill({ value: status }) {
     const label = status || "BELUM DIISI";
 
     return (
-        <span className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-wide ${statusTone[label] || "border-slate-200 bg-slate-100 text-slate-600"}`}>
+        <span className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-bold tracking-wide ${statusTone[label] || "border-slate-200 bg-slate-100 text-slate-600"}`}>
             {label}
         </span>
     );
@@ -38,10 +38,10 @@ function InfoCard({ title, icon: Icon, children }) {
     return (
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
-                <div className="grid h-9 w-9 place-items-center rounded-lg bg-cyan-50 text-cyan-600">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#f1efff] text-[#635bff]">
                     <Icon size={18} />
                 </div>
-                <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">{title}</h2>
+                <h2 className="text-base font-bold text-slate-950">{title}</h2>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">{children}</div>
         </section>
@@ -51,7 +51,7 @@ function InfoCard({ title, icon: Icon, children }) {
 function Field({ label, children, wide = false }) {
     return (
         <div className={wide ? "sm:col-span-2" : ""}>
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">{label}</p>
+            <p className="text-xs font-semibold text-slate-400">{label}</p>
             <p className="mt-1 break-words text-sm font-bold leading-6 text-slate-800">{value(children)}</p>
         </div>
     );
@@ -73,7 +73,7 @@ export default function Detail({ employee }) {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <Link
                         href="/daftar-karyawan"
-                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:border-cyan-300 hover:text-cyan-600"
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-[#bdb8ff] hover:text-[#635bff]"
                     >
                         <ArrowLeft size={16} />
                         Kembali ke Daftar Karyawan
@@ -81,7 +81,7 @@ export default function Detail({ employee }) {
                     {canManage && <div className="flex flex-wrap gap-2">
                         <Link
                             href={`/daftar-karyawan/${employee.id_key}/edit`}
-                            className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-sm font-black text-white shadow-sm transition hover:bg-cyan-600"
+                            className="inline-flex items-center gap-2 rounded-lg bg-[#635bff] px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#554de8]"
                         >
                             <Edit3 size={16} />
                             Edit
@@ -97,17 +97,18 @@ export default function Detail({ employee }) {
                     </div>}
                 </div>
 
-                <section className="rounded-xl bg-slate-950 p-5 text-white shadow-sm">
+                <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <div className="p-5 sm:p-6">
                     <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                         <div className="min-w-0">
-                            <div className="inline-flex items-center gap-2 rounded-lg bg-cyan-400/15 px-3 py-1.5 text-xs font-black uppercase tracking-wider text-cyan-200">
+                            <div className="inline-flex items-center gap-2 rounded-full bg-[#f1efff] px-3 py-1.5 text-xs font-bold text-[#635bff]">
                                 <User size={15} />
                                 Detail Karyawan
                             </div>
-                            <h1 className="mt-4 break-words text-2xl font-black tracking-tight">
+                            <h1 className="mt-4 break-words text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
                                 {value(employee.nama_karyawan)}
                             </h1>
-                            <p className="mt-2 text-sm font-semibold text-slate-300">
+                            <p className="mt-2 text-sm text-slate-500">
                                 {value(employee.jabatan)} | {value(employee.divisi)} | {value(employee.area)}
                             </p>
                         </div>
@@ -116,6 +117,8 @@ export default function Detail({ employee }) {
                             <StatusPill value={employee.status_pkwt} />
                         </div>
                     </div>
+                    </div>
+                    <div className="h-1 bg-gradient-to-r from-[#635bff] via-cyan-400 to-emerald-400" />
                 </section>
 
                 <div className="grid gap-4 xl:grid-cols-2">

@@ -1,6 +1,6 @@
 // resources/js/Layouts/AdminLayout.jsx
 import { Link, router, usePage } from "@inertiajs/react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     LayoutDashboard,
     DollarSign,
@@ -17,46 +17,63 @@ import {
     Bell,
     ChevronLeft,
     ChevronRight,
+    ChevronDown,
     LogOut,
     Menu,
     X,
     ShieldCheck,
     ArrowUpRight,
     Database,
+    Gauge,
+    Pin,
+    PinOff,
+    PanelLeftClose,
+    PanelLeftOpen,
+    Globe2,
+    Grid2X2,
 } from "lucide-react";
 
-const NAV_BG = "#0f172a";
-const PAGE_BG = "#f4f7fb";
-const SIDEBAR_OPEN_WIDTH = 236;
-const SIDEBAR_CLOSED_WIDTH = 72;
+
+const SIDEBAR_OPEN_WIDTH = 288;
+const SIDEBAR_CLOSED_WIDTH = 88;
 const DESKTOP_QUERY = "(min-width: 1024px)";
 const SIDEBAR_STORAGE_KEY = "washeng:admin-sidebar-open";
+const SIDEBAR_PIN_STORAGE_KEY = "washeng:admin-sidebar-pinned";
 
 const menus = [
-    { name: "DASHBOARD", icon: LayoutDashboard, path: "/dashboard", permission: "dashboard.view" },
-        { name: "BIAYA", icon: DollarSign, path: "/biaya", permission: "biaya.view" },
-        { name: "PROFIT UNIT", icon: TrendingUp, path: "/profit-unit", permission: "profit-unit.view" },
+    { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard", permission: "dashboard.view" },
     {
-        name: "DAFTAR UNIT",
+        name: "Business Control",
+        icon: Gauge,
+        children: [
+            { name: "Performance", path: "/business-control/performance", permission: "dashboard.view" },
+            { name: "Data Health", path: "/business-control/health", permission: "dashboard.view" },
+        ],
+        permission: "dashboard.view",
+    },
+    { name: "Biaya", icon: DollarSign, path: "/biaya", permission: "biaya.view" },
+        { name: "Profit Unit", icon: TrendingUp, path: "/profit-unit", permission: "profit-unit.view" },
+    {
+        name: "Daftar Unit",
         icon: Truck,
         path: "/inventori/daftar-unit",
         activePaths: ["/inventori/daftar-unit", "/inventori/pajak", "/inventori/stnk", "/inventori/kir"],
         permission: "inventory.view",
     },
     {
-        name: "DAFTAR ASSET",
+        name: "Daftar Asset",
         icon: Box,
         path: "/inventori/daftar-asset",
         activePaths: ["/inventori/daftar-asset"],
         permission: "inventory.view",
     },
-    { name: "ON THE ROAD", icon: Map, path: "/on-the-road", permission: "on-the-road.view" },
-    { name: "NEED APPROVAL", icon: CheckSquare, path: "/need-approval", permission: "approval.view" },
-    { name: "DAFTAR KARYAWAN", icon: Users, path: "/daftar-karyawan", permission: "employees.view" },
-    { name: "RIWAYAT SERVICE UNIT", icon: PenTool, path: "/riwayat-service-unit", permission: "service.view" },
-    { name: "SYSTEM ACTIVITY LOG", icon: Activity, path: "/system/data-health", permission: "system.view" },
+    { name: "On The Road", icon: Map, path: "/on-the-road", permission: "on-the-road.view" },
+    { name: "Need Approval", icon: CheckSquare, path: "/need-approval", permission: "approval.view" },
+    { name: "Daftar Karyawan", icon: Users, path: "/daftar-karyawan", permission: "employees.view" },
+    { name: "Riwayat Service Unit", icon: PenTool, path: "/riwayat-service-unit", permission: "service.view" },
+    { name: "System Activity Log", icon: Activity, path: "/system/data-health", permission: "system.view" },
     {
-        name: "CRUD DATA",
+        name: "CRUD Data",
         icon: Database,
         path: "/module-records",
         activePaths: ["/module-records"],
@@ -70,7 +87,7 @@ const menus = [
             "system.manage",
         ],
     },
-    { name: "ROLE & AKSES", icon: ShieldCheck, path: "/system/access-control", permission: "access-control.manage" },
+    { name: "Role & Akses", icon: ShieldCheck, path: "/system/access-control", permission: "access-control.manage" },
 ];
 
 export default function AdminLayout({ children }) {
@@ -81,12 +98,21 @@ export default function AdminLayout({ children }) {
 
         return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) !== "false";
     });
+    const [isSidebarPinned, setIsSidebarPinned] = useState(() => {
+        if (typeof window === "undefined") {
+            return true;
+        }
+
+        return window.localStorage.getItem(SIDEBAR_PIN_STORAGE_KEY) !== "false";
+    });
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [globalSearch, setGlobalSearch] = useState("");
     const [globalResults, setGlobalResults] = useState([]);
     const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
     const [isGlobalSearchLoading, setIsGlobalSearchLoading] = useState(false);
+    const [collapsedMenus, setCollapsedMenus] = useState({});
+    const searchInputRef = useRef(null);
     const [isDesktop, setIsDesktop] = useState(() =>
         typeof window === "undefined"
             ? true
@@ -110,6 +136,16 @@ export default function AdminLayout({ children }) {
         window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(value));
     };
 
+    const toggleSidebarPin = () => {
+        const nextPinnedState = !isSidebarPinned;
+        setIsSidebarPinned(nextPinnedState);
+        window.localStorage.setItem(SIDEBAR_PIN_STORAGE_KEY, String(nextPinnedState));
+
+        if (nextPinnedState) {
+            setDesktopSidebarOpen(true);
+        }
+    };
+
     useEffect(() => {
         const mediaQuery = window.matchMedia(DESKTOP_QUERY);
         const handleChange = (event) => {
@@ -123,6 +159,19 @@ export default function AdminLayout({ children }) {
         mediaQuery.addEventListener("change", handleChange);
 
         return () => mediaQuery.removeEventListener("change", handleChange);
+    }, []);
+
+    useEffect(() => {
+        const focusSearch = (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === "/") {
+                event.preventDefault();
+                searchInputRef.current?.focus();
+            }
+        };
+
+        window.addEventListener("keydown", focusSearch);
+
+        return () => window.removeEventListener("keydown", focusSearch);
     }, []);
 
     useEffect(() => {
@@ -161,14 +210,10 @@ export default function AdminLayout({ children }) {
         };
     }, [globalSearch]);
 
-    const sidebarWidth = isDesktop
-        ? isSidebarOpen
-            ? SIDEBAR_OPEN_WIDTH
-            : SIDEBAR_CLOSED_WIDTH
-        : SIDEBAR_OPEN_WIDTH;
     const isExpanded = isDesktop ? isSidebarOpen : true;
-    const sidebarWidthClass = isExpanded ? "w-[236px]" : "w-[72px]";
-    const shellOffset = isDesktop ? sidebarWidth : 0;
+    const sidebarWidthClass = isExpanded ? "w-72" : "w-[88px]";
+    const mainMenus = visibleMenus.filter((menu) => !["CRUD Data", "Role & Akses"].includes(menu.name));
+    const administrationMenus = visibleMenus.filter((menu) => ["CRUD Data", "Role & Akses"].includes(menu.name));
     const handleLogout = () => {
         if (isLoggingOut) return;
 
@@ -186,55 +231,135 @@ export default function AdminLayout({ children }) {
     };
 
     return (
-        <div className="h-screen overflow-hidden font-sans" style={{ backgroundColor: PAGE_BG }}>
+        <>
             <div
-                className={`${isMobileSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"} fixed inset-0 z-30 bg-slate-950/55 backdrop-blur-[2px] transition-opacity lg:hidden`}
+                className={`${isMobileSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"} fixed inset-0 z-30 bg-slate-900/35 backdrop-blur-[2px] transition-opacity lg:hidden`}
                 onClick={() => setIsMobileSidebarOpen(false)}
                 aria-hidden="true"
             />
 
             <aside
-                className={`${sidebarWidthClass} fixed inset-y-0 left-0 z-40 flex flex-col overflow-hidden text-slate-100 shadow-[18px_0_55px_rgba(15,23,42,0.18)] transition-[width,transform] duration-300 ease-out ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
-                style={{ backgroundColor: NAV_BG }}
+                className={`${sidebarWidthClass} font-[Manrope] fixed inset-y-0 left-0 z-40 flex flex-col overflow-hidden border-r border-[#e7e3eb] bg-white text-slate-700 shadow-[8px_0_24px_rgba(75,70,92,0.08)] transition-[width,transform] duration-300 ease-out ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:relative lg:inset-auto lg:z-auto lg:h-full lg:shrink-0 lg:translate-x-0`}
+                onMouseEnter={() => {
+                    if (isDesktop && !isSidebarPinned) setDesktopSidebarOpen(true);
+                }}
+                onMouseLeave={() => {
+                    if (isDesktop && !isSidebarPinned) setDesktopSidebarOpen(false);
+                }}
             >
-                <div className={`h-14 shrink-0 border-b border-white/10 ${isExpanded ? "px-4" : "px-0"} flex items-center ${isExpanded ? "justify-between" : "justify-center"}`}>
+                <div className={`h-[74px] shrink-0 ${isExpanded ? "px-5" : "px-0"} flex items-center ${isExpanded ? "justify-between" : "justify-center"}`}>
                     <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5">
-                        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-xs font-black text-slate-950 shadow-lg shadow-cyan-500/10">
-                            W
+                        <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-transparent">
+                            <img
+                                src="/Icon-512x512-px.webp"
+                                alt="Logo Washeng"
+                                className="h-full w-full object-contain"
+                            />
                         </div>
                         <div className={`${isExpanded ? "block" : "hidden"} min-w-0`}>
-                            <p className="truncate text-xs font-black tracking-[0.16em] text-white">
-                                WASHENG
+                            <p className="truncate text-sm font-extrabold tracking-[0.08em] text-slate-800">
+                                Washeng
                             </p>
-                            <p className="truncate text-[10px] font-semibold text-cyan-200/80">
-                                Fleet ERP
+                            <p className="truncate text-[11px] font-semibold text-slate-400">
+                                Manajemen Sistem
                             </p>
                         </div>
                     </Link>
-                    <button
-                        onClick={() =>
-                            isDesktop
-                                ? setDesktopSidebarOpen(false)
-                                : setIsMobileSidebarOpen(false)
-                        }
-                        className={`${isExpanded ? "grid" : "hidden"} h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/10 text-slate-200 transition hover:bg-white hover:text-slate-950`}
-                        title={isDesktop ? "Tutup Menu" : "Tutup Sidebar"}
-                    >
-                        {isDesktop ? <ChevronLeft size={15} /> : <X size={15} />}
-                    </button>
+                    <div className={`${isExpanded ? "flex" : "hidden"} items-center gap-1`}>
+                        {isDesktop && (
+                            <button
+                                type="button"
+                                onClick={toggleSidebarPin}
+                                className={`grid h-8 w-8 place-items-center rounded-lg transition-colors duration-200 ${isSidebarPinned ? "bg-[#f5f3ff] text-[#7367f0]" : "text-slate-400 hover:bg-[#f5f3ff] hover:text-[#7367f0]"}`}
+                                title={isSidebarPinned ? "Sidebar terkunci" : "Sidebar mengikuti kursor"}
+                            >
+                                {isSidebarPinned ? <Pin size={15} /> : <PinOff size={15} />}
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => isDesktop ? setDesktopSidebarOpen(false) : setIsMobileSidebarOpen(false)}
+                            className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition-colors duration-200 hover:bg-[#f5f3ff] hover:text-[#7367f0]"
+                            title={isDesktop ? "Sembunyikan label menu" : "Tutup Sidebar"}
+                        >
+                            {isDesktop ? <PanelLeftClose size={17} /> : <X size={17} />}
+                        </button>
+                    </div>
                 </div>
 
                 <button
                     onClick={() => setDesktopSidebarOpen(true)}
-                    className={`${isDesktop && !isSidebarOpen ? "grid" : "hidden"} mx-auto mt-3 h-7 w-7 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/10 text-slate-200 transition hover:bg-white hover:text-slate-950`}
+                    className={`${isDesktop && !isSidebarOpen ? "grid" : "hidden"} mx-auto mt-3 h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#f5f3ff] text-[#7367f0] transition-colors duration-150 hover:bg-[#7367f0] hover:text-white`}
                     title="Buka Menu"
                 >
-                    <ChevronRight size={15} />
+                    <PanelLeftOpen size={17} />
                 </button>
 
-                <div className="flex-1 overflow-y-auto px-2.5 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    <nav className="space-y-1.5" role="navigation">
-                        {visibleMenus.map((menu) => {
+                <div className="flex-1 overflow-y-auto px-3 pb-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <nav className="space-y-0.5" role="navigation">
+                        <p className={`${isExpanded ? "block" : "hidden"} mb-2 px-2.5 text-[10px] font-semibold tracking-[0.04em] text-slate-400`}>Menu utama</p>
+                        {mainMenus.map((menu) => {
+                            if (menu.children) {
+                                const isAnyChildActive = menu.children.some((child) =>
+                                    activePath.startsWith(child.path)
+                                );
+                                const isOpen = collapsedMenus[menu.name] !== false;
+                                return (
+                                    <div key={menu.name} className="space-y-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (!isExpanded) {
+                                                    setDesktopSidebarOpen(true);
+                                                    return;
+                                                }
+
+                                                setCollapsedMenus((prev) => ({ ...prev, [menu.name]: isOpen ? false : true }));
+                                            }}
+                                            className={`group relative flex min-h-[40px] w-full items-center overflow-hidden rounded-lg transition-colors duration-150 ${
+                                                isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"
+                                            } ${isAnyChildActive ? "bg-[#f5f3ff] text-[#7367f0]" : "mt-2 text-[12px] font-semibold tracking-normal text-slate-500 hover:bg-[#f5f3ff] hover:text-[#7367f0]"}`}
+                                        >
+                                            <span
+                                                className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 transition group-hover:bg-white group-hover:text-[#7367f0]`}
+                                            >
+                                                <menu.icon size={18} strokeWidth={1.5} className="shrink-0" />
+                                            </span>
+                                            <span className={`${isExpanded ? "block" : "hidden"} flex-1 truncate text-left`}>
+                                                {menu.name}
+                                            </span>
+                                            {isExpanded && (
+                                                <span className="shrink-0 text-slate-400 transition-transform duration-200">
+                                                    {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                                </span>
+                                            )}
+                                        </button>
+                                        <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${isExpanded && isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                                        <div className="min-h-0 space-y-1 overflow-hidden">
+                                        {menu.children.map((child) => {
+                                            const isChildActive = activePath.startsWith(child.path);
+                                            return (
+                                                <Link
+                                                    key={child.name}
+                                                    href={child.path}
+                                                    aria-current={isChildActive ? "page" : undefined}
+                                                    onClick={() => { if (!isDesktop) setIsMobileSidebarOpen(false); }}
+                                                    className={`group relative flex min-h-[30px] items-center overflow-hidden rounded-md text-[11px] font-medium transition-colors duration-150 gap-2 pl-10 pr-3 border-l-2 ${
+                                                        isChildActive
+                                                            ? "bg-[#f5f3ff] text-[#7367f0] font-bold border-[#7367f0]"
+                                                            : "text-slate-500 hover:bg-[#f5f3ff] hover:text-[#7367f0] border-transparent"
+                                                    }`}
+                                                >
+                                                    <span className="block truncate">{child.name}</span>
+                                                </Link>
+                                            );
+                                        })}
+                                        </div>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
                             const activePaths = menu.activePaths || [menu.path];
                             const isActive =
                                 menu.path !== "#" &&
@@ -251,38 +376,65 @@ export default function AdminLayout({ children }) {
                                             setIsMobileSidebarOpen(false);
                                         }
                                     }}
-                                    className={`group relative flex min-h-[44px] items-center overflow-hidden rounded-lg text-[13px] font-black tracking-[0.01em] transition duration-200 ${isExpanded ? "gap-2.5 px-2.5 pr-7" : "justify-center px-0"} ${isActive ? "bg-white text-slate-950 shadow-[0_12px_26px_rgba(2,8,23,0.18)]" : "text-slate-400 hover:bg-slate-800 hover:text-white"}`}
+                                    className={`group relative flex min-h-[40px] items-center overflow-visible rounded-lg text-[12px] font-semibold transition-colors duration-150 ${isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"} ${isActive ? "bg-[#f5f3ff] text-[#7367f0]" : "text-slate-600 hover:bg-[#f5f3ff] hover:text-[#7367f0]"}`}
                                 >
                                     <span
-                                        className={`absolute inset-y-2 right-2 w-1 rounded-full transition ${isActive ? "bg-cyan-500 opacity-100" : "bg-white/30 opacity-0 group-hover:opacity-60"}`}
-                                    />
-                                    <span
-                                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${isActive ? "bg-cyan-50 text-cyan-600" : "bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-cyan-200"}`}
+                                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${isActive ? "bg-white text-[#7367f0] shadow-sm" : "text-slate-500 group-hover:bg-white group-hover:text-[#7367f0]"}`}
                                     >
                                     <menu.icon
-                                        size={17}
-                                        strokeWidth={2.35}
+                                        size={18}
+                                        strokeWidth={1.5}
                                         className="shrink-0"
                                     />
                                     </span>
                                     <span className={`${isExpanded ? "block" : "hidden"} truncate`}>
                                         {menu.name}
                                     </span>
+                                    {!isExpanded && (
+                                        <span className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg group-hover:block">
+                                            {menu.name}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}
+                        {administrationMenus.length > 0 && (
+                            <>
+                                <p className={`${isExpanded ? "block" : "hidden"} mb-2 mt-4 px-2.5 text-[10px] font-semibold tracking-[0.04em] text-slate-400`}>Administrasi</p>
+                                {administrationMenus.map((menu) => {
+                                    const activePaths = menu.activePaths || [menu.path];
+                                    const isActive = activePaths.some((path) => activePath.startsWith(path));
+                                    return (
+                                        <Link
+                                            key={menu.name}
+                                            href={menu.path}
+                                            title={!isExpanded ? menu.name : ""}
+                                            aria-current={isActive ? "page" : undefined}
+                                            onClick={() => { if (!isDesktop) setIsMobileSidebarOpen(false); }}
+                                            className={`group relative flex min-h-[40px] items-center overflow-visible rounded-lg text-[12px] font-semibold transition-colors duration-150 ${isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"} ${isActive ? "bg-[#f5f3ff] text-[#7367f0]" : "text-slate-600 hover:bg-[#f5f3ff] hover:text-[#7367f0]"}`}
+                                        >
+                                            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${isActive ? "bg-white text-[#7367f0] shadow-sm" : "text-slate-500 group-hover:bg-white group-hover:text-[#7367f0]"}`}>
+                                                <menu.icon size={18} strokeWidth={1.5} />
+                                            </span>
+                                            <span className={`${isExpanded ? "block" : "hidden"} truncate`}>{menu.name}</span>
+                                            {!isExpanded && <span className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-50 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-800 px-2.5 py-1.5 text-xs font-semibold text-white shadow-lg group-hover:block">{menu.name}</span>}
+                                        </Link>
+                                    );
+                                })}
+                            </>
+                        )}
                     </nav>
                 </div>
             </aside>
 
+            <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[#f8f7fa]">
             <header
-                className="fixed right-0 top-0 z-20 flex h-14 min-w-0 items-center justify-between border-b border-white/10 px-3 text-slate-100 shadow-[0_14px_38px_rgba(15,23,42,0.12)] transition-[left] duration-300 ease-out sm:px-4 lg:px-5"
-                style={{ left: shellOffset, backgroundColor: NAV_BG }}
+                className="shrink-0 flex h-[74px] min-w-0 items-center justify-between border-b border-[#e7e3eb] bg-white px-4 text-slate-800 sm:px-6"
             >
                 <div className="flex min-w-0 flex-1 items-center gap-4">
                     <button
                         onClick={() => setIsMobileSidebarOpen(true)}
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/10 text-slate-200 transition hover:bg-white hover:text-slate-950 lg:hidden"
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 lg:hidden"
                         title="Buka Sidebar"
                     >
                         <Menu size={18} />
@@ -293,6 +445,7 @@ export default function AdminLayout({ children }) {
                             className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                         />
                         <input
+                            ref={searchInputRef}
                             type="text"
                             value={globalSearch}
                             onChange={(event) => {
@@ -302,7 +455,7 @@ export default function AdminLayout({ children }) {
                             onFocus={() => setIsGlobalSearchOpen(true)}
                             onBlur={() => window.setTimeout(() => setIsGlobalSearchOpen(false), 140)}
                             placeholder="Cari data, unit, atau dokumen..."
-                            className="h-9 w-full rounded-lg border border-white/10 bg-white/10 pl-9 pr-3 text-[13px] font-semibold text-white placeholder:text-slate-400 outline-none transition focus:border-cyan-300/50 focus:bg-white/15 focus:ring-4 focus:ring-cyan-300/10"
+                            className="h-10 w-full rounded-lg border border-[#e7e3eb] bg-[#f8f7fa] pl-9 pr-3 text-[13px] font-semibold text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-[#7367f0]/40 focus:ring-2 focus:ring-[#7367f0]/10"
                         />
                         {isGlobalSearchOpen && globalSearch.trim().length >= 2 && (
                             <div className="absolute left-0 right-0 top-11 z-50 overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-[0_18px_55px_rgba(15,23,42,0.22)]">
@@ -349,17 +502,23 @@ export default function AdminLayout({ children }) {
                 </div>
 
                 <div className="ml-3 flex shrink-0 items-center gap-2 sm:ml-4 sm:gap-3">
-                    <button onClick={() => router.reload()} className="hidden h-9 w-9 place-items-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white sm:grid" title="Muat Ulang">
+                    <button className="hidden h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] xl:grid" title="Pilihan wilayah">
+                        <Globe2 size={18} />
+                    </button>
+                    <button className="hidden h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] xl:grid" title="Menu aplikasi">
+                        <Grid2X2 size={18} />
+                    </button>
+                    <button onClick={() => router.reload()} className="hidden h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] sm:grid" title="Muat Ulang">
                         <RefreshCw size={16} />
                     </button>
-                    <button className="relative grid h-9 w-9 place-items-center rounded-lg text-slate-300 transition hover:bg-white/10 hover:text-white" title="Notifikasi">
+                    <button className="relative grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0]" title="Notifikasi">
                         <Bell size={18} />
-                        <span className="absolute right-2.5 top-2.5 block h-2 w-2 rounded-full bg-rose-500 ring-2 ring-slate-900" />
+                        <span className="absolute right-2.5 top-2.5 block h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
                     </button>
-                    <div className="mx-1 hidden h-8 w-px bg-white/10 sm:block" />
+                    <div className="mx-1 hidden h-8 w-px bg-slate-200 sm:block" />
                     <div className="hidden text-right md:block">
-                        <p className="text-xs font-black leading-tight text-white">{auth.user?.nik || "Pengguna"}</p>
-                        <p className="text-xs font-semibold text-slate-400">{roles[0] ? roles[0].replaceAll("-", " ").toUpperCase() : "Tanpa role"}</p>
+                        <p className="text-xs font-black leading-tight text-slate-800">{auth.user?.nik || "Pengguna"}</p>
+                        <p className="text-xs font-semibold text-slate-500">{roles[0] ? roles[0].replaceAll("-", " ").toUpperCase() : "Tanpa role"}</p>
                     </div>
                     <button
                         type="button"
@@ -367,7 +526,7 @@ export default function AdminLayout({ children }) {
                         disabled={isLoggingOut}
                         title={isLoggingOut ? "Sedang keluar..." : "Keluar dari Sistem"}
                         aria-label={isLoggingOut ? "Sedang keluar dari sistem" : "Keluar dari Sistem"}
-                        className="grid h-9 w-9 place-items-center rounded-lg bg-white text-slate-950 shadow-lg shadow-black/10 transition hover:bg-rose-500 hover:text-white disabled:cursor-wait disabled:opacity-60"
+                        className="grid h-9 w-9 place-items-center rounded-lg bg-[#7367f0] text-white shadow-lg shadow-violet-200 transition hover:bg-[#6258dc] disabled:cursor-wait disabled:opacity-60"
                     >
                         <LogOut size={16} className={isLoggingOut ? "animate-pulse" : ""} />
                     </button>
@@ -375,11 +534,11 @@ export default function AdminLayout({ children }) {
             </header>
 
             <main
-                className="app-main custom-scrollbar fixed bottom-0 right-0 overflow-y-auto px-3 py-3 transition-[left] duration-300 ease-out sm:px-4 sm:py-4 lg:px-5 lg:py-5"
-                style={{ left: shellOffset, top: 56, backgroundColor: PAGE_BG }}
+                className="app-main custom-scrollbar flex-1 overflow-y-auto p-4 sm:p-6"
             >
                 {children}
             </main>
-        </div>
+            </div>
+        </>
     );
 }

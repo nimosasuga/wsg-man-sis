@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Head, Link, router } from "@inertiajs/react";
-import { ArrowLeft, ChevronRight, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, Search } from "lucide-react";
 import AdminLayout from "../../Layouts/AdminLayout";
 
 const formatRp = (value) =>
@@ -9,21 +9,151 @@ const formatRp = (value) =>
         maximumFractionDigits: 0,
     })}`;
 
-export default function OperationTable({ title, type, rows = [], filters = {}, summary = {} }) {
+const formatNum = (value) => Number(value || 0).toLocaleString("id-ID");
+
+const PRIMARY_CONFIG = {
+    columns: ["ID_KEY", "TANGGAL", "TAHUN", "BULAN", "AREA", "NOPOL", "TIPE", "STATUS DOC FAT", "KATEGORI", "JARAK WAKTU", "END TIME", "EDITOR", "TARIF", "BIAYA", "PROFIT", "WEEK"],
+    sortable: {
+        "ID_KEY": "id_key",
+        "TANGGAL": "tanggal_muat",
+        "AREA": "area",
+        "NOPOL": "nopol_driver",
+        "TIPE": "jenis",
+        "STATUS DOC FAT": "status_dokument",
+        "JARAK WAKTU": "create_data",
+        "TARIF": "total_tarif",
+        "BIAYA": "total_biaya",
+        "WEEK": "week",
+    },
+    renderCell: (row) => [
+        <td key="id_key" className="border-r border-slate-100 px-3 py-3 text-sm font-black text-slate-900">
+            <div className="flex items-center gap-1">
+                <span className="truncate max-w-[120px]">{row.id_key || "-"}</span>
+                <ChevronRight size={14} className="shrink-0 text-slate-300" />
+            </div>
+        </td>,
+        <td key="tanggal" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">{row.tanggal || "-"}</td>,
+        <td key="tahun" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700">{row.tahun || "-"}</td>,
+        <td key="bulan" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700">{row.bulan || "-"}</td>,
+        <td key="area" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700">{row.area || "-"}</td>,
+        <td key="nopol" className="border-r border-slate-100 px-3 py-3 text-sm font-black text-blue-600">{row.nopol || "-"}</td>,
+        <td key="tipe" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700">{row.tipe || "-"}</td>,
+        <td key="status_doc_fat" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold whitespace-nowrap">
+            <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-black uppercase tracking-wide ${row.status_doc_fat === 'DITERIMA FAT' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                {row.status_doc_fat || "-"}
+            </span>
+        </td>,
+        <td key="kategori" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700">{row.kategori || "-"}</td>,
+        <td key="jarak_waktu" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">{row.jarak_waktu || "-"}</td>,
+        <td key="end_time" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">{row.end_time || "-"}</td>,
+        <td key="editor" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">{row.editor || "-"}</td>,
+        <td key="tarif" className="border-r border-slate-100 px-3 py-3 text-sm font-black text-slate-950 whitespace-nowrap">{formatRp(row.tarif)}</td>,
+        <td key="biaya" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">{formatRp(row.biaya)}</td>,
+        <td key="profit" className="border-r border-slate-100 px-3 py-3 text-sm font-black text-emerald-600 whitespace-nowrap">{formatRp(row.profit)}</td>,
+        <td key="week" className="px-3 py-3 text-sm font-semibold text-slate-700">{row.week || "-"}</td>,
+    ],
+};
+
+const SECONDARY_CONFIG = {
+    columns: ["ID_KEY", "TANGGAL", "AREA", "NOPOL", "TIPE", "EDITOR", "LAMA CEK DATA", "ADMIN CROSS CEK", "JAM MULAI", "JAM SELESAI", "TARIF UNIT", "TOTAL TARIF", "TOTAL BIAYA OP", "PROFIT", "WEEK"],
+    sortable: {
+        "ID_KEY": "id_key",
+        "TANGGAL": "tanggal",
+        "AREA": "area",
+        "NOPOL": "nopol",
+        "TIPE": "tipe_unit",
+        "EDITOR": "nama_admin",
+        "TARIF UNIT": "tarif_unit",
+        "TOTAL TARIF": "total_tarif",
+        "TOTAL BIAYA OP": "total_biaya_operasional",
+        "WEEK": "week",
+    },
+    renderCell: (row) => [
+        <td key="id_key" className="border-r border-slate-100 px-3 py-3 text-sm font-black text-slate-900">
+            <div className="flex items-center gap-1">
+                <span className="truncate max-w-[120px]">{row.id_key || "-"}</span>
+                <ChevronRight size={14} className="shrink-0 text-slate-300" />
+            </div>
+        </td>,
+        <td key="tanggal" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">{row.tanggal || "-"}</td>,
+        <td key="area" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700">{row.area || "-"}</td>,
+        <td key="nopol" className="border-r border-slate-100 px-3 py-3 text-sm font-black text-blue-600">{row.nopol || "-"}</td>,
+        <td key="tipe" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700">{row.tipe || "-"}</td>,
+        <td key="editor" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">{row.editor || "-"}</td>,
+        <td key="lama_cek_data" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">{row.lama_cek_data || "-"}</td>,
+        <td key="admin_cross_cek" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">{row.admin_cross_cek || "-"}</td>,
+        <td key="jam_mulai" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">{row.jam_mulai || "-"}</td>,
+        <td key="jam_selesai" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">{row.jam_selesai || "-"}</td>,
+        <td key="tarif_unit" className="border-r border-slate-100 px-3 py-3 text-sm font-black text-slate-950 whitespace-nowrap">{formatRp(row.tarif_unit)}</td>,
+        <td key="total_tarif" className="border-r border-slate-100 px-3 py-3 text-sm font-black text-slate-950 whitespace-nowrap">{formatRp(row.total_tarif)}</td>,
+        <td key="total_biaya_operasional" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700 whitespace-nowrap">{formatRp(row.total_biaya_operasional)}</td>,
+        <td key="profit" className="border-r border-slate-100 px-3 py-3 text-sm font-black text-emerald-600 whitespace-nowrap">{formatRp(row.profit)}</td>,
+        <td key="week" className="px-3 py-3 text-sm font-semibold text-slate-700">{row.week || "-"}</td>,
+    ],
+};
+
+export default function OperationTable({ title, type, rows: paginator = {}, filters = {}, summary = {} }) {
     const [search, setSearch] = useState(filters.SEARCH || "");
     const basePath = `/profit-unit/${type}/table`;
+
+    const { data: rows = [], current_page, last_page, from, to, total } = paginator;
+
+    const config = useMemo(() => type === 'secondary' ? SECONDARY_CONFIG : PRIMARY_CONFIG, [type]);
+    const defaultSort = type === 'secondary' ? 'tanggal' : 'tanggal_muat';
+    const sort = filters.SORT || defaultSort;
+    const direction = filters.DIRECTION || 'desc';
 
     const goSearch = (event) => {
         event.preventDefault();
 
-        router.get(basePath, {
-            nopol: filters.NOPOL || "ALL",
-            area: filters.AREA || "ALL",
-            search,
-        }, {
+        const params = new URLSearchParams(window.location.search);
+        params.set('nopol', filters.NOPOL || 'ALL');
+        params.set('area', filters.AREA || 'ALL');
+        params.set('search', search);
+        params.delete('page');
+
+        router.get(`${basePath}?${params.toString()}`, {}, {
             preserveScroll: true,
         });
     };
+
+    const toggleSort = (column) => {
+        const dbColumn = config.sortable[column];
+        if (!dbColumn) return;
+
+        const params = new URLSearchParams(window.location.search);
+        params.set('sort', dbColumn);
+        params.set('direction', sort === dbColumn && direction === 'asc' ? 'desc' : 'asc');
+        params.delete('page');
+
+        router.get(`${basePath}?${params.toString()}`, {}, {
+            preserveScroll: true,
+        });
+    };
+
+    const goToPage = (page) => {
+        if (!page || page < 1 || page > last_page) return;
+
+        const params = new URLSearchParams(window.location.search);
+        params.set('page', page);
+
+        router.get(`${basePath}?${params.toString()}`, {}, {
+            preserveScroll: true,
+        });
+    };
+
+    const pageNumbers = [];
+    if (last_page <= 7) {
+        for (let i = 1; i <= last_page; i++) pageNumbers.push(i);
+    } else {
+        pageNumbers.push(1);
+        if (current_page > 3) pageNumbers.push('...');
+        const start = Math.max(2, current_page - 1);
+        const end = Math.min(last_page - 1, current_page + 1);
+        for (let i = start; i <= end; i++) pageNumbers.push(i);
+        if (current_page < last_page - 2) pageNumbers.push('...');
+        pageNumbers.push(last_page);
+    }
 
     return (
         <AdminLayout>
@@ -74,7 +204,7 @@ export default function OperationTable({ title, type, rows = [], filters = {}, s
                 <section className="grid gap-4 md:grid-cols-4">
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                         <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Total Record</p>
-                        <p className="mt-2 text-lg font-black text-slate-950">{Number(summary.count || 0).toLocaleString("id-ID")}</p>
+                        <p className="mt-2 text-lg font-black text-slate-950">{Number(total || 0).toLocaleString("id-ID")}</p>
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                         <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Total Tarif</p>
@@ -96,48 +226,111 @@ export default function OperationTable({ title, type, rows = [], filters = {}, s
                         <p className="mt-1 text-xs font-semibold text-slate-500">Klik salah satu row untuk membuka detail record.</p>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="min-w-[980px] w-full border-collapse text-left">
-                            <thead className="bg-slate-50">
-                                <tr>
-                                    {["ID_KEY", "TANGGAL", "AREA", "NOPOL", "TIPE", "TARIF", "BIAYA", "PROFIT", "WEEK"].map((head) => (
-                                        <th key={head} className="border-r border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-slate-700 last:border-r-0">
-                                            {head}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {rows.length ? rows.map((row, index) => (
-                                    <tr
-                                        key={`${row.id_key || "row"}-${index}`}
-                                        onClick={() => router.get(`${basePath}/${row.id_key}`)}
-                                        className="cursor-pointer hover:bg-cyan-50/50"
-                                    >
-                                        <td className="border-r border-slate-100 px-4 py-3 text-sm font-black text-slate-900">
-                                            <div className="flex items-center gap-2">
-                                                <span>{row.id_key || "-"}</span>
-                                                <ChevronRight size={14} className="text-slate-300" />
-                                            </div>
-                                        </td>
-                                        <td className="border-r border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{row.tanggal || "-"}</td>
-                                        <td className="border-r border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{row.area || "-"}</td>
-                                        <td className="border-r border-slate-100 px-4 py-3 text-sm font-black text-blue-600">{row.nopol || "-"}</td>
-                                        <td className="border-r border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{row.tipe || "-"}</td>
-                                        <td className="border-r border-slate-100 px-4 py-3 text-sm font-black text-slate-950">{formatRp(row.tarif)}</td>
-                                        <td className="border-r border-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">{formatRp(row.biaya)}</td>
-                                        <td className="border-r border-slate-100 px-4 py-3 text-sm font-black text-emerald-600">{formatRp(row.profit)}</td>
-                                        <td className="px-4 py-3 text-sm font-semibold text-slate-700">{row.week || "-"}</td>
-                                    </tr>
-                                )) : (
+                            <table className="min-w-[1600px] w-full border-collapse text-left">
+                                <thead className="bg-slate-50">
                                     <tr>
-                                        <td colSpan={9} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
-                                            Data tidak ditemukan untuk filter ini.
-                                        </td>
+                                        {config.columns.map((head) => {
+                                            const dbCol = config.sortable[head];
+                                            const active = sort === dbCol;
+                                            return (
+                                                <th
+                                                    key={head}
+                                                    onClick={() => toggleSort(head)}
+                                                    className={`border-r border-slate-200 px-3 py-3 text-[11px] font-black uppercase tracking-wide whitespace-nowrap last:border-r-0 ${
+                                                        dbCol ? 'cursor-pointer select-none hover:bg-slate-100' : ''
+                                                    } ${active ? 'text-cyan-700' : 'text-slate-700'}`}
+                                                >
+                                                    <span className="inline-flex items-center gap-1">
+                                                        {head}
+                                                        {dbCol && (
+                                                            active ? (
+                                                                direction === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />
+                                                            ) : (
+                                                                <span className="text-slate-300"><ArrowUp size={13} /></span>
+                                                            )
+                                                        )}
+                                                    </span>
+                                                </th>
+                                            );
+                                        })}
                                     </tr>
-                                )}
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {rows.length ? rows.map((row, index) => (
+                                        <tr
+                                            key={`${row.id_key || "row"}-${index}`}
+                                            onClick={() => router.get(`${basePath}/${row.id_key}`)}
+                                            className="cursor-pointer hover:bg-cyan-50/50"
+                                        >
+                                            {config.renderCell(row)}
+                                        </tr>
+                                    )) : (
+                                        <tr>
+                                            <td colSpan={config.columns.length} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
+                                                Data tidak ditemukan untuk filter ini.
+                                            </td>
+                                        </tr>
+                                    )}
                             </tbody>
                         </table>
                     </div>
+
+                    {last_page > 1 && (
+                        <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3">
+                            <p className="text-xs font-semibold text-slate-500">
+                                Menampilkan {from}–{to} dari {total}
+                            </p>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => goToPage(1)}
+                                    disabled={current_page <= 1}
+                                    className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none"
+                                >
+                                    <ChevronsLeft size={16} />
+                                </button>
+                                <button
+                                    onClick={() => goToPage(current_page - 1)}
+                                    disabled={current_page <= 1}
+                                    className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none"
+                                >
+                                    <ChevronLeft size={16} />
+                                </button>
+
+                                {pageNumbers.map((page, i) =>
+                                    page === '...' ? (
+                                        <span key={`ellipsis-${i}`} className="px-1 text-xs font-bold text-slate-400">...</span>
+                                    ) : (
+                                        <button
+                                            key={page}
+                                            onClick={() => goToPage(page)}
+                                            className={`grid h-8 min-w-[32px] place-items-center rounded-lg px-2 text-xs font-black transition ${
+                                                page === current_page
+                                                    ? 'bg-cyan-700 text-white'
+                                                    : 'text-slate-600 hover:bg-slate-100'
+                                            }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    )
+                                )}
+
+                                <button
+                                    onClick={() => goToPage(current_page + 1)}
+                                    disabled={current_page >= last_page}
+                                    className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none"
+                                >
+                                    <ChevronRight size={16} />
+                                </button>
+                                <button
+                                    onClick={() => goToPage(last_page)}
+                                    disabled={current_page >= last_page}
+                                    className="grid h-8 w-8 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none"
+                                >
+                                    <ChevronsRight size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </section>
             </div>
         </AdminLayout>

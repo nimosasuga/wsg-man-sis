@@ -1,6 +1,6 @@
 import React from "react";
 import { Head, Link } from "@inertiajs/react";
-import { ArrowLeft, MapPin, Route, Truck } from "lucide-react";
+import { ArrowLeft, Clock, User, MapPin, Route, Truck, Box, DollarSign, Hash, FileText } from "lucide-react";
 import AdminLayout from "../../Layouts/AdminLayout";
 
 const formatRp = (value) =>
@@ -9,20 +9,34 @@ const formatRp = (value) =>
         maximumFractionDigits: 0,
     })}`;
 
-function InfoItem({ label, value }) {
+function InfoItem({ label, value, highlight }) {
     const displayValue = value === null || value === undefined || value === "" ? "-" : value;
 
     return (
-        <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+        <div className={`rounded-lg border ${highlight ? 'border-cyan-200 bg-cyan-50' : 'border-slate-100 bg-slate-50'} px-4 py-3`}>
             <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</p>
-            <p className="mt-1 break-words text-sm font-black text-slate-900">{displayValue}</p>
+            <p className={`mt-1 break-words text-sm font-black ${highlight ? 'text-cyan-800' : 'text-slate-900'}`}>{displayValue}</p>
         </div>
     );
 }
 
-export default function OperationDetail({ title, type, detail = {}, backUrl }) {
-    const typeLabel = type === "primary" ? "Primary" : type === "lcl" ? "LCL" : "Secondary";
+function SectionCard({ icon: Icon, title, children }) {
+    return (
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-950/5">
+            <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
+                {Icon && <Icon size={16} className="text-cyan-700" />}
+                <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">{title}</h2>
+            </div>
+            <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
+                {children}
+            </div>
+        </div>
+    );
+}
 
+const formatNum = (value) => Number(value || 0).toLocaleString("id-ID");
+
+export default function OperationDetail({ title, type, detail = {}, backUrl }) {
     return (
         <AdminLayout>
             <Head title={`${title} - ${detail.nopol || detail.id_key || ""}`} />
@@ -48,23 +62,23 @@ export default function OperationDetail({ title, type, detail = {}, backUrl }) {
                         <div>
                             <div className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-xs font-black uppercase tracking-wide text-cyan-200">
                                 <Truck size={15} />
-                                {typeLabel}
+                                PRIMARY
                             </div>
                             <h2 className="mt-4 text-3xl font-black">{detail.nopol || "-"}</h2>
                             <p className="mt-2 text-sm font-semibold text-slate-300">
-                                {detail.tipe || "-"} di area {detail.area || "-"}.
+                                {detail.jenis || "-"} di area {detail.area || "-"}.
                             </p>
                         </div>
                         <div className="rounded-lg border border-white/10 bg-white/10 p-4">
                             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-300">
-                                <MapPin size={15} />
+                                <DollarSign size={15} />
                                 Profit
                             </div>
                             <p className="mt-2 break-words text-lg font-black">{formatRp(detail.profit)}</p>
                         </div>
                         <div className="rounded-lg border border-white/10 bg-white/10 p-4">
                             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-300">
-                                <Route size={15} />
+                                <Hash size={15} />
                                 Week
                             </div>
                             <p className="mt-2 text-lg font-black">{detail.week || "-"}</p>
@@ -72,69 +86,43 @@ export default function OperationDetail({ title, type, detail = {}, backUrl }) {
                     </div>
                 </section>
 
-                <section className="rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-950/5">
-                    <div className="border-b border-slate-100 px-5 py-4">
-                        <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Data Detail</h2>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">Ini data asli dari record yang dipilih.</p>
-                    </div>
-                    <div className="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-3">
-                        {type === "secondary" ? (
-                            <>
-                                <InfoItem label="ID_KEY" value={detail.id_key} />
-                                <InfoItem label="TIPE_UNIT" value={detail.tipe} />
-                                <InfoItem label="AREA" value={detail.area} />
-                                <InfoItem label="PROFIT TRIP" value={formatRp(detail.profit)} />
-                                <InfoItem label="TAHUN" value={detail.tahun} />
-                                <InfoItem label="BULAN" value={detail.bulan} />
-                                <InfoItem label="WEEK" value={detail.week} />
-                                <InfoItem label="TANGGAL" value={detail.tanggal} />
-                                <InfoItem label="CROSSCEK_DATE" value={detail.crosscek_date} />
-                                <InfoItem label="PROJECT" value={detail.project} />
-                                <InfoItem label="POSISI_PROJECT" value={detail.posisi_project} />
-                                <InfoItem label="ADD_DATA" value={detail.add_data} />
-                                <InfoItem label="NOPOL" value={detail.nopol} />
-                                <InfoItem label="TOTAL TARIF PENAGIHAN SECONDARY" value={formatRp(detail.tarif)} />
-                                <InfoItem label="TOTAL BIAYA OPERASIONAL SECONDARY" value={formatRp(detail.biaya)} />
-                                <InfoItem label="NO_PO" value={detail.no_po} />
-                                <InfoItem label="NO_SI" value={detail.no_si} />
-                                <InfoItem label="RUTE / ORDER" value={detail.rute || detail.order_type} />
-                                <InfoItem label="DRIVER" value={detail.driver} />
-                            </>
-                        ) : (
-                            <>
-                                <InfoItem label="ID_KEY" value={detail.id_key} />
-                                <InfoItem label="TANGGAL" value={detail.tanggal} />
-                                <InfoItem label="AREA" value={detail.area} />
-                                <InfoItem label={type === "lcl" ? "NO_STT" : "NOPOL"} value={detail.nopol} />
-                                <InfoItem label="TIPE" value={detail.tipe} />
-                                <InfoItem label={type === "lcl" ? "TOTAL_ONGKIR" : "TARIF"} value={formatRp(detail.tarif)} />
-                                <InfoItem label="BIAYA" value={formatRp(detail.biaya)} />
-                                <InfoItem label="PROFIT" value={formatRp(detail.profit)} />
-                                <InfoItem label="WEEK" value={detail.week} />
-                                <InfoItem label="NO_PO" value={detail.no_po} />
-                                <InfoItem label="NO_SI" value={detail.no_si} />
-                                <InfoItem label="RUTE / ORDER" value={detail.rute || detail.order_type} />
-                                <InfoItem label="VENDOR / DRIVER" value={detail.vendor || detail.driver} />
-                            </>
-                        )}
-                        {type === "lcl" && (
-                            <>
-                                <InfoItem label="SALES" value={detail.sales} />
-                                <InfoItem label="NAMA_PENGIRIM" value={detail.nama_pengirim} />
-                                <InfoItem label="KOTA_ASAL" value={detail.kota_asal} />
-                                <InfoItem label="NAMA_PENERIMA" value={detail.nama_penerima} />
-                                <InfoItem label="KOTA_TUJUAN" value={detail.kota_tujuan} />
-                                <InfoItem label="TOTAL_KOLI" value={detail.total_koli} />
-                                <InfoItem label="QTY_UNIT" value={detail.qty_unit} />
-                                <InfoItem label="JENIS_PPN" value={detail.jenis_ppn} />
-                                <InfoItem label="TOTAL_PPN" value={formatRp(detail.total_ppn)} />
-                                <InfoItem label="TAGIHAN_COD" value={formatRp(detail.tagihan_cod)} />
-                                <InfoItem label="TOTAL_BAYAR" value={formatRp(detail.total_bayar)} />
-                                <InfoItem label="KEMBALIAN" value={formatRp(detail.kembalian)} />
-                            </>
-                        )}
-                    </div>
-                </section>
+                <SectionCard icon={FileText} title="Informasi Record">
+                    <InfoItem label="ID KEY" value={detail.id_key} />
+                    <InfoItem label="CREATE" value={detail.create} />
+                    <InfoItem label="TANGGAL MUAT" value={detail.tanggal_muat} />
+                    <InfoItem label="TANGGAL TERIMA" value={detail.tanggal_terima} />
+                    <InfoItem label="WEEK" value={detail.week} />
+                </SectionCard>
+
+                <SectionCard icon={MapPin} title="Lokasi & Rute">
+                    <InfoItem label="REGIONAL" value={detail.regional} />
+                    <InfoItem label="AREA" value={detail.area} />
+                    <InfoItem label="RUTE ASAL" value={detail.rute_asal} />
+                    <InfoItem label="RUTE TUJUAN" value={detail.rute_tujuan} />
+                </SectionCard>
+
+                <SectionCard icon={Box} title="Muatan & Dokumen">
+                    <InfoItem label="NOPOL & DRIVER" value={detail.nopol} />
+                    <InfoItem label="VENDOR" value={detail.vendor} />
+                    <InfoItem label="QTY" value={formatNum(detail.qty)} />
+                    <InfoItem label="JENIS" value={detail.jenis} />
+                    <InfoItem label="NO. PO" value={detail.no_po} />
+                    <InfoItem label="NO. SI" value={detail.no_si} />
+                    <InfoItem label="NO. SJ" value={detail.no_sj} />
+                </SectionCard>
+
+                <SectionCard icon={DollarSign} title="Keuangan">
+                    <InfoItem label="TOTAL" value={formatRp(detail.total)} />
+                    <InfoItem label="TARIF" value={formatRp(detail.tarif)} />
+                    <InfoItem label="TOTAL TARIF" value={formatRp(detail.total_tarif)} />
+                    <InfoItem label="TOTAL BIAYA" value={formatRp(detail.total_biaya)} />
+                    <InfoItem label="PROFIT" value={formatRp(detail.profit)} highlight />
+                </SectionCard>
+
+                <SectionCard icon={User} title="Aktivitas">
+                    <InfoItem label="EDITOR" value={detail.editor} />
+                    <InfoItem label="EDIT TIME" value={detail.edit_time} />
+                </SectionCard>
             </div>
         </AdminLayout>
     );

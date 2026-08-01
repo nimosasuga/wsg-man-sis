@@ -9,8 +9,10 @@ use Inertia\Inertia;
 class DaftarUnitController extends Controller
 {
     private array $categories = [
-        'washeng' => ['title' => 'Washeng', 'inventaris' => 'WASHENG KEKE MANDIRI', 'field' => 'tipe'],
-        'rental' => ['title' => 'Inventaris Rental', 'inventaris' => 'RENTAL', 'field' => 'tipe'],
+        'semua' => ['title' => 'Semua Unit', 'inventaris' => null, 'field' => 'inventaris'],
+        'washeng' => ['title' => 'Washeng Keke Mandiri', 'inventaris' => 'WASHENG KEKE MANDIRI', 'field' => 'tipe'],
+        'rental' => ['title' => 'Rental', 'inventaris' => 'RENTAL', 'field' => 'tipe'],
+        'vendor' => ['title' => 'Vendor', 'inventaris' => 'VENDOR', 'field' => 'tipe'],
     ];
 
     public function index()
@@ -50,7 +52,7 @@ class DaftarUnitController extends Controller
 
         $config = $this->categories[$category];
 
-        $dataInventori = Inventori::where('inventaris', $config['inventaris'])
+        $dataInventori = Inventori::when($config['inventaris'], fn ($query, $inventaris) => $query->where('inventaris', $inventaris))
             ->select(
                 'id_key',
                 'nopol',

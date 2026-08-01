@@ -115,7 +115,7 @@ export default function KendaraanOperasional({ rawTableData = [] }) {
             <div className="mb-4 flex flex-col justify-between gap-4 md:flex-row md:items-end">
                 <div>
                     <div className="mb-2 flex items-center text-xs font-bold uppercase tracking-widest text-gray-500">
-                        <Link href="/inventori/daftar-asset" className="hover:text-blue-600">
+                        <Link href="/inventori/daftar-asset" className="hover:text-violet-600">
                             DAFTAR ASSET
                         </Link>
                         <ChevronRight size={14} className="mx-1" />
@@ -127,7 +127,7 @@ export default function KendaraanOperasional({ rawTableData = [] }) {
                         </h1>
                         <button
                             onClick={() => setIsFilterSidebarOpen(!isFilterSidebarOpen)}
-                            className="rounded-md border border-gray-200 bg-white p-1.5 text-gray-400 shadow-sm transition-colors hover:text-blue-600"
+                            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-400 shadow-sm transition-colors hover:border-violet-200 hover:text-violet-600"
                         >
                             {isFilterSidebarOpen ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
                         </button>
@@ -141,13 +141,13 @@ export default function KendaraanOperasional({ rawTableData = [] }) {
                             value={searchQuery}
                             onChange={(event) => setSearchQuery(event.target.value)}
                             placeholder="Cari nopol, area, tipe..."
-                            className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+                            className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                         />
                     </div>
                     {canManage && (
                         <Link
                             href="/module-records/kendaraan-operasional/create"
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-cyan-500 px-4 text-sm font-black text-white shadow-sm transition hover:bg-cyan-600"
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 text-sm font-black text-white shadow-sm transition hover:bg-violet-700"
                         >
                             <Plus size={16} />
                             Tambah Data
@@ -156,9 +156,9 @@ export default function KendaraanOperasional({ rawTableData = [] }) {
                 </div>
             </div>
 
-            <div className="flex h-[calc(100vh-180px)] flex-col gap-4 overflow-hidden md:flex-row">
+            <div className="flex min-w-0 flex-col gap-4 overflow-hidden lg:h-[calc(100vh-180px)] lg:flex-row">
                 <div
-                    className={`flex shrink-0 origin-left flex-col rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300 ease-in-out ${isFilterSidebarOpen ? "w-full opacity-100 md:w-64" : "w-0 overflow-hidden border-0 opacity-0"}`}
+                    className={`flex shrink-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-300 ease-in-out ${isFilterSidebarOpen ? "w-full opacity-100 lg:w-64" : "h-0 w-0 overflow-hidden border-0 opacity-0 lg:h-auto"}`}
                 >
                     <div
                         onClick={() => {
@@ -215,7 +215,7 @@ export default function KendaraanOperasional({ rawTableData = [] }) {
                     </div>
                 </div>
 
-                <div className="relative flex flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300">
+                <div className="relative flex min-h-[420px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all duration-300">
                     <div className="custom-scrollbar flex-1 overflow-auto">
                         {sortedAndFilteredData.length > 0 ? (
                             <table className="w-full border-collapse text-left whitespace-nowrap">

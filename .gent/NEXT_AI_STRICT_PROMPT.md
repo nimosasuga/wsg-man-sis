@@ -94,6 +94,7 @@ Fokus utama project saat ini:
 21. Jangan mengganti kembali `@vitejs/plugin-react` ke `@vitejs/plugin-react-oxc`; sebelumnya menyebabkan build Railway gagal.
 22. Jangan mengubah Node engine dari `22` ke range longgar seperti `>=22.12.0`; sebelumnya Nixpacks mencoba `nodejs_24` dan build gagal.
 23. Jangan menghapus `trustProxies` atau force HTTPS production; sebelumnya asset terblokir mixed content di Railway.
+24. Sebelum melakukan eksekusi perubahan kode, selalu buat rencana singkat yang memuat ruang lingkup, file yang diperkirakan berubah, dan cara verifikasi. Tunggu persetujuan user sebelum mulai mengubah kode, kecuali user secara eksplisit meminta eksekusi langsung tanpa tahap rencana.
 
 ## Aturan Coding Ketat
 

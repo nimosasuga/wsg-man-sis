@@ -21,7 +21,7 @@ function TextInput({ value, onChange, type = "text", placeholder, readOnly = fal
             onChange={(event) => onChange(event.target.value)}
             placeholder={placeholder}
             readOnly={readOnly}
-            className={`h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100 ${readOnly ? "bg-slate-100 text-slate-600" : "bg-white"}`}
+            className={`h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100 ${readOnly ? "bg-slate-100 text-slate-600" : "bg-white"}`}
         />
     );
 }
@@ -33,7 +33,7 @@ function TextArea({ value, onChange, placeholder }) {
             onChange={(event) => onChange(event.target.value)}
             placeholder={placeholder}
             rows={4}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
         />
     );
 }
@@ -46,7 +46,7 @@ function UnitSelect({ value, units, onChange }) {
                 const unit = units.find((item) => item.nopol === event.target.value);
                 onChange(event.target.value, unit);
             }}
-            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+            className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
         >
             <option value="">Pilih nopol</option>
             {units.map((unit) => (
@@ -170,14 +170,14 @@ export default function Form({ type = "service", mode = "create", record = {}, o
                                 <ArrowLeft size={19} />
                             </Link>
                             <div className="min-w-0">
-                                <p className="text-[11px] font-black uppercase tracking-wide text-cyan-700">Riwayat Service Unit</p>
-                                <h1 className="truncate text-xl font-black uppercase text-slate-950">{title}</h1>
+                                <p className="text-[11px] font-black tracking-wide text-violet-700">Riwayat Service Unit</p>
+                                <h1 className="truncate text-xl font-black text-slate-950">{title}</h1>
                             </div>
                         </div>
                         <button
                             type="submit"
                             disabled={processing}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-cyan-600 px-4 text-xs font-black uppercase tracking-wide text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 text-xs font-black uppercase tracking-wide text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             <Save size={16} />
                             Simpan Data

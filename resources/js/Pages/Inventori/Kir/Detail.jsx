@@ -102,7 +102,7 @@ export default function Detail({
         return {
             role: "link",
             tabIndex: 0,
-            className: "cursor-pointer transition-colors hover:bg-cyan-50/70 focus-visible:bg-cyan-50 focus-visible:outline-none",
+            className: "cursor-pointer transition-colors hover:bg-violet-50/70 focus-visible:bg-violet-50 focus-visible:outline-none",
             onClick: () => router.visit(href),
             onKeyDown: (event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -128,8 +128,8 @@ export default function Detail({
                         </Link>
                         <ChevronRight size={12} className="mx-1" />
                         <Link
-                            href="/inventori/pajak"
-                            className="hover:text-blue-600"
+                            href="/inventori/kir"
+                            className="hover:text-violet-600"
                         >
                             DAFTAR KIR
                         </Link>
@@ -138,15 +138,15 @@ export default function Detail({
                     </div>
                     <div className="flex items-center gap-3">
                         <Link
-                            href="/inventori/pajak"
-                            className="p-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                            href="/inventori/kir"
+                            className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-600 transition-colors hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
                         >
                             <ArrowLeft size={20} className="text-gray-600" />
                         </Link>
                         <div>
                             <h1 className="flex min-w-0 flex-wrap items-center gap-2 text-xl font-black tracking-tight text-gray-800 sm:gap-3 sm:text-2xl">
                                 {unitData.nopol}{" "}
-                                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-md border border-blue-200">
+                                <span className="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-bold text-violet-700">
                                     {unitData.status}
                                 </span>
                             </h1>
@@ -185,13 +185,13 @@ export default function Detail({
                     title="Biaya Primary"
                     value={formatRp(vehicleCost.primaryTotal)}
                     icon={Truck}
-                    colorClass="bg-blue-50 text-blue-600"
+                    colorClass="bg-violet-50 text-violet-600"
                 />
                 <StatCard
                     title="Biaya Secondary"
                     value={formatRp(vehicleCost.secondaryTotal)}
                     icon={MapPin}
-                    colorClass="bg-sky-50 text-sky-600"
+                    colorClass="bg-indigo-50 text-indigo-600"
                 />
             </div>
 
@@ -203,7 +203,7 @@ export default function Detail({
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
-                                    className={`shrink-0 whitespace-nowrap px-3 py-3 text-[11px] font-bold uppercase tracking-wider border-b-2 transition-colors sm:px-4 sm:text-xs ${activeTab === tab ? "border-blue-600 text-blue-700 bg-white rounded-t-lg" : "border-transparent text-gray-400 hover:text-gray-700"}`}
+                                    className={`shrink-0 whitespace-nowrap border-b-2 px-3 py-3 text-[11px] font-bold uppercase tracking-wider transition-colors sm:px-4 sm:text-xs ${activeTab === tab ? "rounded-t-lg border-violet-600 bg-violet-50/60 text-violet-700" : "border-transparent text-slate-400 hover:text-slate-700"}`}
                                 >
                                     {tab}
                                 </button>
