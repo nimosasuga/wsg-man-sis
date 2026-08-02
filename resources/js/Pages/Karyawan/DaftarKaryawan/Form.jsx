@@ -153,7 +153,7 @@ export default function Form({ mode, employee, options = {} }) {
                 <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <h2 className="mb-4 text-sm font-black uppercase tracking-wide text-slate-950">Identitas & Pekerjaan</h2>
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                        <Input label="ID Key" value={data.id_key} disabled={isEdit} onChange={(event) => setData("id_key", event.target.value)} error={errors.id_key} placeholder="Auto jika kosong" />
+                        <Input label="ID Key" value={data.id_key} disabled placeholder="Dibuat otomatis saat data disimpan" />
                         <Input label="Nama Karyawan" value={data.nama_karyawan} onChange={(event) => setData("nama_karyawan", event.target.value)} error={errors.nama_karyawan} />
                         <Input label="Nama Panggilan" value={data.nama_panggilan} onChange={(event) => setData("nama_panggilan", event.target.value)} error={errors.nama_panggilan} />
                         <Input label="NIP" value={data.nip} onChange={(event) => setData("nip", event.target.value)} error={errors.nip} />

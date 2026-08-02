@@ -6,17 +6,21 @@
 
 @layer base {
     html {
+        height: 100%;
         -webkit-text-size-adjust: 100%;
         text-rendering: optimizeLegibility;
     }
 
     body {
+        height: 100%;
         min-width: 320px;
         overflow: hidden;
     }
 
     #app {
         height: 100vh;
+        height: 100dvh;
+        min-height: 100svh;
         width: 100%;
         display: flex;
         overflow: hidden;
@@ -41,6 +45,7 @@
         font-size: 13px;
         overscroll-behavior: contain;
         scrollbar-gutter: stable;
+        scroll-padding-bottom: max(1.5rem, calc(1rem + env(safe-area-inset-bottom)));
     }
 
     .app-main h1 {
@@ -148,7 +153,7 @@
 @media (max-width: 767px) {
     .app-main {
         padding: 0.75rem;
-        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        padding-bottom: max(2rem, calc(1.25rem + env(safe-area-inset-bottom)));
     }
 
     .app-main h1 {
@@ -159,8 +164,11 @@
 
     .app-main h2,
     .app-main h3,
-    .app-main p,
-    .app-main span {
+    .app-main p {
+        overflow-wrap: break-word;
+    }
+
+    .app-main .break-anywhere {
         overflow-wrap: anywhere;
     }
 
@@ -174,6 +182,13 @@
     .app-main [class*="md:flex-row"] > [class*="md:w-64"],
     .app-main [class*="md:flex-row"] > [class*="w-full"][class*="md:w-64"] {
         max-height: 42dvh;
+        overflow-y: auto;
+    }
+
+    .app-main [class*="lg:flex-row"] > [class*="lg:w-64"],
+    .app-main [class*="lg:flex-row"] > [class*="w-full"][class*="lg:w-64"] {
+        max-height: 42dvh;
+        overflow-y: auto;
     }
 
     .app-main [class*="rounded-xl"] {
@@ -189,6 +204,21 @@
     .app-main .recharts-wrapper {
         max-width: 100%;
     }
+
+    .app-main .table-scroll,
+    .app-main .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-x: contain;
+        touch-action: pan-x pan-y;
+    }
+
+    .app-main th.sticky.right-0 {
+        z-index: 20;
+    }
+
+    .app-main td.sticky.right-0 {
+        z-index: 10;
+    }
 }
 
 @media (min-width: 768px) and (max-width: 1279px) {
@@ -198,8 +228,16 @@
 
     .app-main [class*="h-[calc(100vh-180px)]"],
     .app-main [class*="h-[calc(100vh-132px)]"] {
-        min-height: 520px;
+        min-height: min(520px, calc(100dvh - 10rem));
     }
+}
+
+.app-main .recharts-responsive-container {
+    min-width: 0 !important;
+}
+
+.app-main .recharts-responsive-container .recharts-surface {
+    max-width: none;
 }
 
 .recharts-wrapper:focus,

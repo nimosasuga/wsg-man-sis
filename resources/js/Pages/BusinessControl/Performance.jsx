@@ -154,16 +154,36 @@ const ActivityChart = memo(function ActivityChart({ dataByYear = [], years = [],
                     {years.map((y) => <option key={y} value={y}>{y}</option>)}
                 </select>
             </div>
-            <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={chartData} margin={{ top: 5, right: 8, left: -20, bottom: 0 }}>
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 700, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
-                    <YAxis hide domain={[0, maxVal]} />
-                    <Tooltip contentStyle={{ borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 11, fontWeight: 600, padding: "4px 8px" }}
-                        formatter={(val) => [val, "Pengiriman"]} />
-                    <Bar dataKey="value" fill="#0ea5e9" radius={[3, 3, 0, 0]} barSize={14}
-                        cursor="pointer" onClick={(entry, index) => router.visit(`${baseRoute}?bulan=${index + 1}&tahun=${tahun}`)} />
-                </BarChart>
-            </ResponsiveContainer>
+            <div className="flex h-[160px] min-h-[160px] w-full min-w-0 items-stretch gap-1 border-b border-slate-200 pb-1 min-[360px]:h-[180px] min-[360px]:min-h-[180px]">
+                {chartData.map((item, index) => {
+                    const height = item.value > 0 ? Math.max((item.value / maxVal) * 100, 4) : 2;
+
+                    return (
+                        <button
+                            key={item.name}
+                            type="button"
+                            title={`${item.name}: ${formatNum(item.value)} pengiriman`}
+                            aria-label={`Buka data ${item.name} ${tahun}: ${formatNum(item.value)} pengiriman`}
+                            onClick={() => router.visit(`${baseRoute}?bulan=${index + 1}&tahun=${tahun}`)}
+                            className="group flex min-w-0 flex-1 flex-col justify-end gap-1.5 rounded-t px-0.5 text-center outline-none transition focus-visible:ring-2 focus-visible:ring-cyan-500"
+                        >
+                            <span className="relative flex min-h-0 flex-1 items-end">
+                                <span
+                                    className={`w-full rounded-t-sm transition-all duration-300 ${item.value > 0 ? "bg-cyan-500 group-hover:bg-cyan-600" : "bg-slate-200"}`}
+                                    style={{ height: `${height}%` }}
+                                />
+                                <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-bold text-white shadow-lg group-hover:block group-focus-visible:block">
+                                    {formatNum(item.value)} pengiriman
+                                </span>
+                            </span>
+                            <span className="whitespace-nowrap text-[9px] font-bold text-slate-500 [overflow-wrap:normal]">
+                                <span className="min-[360px]:hidden">{item.name.charAt(0)}</span>
+                                <span className="hidden min-[360px]:inline">{item.name}</span>
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 });
@@ -226,15 +246,17 @@ export default function Performance({ dbChartData }) {
                         {topAreas.length > 0 && (
                             <div>
                                 <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Profit per Area (Top 5)</p>
-                                <ResponsiveContainer width="100%" height={140}>
-                                    <BarChart data={topAreas} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-                                        <XAxis type="number" tick={{ fontSize: 10, fontWeight: 700, fill: "#94a3b8" }} tickFormatter={formatCompactRp} tickCount={3} minTickGap={18} axisLine={false} tickLine={false} />
-                                        <YAxis type="category" dataKey="area" tick={{ fontSize: 10, fontWeight: 700, fill: "#475569" }} axisLine={false} tickLine={false} width={80} />
-                                        <Tooltip contentStyle={{ borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 11, fontWeight: 600 }}
-                                            formatter={(val) => [formatRp(val), "Profit"]} />
-                                        <Bar dataKey="profit" fill="#0ea5e9" radius={[0, 4, 4, 0]} barSize={14} />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                <div className="h-[140px] min-h-[140px] w-full min-w-0">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={topAreas} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                                            <XAxis type="number" tick={{ fontSize: 10, fontWeight: 700, fill: "#94a3b8" }} tickFormatter={formatCompactRp} tickCount={3} minTickGap={18} axisLine={false} tickLine={false} />
+                                            <YAxis type="category" dataKey="area" tick={{ fontSize: 10, fontWeight: 700, fill: "#475569" }} axisLine={false} tickLine={false} width={80} />
+                                            <Tooltip contentStyle={{ borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 11, fontWeight: 600 }}
+                                                formatter={(val) => [formatRp(val), "Profit"]} />
+                                            <Bar dataKey="profit" fill="#0ea5e9" radius={[0, 4, 4, 0]} barSize={14} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
                             </div>
                         )}
                     </div>

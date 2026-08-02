@@ -12,7 +12,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $dbChartData = Cache::remember('dashboard.db_chart_data', now()->addMinutes(5), function () {
+        $dbChartData = Cache::remember('dashboard.db_chart_data.v3', now()->addMinutes(5), function () {
         // 1. Tarik hanya kolom yang dibutuhkan untuk efisiensi memori
         $inventori = Inventori::select('status_pajak', 'status_stnk', 'status_kir')->get();
         $inventoriByArea = Inventori::select('area', 'status_pajak', 'status_stnk', 'status_kir')->get()->groupBy('area');
@@ -47,18 +47,48 @@ class DashboardController extends Controller
             $totalKir += $count;
         }
 
-        // 5. Kalkulasi Dokumen Invoice
-        $invoiceRows = DB::table('finance_accounting_tax_input_fat')
-            ->select('status_dokumen_asli')
-            ->get();
-        $invoiceCounts = $invoiceRows
-            ->groupBy(fn ($row) => empty($row->status_dokumen_asli) ? 'TIDAK DIKETAHUI' : $row->status_dokumen_asli);
-        $chartDataInvoice = [];
-        $totalInvoice = 0;
-        foreach ($invoiceCounts as $name => $rows) {
-            $chartDataInvoice[] = ['name' => strtoupper($name), 'value' => $rows->count()];
-            $totalInvoice += $rows->count();
+        // 5. Status invoice mengikuti formula virtual AppSheet dari pembayaran yang telah disetujui.
+        $latestApprovals = DB::table('finance_accounting_tax_alur_aproval')
+            ->selectRaw('no_invoice, no_payment, MAX(date_time) as last_update')
+            ->groupBy('no_invoice', 'no_payment');
+
+        $approvedPayments = DB::table('finance_accounting_tax_mutasi_pembayaran as payment')
+            ->joinSub($latestApprovals, 'latest_approval', function ($join) {
+                $join->on('latest_approval.no_invoice', '=', 'payment.no_invoice')
+                    ->on('latest_approval.no_payment', '=', 'payment.no_payment');
+            })
+            ->join('finance_accounting_tax_alur_aproval as approval', function ($join) {
+                $join->on('approval.no_invoice', '=', 'latest_approval.no_invoice')
+                    ->on('approval.no_payment', '=', 'latest_approval.no_payment')
+                    ->on('approval.date_time', '=', 'latest_approval.last_update');
+            })
+            ->whereRaw("UPPER(TRIM(COALESCE(approval.status_doc, ''))) = 'APPROVED'")
+            ->whereNotNull('payment.bukti_tf')
+            ->where('payment.bukti_tf', '!=', '')
+            ->selectRaw('payment.no_invoice, SUM(COALESCE(payment.payment_amount, 0) + COALESCE(payment.biaya_lainnya, 0)) as total_pembayaran_invoice')
+            ->groupBy('payment.no_invoice');
+
+        $invoiceSummary = DB::table('finance_accounting_tax_input_fat as invoice')
+            ->leftJoinSub($approvedPayments, 'approved_payment', function ($join) {
+                $join->on('approved_payment.no_invoice', '=', 'invoice.no_invoice');
+            })
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(CASE WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) = 0 THEN 1 ELSE 0 END) as unpaid')
+            ->selectRaw('SUM(CASE WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) = COALESCE(invoice.total_payment, 0) AND COALESCE(approved_payment.total_pembayaran_invoice, 0) > 0 THEN 1 ELSE 0 END) as paid')
+            ->selectRaw('SUM(CASE WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) > 0 AND COALESCE(approved_payment.total_pembayaran_invoice, 0) < COALESCE(invoice.total_payment, 0) THEN 1 ELSE 0 END) as partial_paid')
+            ->selectRaw('SUM(CASE WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) > COALESCE(invoice.total_payment, 0) THEN 1 ELSE 0 END) as refund')
+            ->first();
+
+        $invoiceProgress = [
+            ['key' => 'PAID', 'label' => 'Paid', 'value' => (int) ($invoiceSummary->paid ?? 0)],
+            ['key' => 'UNPAID', 'label' => 'Unpaid', 'value' => (int) ($invoiceSummary->unpaid ?? 0)],
+            ['key' => 'PARTIAL PAID', 'label' => 'Partial Paid', 'value' => (int) ($invoiceSummary->partial_paid ?? 0)],
+        ];
+        if ((int) ($invoiceSummary->refund ?? 0) > 0) {
+            $invoiceProgress[] = ['key' => 'REFUND', 'label' => 'Refund', 'value' => (int) $invoiceSummary->refund];
         }
+        $chartDataInvoice = $invoiceProgress;
+        $totalInvoice = (int) ($invoiceSummary->total ?? 0);
 
         $activityPrimary = DB::table('operasional_primary_input')
             ->select('tanggal_muat')
@@ -123,6 +153,7 @@ class DashboardController extends Controller
                 'stnk' => $chartDataStnk,
                 'kir' => $chartDataKir,
                 'invoice' => $chartDataInvoice,
+                'invoiceProgress' => $invoiceProgress,
                 'activityPrimary' => $activityPrimary,
                 'activitySecondary' => $activitySecondary,
                 'fatDocPrimary' => $fatDocPrimary['data'],
@@ -222,7 +253,7 @@ class DashboardController extends Controller
                 'nopol' => $row->nopol_driver,
             ]);
 
-        Cache::put('dashboard.db_chart_data', $dbChartData, now()->addMinutes(5));
+        Cache::put('dashboard.db_chart_data.v3', $dbChartData, now()->addMinutes(5));
 
         return Inertia::render('Dashboard', [
             'dbChartData' => $dbChartData,

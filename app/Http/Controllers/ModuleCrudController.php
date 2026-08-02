@@ -80,8 +80,8 @@ class ModuleCrudController extends Controller
         $data = $this->validatedData($request, $config);
         $key = $config['key'];
 
-        if (in_array($key, Schema::getColumnListing($config['table']), true) && blank($data[$key] ?? null)) {
-            $data[$key] = Str::lower(Str::random(8));
+        if (in_array($key, Schema::getColumnListing($config['table']), true)) {
+            $data[$key] = $this->newKey($config);
         }
 
         foreach (($config['defaults'] ?? []) as $field => $value) {
@@ -189,12 +189,25 @@ class ModuleCrudController extends Controller
 
     private function validatedData(Request $request, array $config): array
     {
-        $fields = $this->fields($config);
+        // Kunci record dibuat di server dan tidak pernah diterima dari form.
+        $fields = array_values(array_filter(
+            $this->fields($config),
+            fn ($field) => $field !== $config['key'],
+        ));
 
         return $request->validate(
             collect($fields)
                 ->mapWithKeys(fn ($field) => [$field => ['nullable', 'string']])
                 ->all()
         );
+    }
+
+    private function newKey(array $config): string
+    {
+        do {
+            $key = (string) Str::uuid();
+        } while (DB::table($config['table'])->where($config['key'], $key)->exists());
+
+        return $key;
     }
 }

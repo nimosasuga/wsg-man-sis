@@ -189,6 +189,9 @@ export default function Form({ type = "service", mode = "create", record = {}, o
                     <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Identitas Unit</h2>
                     <p className="mt-1 text-sm font-semibold text-slate-500">Pilih nopol untuk menarik area dan driver dari data unit lokal bila tersedia.</p>
                     <div className="mt-5 grid gap-4 md:grid-cols-3">
+                        <Field label="ID Key">
+                            <TextInput value={data.id_key} onChange={() => {}} readOnly placeholder="Dibuat otomatis saat data disimpan" />
+                        </Field>
                         <Field label="Nopol" error={errors.nopol}>
                             <UnitSelect value={data.nopol} units={options.units || []} onChange={handleUnit} />
                         </Field>

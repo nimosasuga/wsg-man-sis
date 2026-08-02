@@ -246,7 +246,7 @@ class DaftarKaryawanController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validatedData($request);
-        $data['id_key'] = $data['id_key'] ?: Str::lower(Str::random(8));
+        $data['id_key'] = $this->newEmployeeKey();
 
         DB::table('hr_manager_db_pegawai')->insert($data);
 
@@ -313,7 +313,6 @@ class DaftarKaryawanController extends Controller
     private function validatedData(Request $request): array
     {
         return $request->validate([
-            'id_key' => ['nullable', 'string', 'max:191'],
             'nama_karyawan' => ['nullable', 'string', 'max:255'],
             'nama_panggilan' => ['nullable', 'string', 'max:255'],
             'nip' => ['nullable', 'string', 'max:255'],
@@ -357,6 +356,15 @@ class DaftarKaryawanController extends Controller
             'ukuran_sepatu' => ['nullable', 'string', 'max:255'],
             'keterangan' => ['nullable', 'string'],
         ]);
+    }
+
+    private function newEmployeeKey(): string
+    {
+        do {
+            $key = (string) Str::uuid();
+        } while (DB::table('hr_manager_db_pegawai')->where('id_key', $key)->exists());
+
+        return $key;
     }
 
     private function blankEmployee(): array

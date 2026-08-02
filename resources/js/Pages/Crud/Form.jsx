@@ -7,7 +7,7 @@ function fieldLabel(field) {
     return String(field || "").replaceAll("_", " ").toUpperCase();
 }
 
-function TextField({ field, value, error, disabled, onChange }) {
+function TextField({ field, value, error, disabled, placeholder, onChange }) {
     const isLong = ["keterangan", "dekripsi_invoice", "alamat_lengkap"].some((key) => field.includes(key));
 
     return (
@@ -19,6 +19,7 @@ function TextField({ field, value, error, disabled, onChange }) {
                 <textarea
                     value={value || ""}
                     disabled={disabled}
+                    placeholder={placeholder}
                     onChange={(event) => onChange(event.target.value)}
                     rows={4}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
@@ -27,6 +28,7 @@ function TextField({ field, value, error, disabled, onChange }) {
                 <input
                     value={value || ""}
                     disabled={disabled}
+                    placeholder={placeholder}
                     onChange={(event) => onChange(event.target.value)}
                     className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100 disabled:bg-slate-100"
                 />
@@ -84,7 +86,8 @@ export default function Form({ mode, module, config, record = {} }) {
                                 field={field}
                                 value={data[field]}
                                 error={errors[field]}
-                                disabled={isEdit && field === keyField}
+                                disabled={field === keyField}
+                                placeholder={field === keyField ? "Dibuat otomatis saat data disimpan" : undefined}
                                 onChange={(value) => setData(field, value)}
                             />
                         ))}

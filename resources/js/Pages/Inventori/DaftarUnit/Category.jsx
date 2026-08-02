@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import AdminLayout from "../../../Layouts/AdminLayout";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     ArrowDown,
     ArrowUp,
@@ -9,12 +9,17 @@ import {
     ChevronRight,
     PanelLeftClose,
     PanelLeftOpen,
+    Pencil,
+    Plus,
     SearchX,
+    Trash2,
 } from "lucide-react";
 
 const normalize = (value) => (value ? String(value).toUpperCase() : "TIDAK DIKETAHUI");
 
 export default function Category({ rawTableData = [], category }) {
+    const permissions = usePage().props.auth?.permissions || [];
+    const canManageInventory = permissions.includes("inventory.manage");
     const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
     const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(true);
     const [activeValue, setActiveValue] = useState("ALL");
@@ -112,6 +117,15 @@ export default function Category({ rawTableData = [], category }) {
                         </button>
                     </div>
                 </div>
+                {canManageInventory && (
+                    <Link
+                        href="/module-records/unit-inventori/create"
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#635bff] px-4 text-sm font-bold text-white shadow-sm shadow-[#635bff]/25 transition hover:bg-[#5148ea]"
+                    >
+                        <Plus size={16} />
+                        Tambah unit
+                    </Link>
+                )}
             </div>
 
             <div className="flex min-w-0 flex-col gap-4 overflow-hidden lg:h-[calc(100vh-180px)] lg:flex-row">
@@ -195,7 +209,9 @@ export default function Category({ rawTableData = [], category }) {
                                                 </div>
                                             </th>
                                         ))}
-                                        <th className="sticky right-0 w-10 bg-gray-50 px-3 py-3 shadow-[-4px_0_10px_rgba(0,0,0,0.02)]"></th>
+                                        <th className="sticky right-0 z-20 w-[112px] bg-gray-50 px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-gray-500 shadow-[-4px_0_10px_rgba(0,0,0,0.02)]">
+                                            {canManageInventory ? "Aksi" : ""}
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -210,8 +226,36 @@ export default function Category({ rawTableData = [], category }) {
                                                     {row[col.key] || "-"}
                                                 </td>
                                             ))}
-                                            <td className="sticky right-0 bg-white px-3 py-2.5 text-center shadow-[-4px_0_10px_rgba(0,0,0,0.02)] transition-colors group-hover:bg-blue-50/50">
-                                                <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-600" />
+                                            <td className="sticky right-0 z-10 bg-white px-3 py-2.5 text-center shadow-[-4px_0_10px_rgba(0,0,0,0.02)] transition-colors group-hover:bg-blue-50/50">
+                                                {canManageInventory ? (
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Link
+                                                            href={`/module-records/unit-inventori/${encodeURIComponent(row.id_key)}/edit`}
+                                                            onClick={(event) => event.stopPropagation()}
+                                                            className="grid h-8 w-8 place-items-center rounded-md text-slate-400 transition hover:bg-violet-100 hover:text-violet-700"
+                                                            title={`Edit ${row.nopol || "unit"}`}
+                                                            aria-label={`Edit ${row.nopol || "unit"}`}
+                                                        >
+                                                            <Pencil size={15} />
+                                                        </Link>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                if (window.confirm(`Hapus unit ${row.nopol || row.id_key}?`)) {
+                                                                    router.delete(`/module-records/unit-inventori/${encodeURIComponent(row.id_key)}`);
+                                                                }
+                                                            }}
+                                                            className="grid h-8 w-8 place-items-center rounded-md text-slate-400 transition hover:bg-rose-100 hover:text-rose-600"
+                                                            title={`Hapus ${row.nopol || "unit"}`}
+                                                            aria-label={`Hapus ${row.nopol || "unit"}`}
+                                                        >
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <ChevronRight size={16} className="mx-auto text-gray-300 group-hover:text-blue-600" />
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

@@ -10,27 +10,74 @@ class DokumenInvoiceController extends Controller
 {
     public function index()
     {
-        $invoiceData = DB::table('finance_accounting_tax_input_fat')
+        // Tabel invoice lokal tidak menyimpan EDIT TIME, jadi gunakan catatan admin terbaru pada id_record yang sama.
+        $latestEditorTimes = DB::table('operasional_catatan_update')
+            ->selectRaw('id_record, MAX(tgl_cek_admin) as edit_time')
+            ->groupBy('id_record');
+
+        $latestEditors = DB::table('operasional_catatan_update as update_log')
+            ->joinSub($latestEditorTimes, 'latest_editor_time', function ($join) {
+                $join->on('latest_editor_time.id_record', '=', 'update_log.id_record')
+                    ->on('latest_editor_time.edit_time', '=', 'update_log.tgl_cek_admin');
+            })
+            ->select('update_log.id_record', 'update_log.nama_admin', 'update_log.tgl_cek_admin');
+
+        $latestApprovals = DB::table('finance_accounting_tax_alur_aproval')
+            ->selectRaw('no_invoice, no_payment, MAX(date_time) as last_update')
+            ->groupBy('no_invoice', 'no_payment');
+
+        $approvedPayments = DB::table('finance_accounting_tax_mutasi_pembayaran as payment')
+            ->joinSub($latestApprovals, 'latest_approval', function ($join) {
+                $join->on('latest_approval.no_invoice', '=', 'payment.no_invoice')
+                    ->on('latest_approval.no_payment', '=', 'payment.no_payment');
+            })
+            ->join('finance_accounting_tax_alur_aproval as approval', function ($join) {
+                $join->on('approval.no_invoice', '=', 'latest_approval.no_invoice')
+                    ->on('approval.no_payment', '=', 'latest_approval.no_payment')
+                    ->on('approval.date_time', '=', 'latest_approval.last_update');
+            })
+            ->whereRaw("UPPER(TRIM(COALESCE(approval.status_doc, ''))) = 'APPROVED'")
+            ->whereNotNull('payment.bukti_tf')
+            ->where('payment.bukti_tf', '!=', '')
+            ->selectRaw('payment.no_invoice, SUM(COALESCE(payment.payment_amount, 0) + COALESCE(payment.biaya_lainnya, 0)) as total_pembayaran_invoice')
+            ->groupBy('payment.no_invoice');
+
+        $invoiceData = DB::table('finance_accounting_tax_input_fat as invoice')
+            ->leftJoinSub($latestEditors, 'editor_update', function ($join) {
+                $join->on('editor_update.id_record', '=', 'invoice.id_key');
+            })
+            ->leftJoinSub($approvedPayments, 'approved_payment', function ($join) {
+                $join->on('approved_payment.no_invoice', '=', 'invoice.no_invoice');
+            })
             ->select(
-                'id_key',
-                'create_date',
-                'due_date',
-                'regional',
-                'area',
-                'divisi',
-                'invoice_date',
-                'no_invoice',
-                'vendor_supplier',
-                'dekripsi_invoice',
-                'invoice_amount',
-                'ppn',
-                'pph',
-                'total_payment',
-                'pengajuan',
-                'upload_invoice',
-                'status_dokumen_asli'
+                'invoice.id_key',
+                'invoice.create_date',
+                'invoice.due_date',
+                'invoice.regional',
+                'invoice.area',
+                'invoice.divisi',
+                'invoice.invoice_date',
+                'invoice.no_invoice',
+                'invoice.vendor_supplier',
+                'invoice.dekripsi_invoice',
+                'invoice.invoice_amount',
+                'invoice.ppn',
+                'invoice.pph',
+                'invoice.total_payment',
+                'invoice.pengajuan',
+                'invoice.upload_invoice',
+                'invoice.status_dokumen_asli',
+                'editor_update.nama_admin as editor',
+                'editor_update.tgl_cek_admin as edit_time'
             )
-            ->orderByDesc('invoice_date')
+            ->selectRaw('COALESCE(approved_payment.total_pembayaran_invoice, 0) as total_pembayaran_invoice')
+            ->selectRaw("CASE
+                WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) = 0 THEN 'UNPAID'
+                WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) = COALESCE(invoice.total_payment, 0) THEN 'PAID'
+                WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) < COALESCE(invoice.total_payment, 0) THEN 'PARTIAL PAID'
+                ELSE 'REFUND'
+            END as status_invoice")
+            ->orderByDesc('invoice.invoice_date')
             ->get();
 
         return Inertia::render('Finance/DokumenInvoice/Index', [
@@ -45,6 +92,14 @@ class DokumenInvoiceController extends Controller
             ->first();
 
         abort_if(!$invoice, 404);
+
+        $editor = DB::table('operasional_catatan_update')
+            ->where('id_record', $invoice->id_key)
+            ->orderByDesc('tgl_cek_admin')
+            ->first(['nama_admin', 'tgl_cek_admin']);
+
+        $invoice->editor = $editor->nama_admin ?? null;
+        $invoice->edit_time = $editor->tgl_cek_admin ?? null;
 
         return Inertia::render('Finance/DokumenInvoice/Detail', [
             'invoiceData' => $invoice

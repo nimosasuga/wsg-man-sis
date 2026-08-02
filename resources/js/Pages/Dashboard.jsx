@@ -5,7 +5,7 @@ import {
     AlertTriangle, CheckCircle, Clock, FileText, Truck,
     ArrowUpRight, Activity,
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 const formatNum = (value) => Number(value || 0).toLocaleString("id-ID");
 
@@ -23,7 +23,7 @@ const ColorDot = memo(function ColorDot({ color }) {
 const StatCard = memo(function StatCard({ icon: Icon, label, value, sub, color }) {
     const dot = { emerald: "bg-emerald-700/10 text-emerald-700", amber: "bg-amber-600/10 text-amber-600", rose: "bg-red-600/10 text-red-600", neutral: "bg-neutral-100 text-neutral-700" };
     return (
-        <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm shadow-slate-200/50 transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
+        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm shadow-slate-200/50 transition duration-200 hover:-translate-y-0.5 hover:shadow-md sm:px-4 sm:py-4">
             <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${dot[color]}`}>
                 <Icon size={17} strokeWidth={2.5} />
             </div>
@@ -97,25 +97,45 @@ const ActivityChart = memo(function ActivityChart({ dataByYear = [], years = [],
 
     return (
         <div>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-col gap-3 min-[420px]:flex-row min-[420px]:items-center min-[420px]:justify-between">
                 <p className="text-xs font-medium text-neutral-500">
                     Total: <span className="font-bold text-neutral-900">{formatNum(totalYear)}</span> pengiriman
                 </p>
                 <select value={tahun} onChange={(e) => setTahun(Number(e.target.value))}
-                    className="h-8 rounded-md border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-600 outline-none focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200">
+                    className="h-8 w-full rounded-md border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-600 outline-none focus:border-neutral-400 focus:ring-2 focus:ring-neutral-200 min-[420px]:w-auto">
                     {years.map((y) => <option key={y} value={y}>{y}</option>)}
                 </select>
             </div>
-            <ResponsiveContainer width="100%" height={210}>
-                <BarChart data={chartData} margin={{ top: 6, right: 4, left: -16, bottom: 0 }}>
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fontWeight: 600, fill: "#737373" }} axisLine={false} tickLine={false} />
-                    <YAxis hide domain={[0, maxVal]} />
-                    <Tooltip contentStyle={{ borderRadius: 4, border: "1px solid #e5e5e5", fontSize: 11, fontWeight: 600, boxShadow: "0 2px 6px rgba(0,0,0,0.06)" }}
-                        formatter={(val) => [val, "Pengiriman"]} />
-                    <Bar dataKey="value" fill="#2563eb" radius={[6, 6, 0, 0]} barSize={22}
-                        cursor="pointer" onClick={(entry, index) => router.visit(`${baseRoute}?bulan=${index + 1}&tahun=${tahun}`)} />
-                </BarChart>
-            </ResponsiveContainer>
+            <div className="flex h-[170px] min-h-[170px] w-full min-w-0 items-stretch gap-1 border-b border-slate-200 pb-1 min-[360px]:h-[210px] min-[360px]:min-h-[210px] sm:gap-1.5">
+                {chartData.map((item, index) => {
+                    const height = item.value > 0 ? Math.max((item.value / maxVal) * 100, 4) : 2;
+
+                    return (
+                        <button
+                            key={item.name}
+                            type="button"
+                            title={`${item.name}: ${formatNum(item.value)} pengiriman`}
+                            aria-label={`Buka data ${item.name} ${tahun}: ${formatNum(item.value)} pengiriman`}
+                            onClick={() => router.visit(`${baseRoute}?bulan=${index + 1}&tahun=${tahun}`)}
+                            className="group flex min-w-0 flex-1 flex-col justify-end gap-1.5 rounded-t px-0.5 text-center outline-none transition focus-visible:ring-2 focus-visible:ring-blue-500"
+                        >
+                            <span className="relative flex min-h-0 flex-1 items-end">
+                                <span
+                                    className={`w-full rounded-t-sm transition-all duration-300 ${item.value > 0 ? "bg-blue-600 group-hover:bg-blue-700" : "bg-slate-200"}`}
+                                    style={{ height: `${height}%` }}
+                                />
+                                <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-bold text-white shadow-lg group-hover:block group-focus-visible:block">
+                                    {formatNum(item.value)} pengiriman
+                                </span>
+                            </span>
+                            <span className="whitespace-nowrap text-[9px] font-bold text-slate-500 [overflow-wrap:normal] min-[360px]:text-[10px]">
+                                <span className="min-[360px]:hidden">{item.name.charAt(0)}</span>
+                                <span className="hidden min-[360px]:inline">{item.name}</span>
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 });
@@ -239,11 +259,92 @@ const FatStatusCard = memo(function FatStatusCard({ title, icon: Icon, data: raw
     );
 });
 
+const INVOICE_PROGRESS_COLORS = {
+    PAID: "#10b981",
+    UNPAID: "#ef4444",
+    "PARTIAL PAID": "#f59e0b",
+    REFUND: "#8b5cf6",
+};
+
+const INVOICE_PROGRESS_TEXT = {
+    PAID: "Pembayaran sudah lunas",
+    UNPAID: "Belum ada pembayaran valid",
+    "PARTIAL PAID": "Pembayaran belum lunas",
+    REFUND: "Pembayaran melebihi tagihan",
+};
+
+const InvoiceProgressCard = memo(function InvoiceProgressCard({ items: rawItems = [] }) {
+    const items = Array.isArray(rawItems) ? rawItems : [];
+    const total = items.reduce((sum, item) => sum + Number(item.value || 0), 0);
+
+    return (
+        <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6">
+                <div className="flex min-w-0 items-center gap-3">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700">
+                        <FileText size={16} />
+                    </div>
+                    <div className="min-w-0">
+                        <h2 className="text-sm font-bold text-slate-900">Status pembayaran invoice</h2>
+                        <p className="mt-0.5 text-xs font-medium text-slate-500">Pantau invoice yang sudah lunas, belum dibayar, atau masih dibayar sebagian.</p>
+                    </div>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700">{formatNum(total)} invoice</span>
+            </div>
+            <div className="p-4 sm:p-5">
+                <div className="flex h-4 w-full overflow-hidden rounded-full bg-slate-100" aria-label="Progress dokumen invoice">
+                    {items.map((item) => {
+                        const value = Number(item.value || 0);
+                        const width = total > 0 ? (value / total) * 100 : 0;
+
+                        return width > 0 ? (
+                            <button
+                                key={item.key}
+                                type="button"
+                                title={`${item.label}: ${formatNum(value)} invoice`}
+                                onClick={() => router.visit(`/finance/dokumen-invoice?status=${encodeURIComponent(item.key)}`)}
+                                className="h-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+                                style={{ width: `${width}%`, backgroundColor: INVOICE_PROGRESS_COLORS[item.key] || "#94a3b8" }}
+                            />
+                        ) : null;
+                    })}
+                </div>
+                <div className="mt-4 grid min-w-0 gap-2 sm:grid-cols-3">
+                    {items.map((item) => {
+                        const value = Number(item.value || 0);
+                        const percentage = total > 0 ? (value / total) * 100 : 0;
+
+                        return (
+                            <button
+                                key={item.key}
+                                type="button"
+                                onClick={() => router.visit(`/finance/dokumen-invoice?status=${encodeURIComponent(item.key)}`)}
+                                className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-3 text-left transition hover:border-slate-200 hover:bg-white hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                            >
+                                <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: INVOICE_PROGRESS_COLORS[item.key] || "#94a3b8" }} />
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-xs font-bold text-slate-800">{item.label}</span>
+                                    <span className="mt-0.5 block text-[11px] font-medium text-slate-500">{INVOICE_PROGRESS_TEXT[item.key] || "Lihat rincian dokumen"}</span>
+                                </span>
+                                <span className="shrink-0 text-right">
+                                    <span className="block text-sm font-extrabold text-slate-950">{formatNum(value)}</span>
+                                    <span className="block text-[11px] font-semibold text-slate-500">{pct(value, total)}%</span>
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        </section>
+    );
+});
+
 export default function Dashboard({ dbChartData }) {
     const {
         pajak = [], stnk = [], kir = [],
         primaryActivityByYear = [], primaryActivityYears = [],
         secondaryActivityByYear = [], secondaryActivityYears = [],
+        invoiceProgress = [],
     } = dbChartData || {};
 
     const [fatData, setFatData] = useState(null);
@@ -287,8 +388,8 @@ export default function Dashboard({ dbChartData }) {
 
             {/* ── Hero + Quick Stats ── */}
             <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
-                <div className="grid gap-5 p-5 lg:grid-cols-[1.3fr_1fr] lg:gap-8 lg:p-7">
-                    <div>
+                <div className="grid min-w-0 gap-4 p-4 sm:p-5 lg:grid-cols-[1.3fr_1fr] lg:gap-8 lg:p-7">
+                    <div className="min-w-0">
                         <div className="mb-3 flex flex-wrap items-center gap-2">
                             <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-700">
                                 <Activity size={13} /> Pusat kendali
@@ -315,7 +416,7 @@ export default function Dashboard({ dbChartData }) {
                             ))}
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid min-w-0 grid-cols-1 gap-3 min-[420px]:grid-cols-2">
                         <StatCard icon={Truck} label="Total Unit" value={formatNum(totalUnit)} sub="Unit terdaftar" color="neutral" />
                         <StatCard icon={CheckCircle} label={`Kepatuhan`} value={`${complianceRate}%`} sub={`${formatNum(totalActive)} dokumen aktif`} color="emerald" />
                         <StatCard icon={AlertTriangle} label="Expired" value={formatNum(totalExpired)} sub="Perlu tindakan segera" color="rose" />
@@ -326,7 +427,7 @@ export default function Dashboard({ dbChartData }) {
 
             {/* ── Compliance Overview ── */}
             <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
-                <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6">
                     <div className="flex items-center gap-3">
                         <div className="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-700">
                             <FileText size={16} />
@@ -344,30 +445,30 @@ export default function Dashboard({ dbChartData }) {
                         <ColorDot color={COLORS_PALETTE.EXPIRED} /> {STATUS_LABELS.EXPIRED}
                     </div>
                 </div>
-                <div className="grid gap-4 p-5 sm:grid-cols-3 sm:p-6">
-                    <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                <div className="grid min-w-0 gap-3 p-4 min-[520px]:grid-cols-2 sm:p-5 lg:grid-cols-3 lg:p-6">
+                    <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:p-4">
                         <p className="mb-3 text-center text-sm font-bold text-slate-800">Pajak kendaraan</p>
                         <MiniDonut data={pajak} total={totalUnit} basePath="/inventori/pajak" />
                     </div>
-                    <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                    <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:p-4">
                         <p className="mb-3 text-center text-sm font-bold text-slate-800">STNK</p>
                         <MiniDonut data={stnk} total={totalUnit} basePath="/inventori/stnk" />
                     </div>
-                    <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4">
+                    <div className="min-w-0 rounded-xl border border-slate-100 bg-slate-50/70 p-3 sm:p-4">
                         <p className="mb-3 text-center text-sm font-bold text-slate-800">KIR</p>
                         <MiniDonut data={kir} total={totalUnit} basePath="/inventori/kir" />
                     </div>
                 </div>
-                <div className="border-t border-neutral-200 px-5 py-4">
-                    <div className="flex items-center gap-4">
-                        <span className="text-xs font-bold uppercase tracking-widest text-neutral-500">Status Keseluruhan</span>
-                        <div className="flex h-3 flex-1 overflow-hidden rounded-sm bg-neutral-100">
+                <div className="border-t border-neutral-200 px-4 py-4 sm:px-5">
+                    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                        <span className="shrink-0 text-xs font-bold uppercase tracking-widest text-neutral-500">Status Keseluruhan</span>
+                        <div className="flex h-3 w-full min-w-0 flex-1 overflow-hidden rounded-sm bg-neutral-100">
                             {overallStatus.map((item) => {
                                 const w = totalDocEntries > 0 ? (item.value / totalDocEntries) * 100 : 0;
                                 return w > 0 ? <div key={item.name} className="h-full transition-all" style={{ width: `${w}%`, backgroundColor: COLORS_PALETTE[item.name] || "#737373" }} /> : null;
                             })}
                         </div>
-                        <div className="flex shrink-0 gap-3">
+                        <div className="grid w-full grid-cols-1 gap-1.5 min-[420px]:grid-cols-3 sm:w-auto sm:gap-3">
                             {overallStatus.map((item) => {
                                 const w = totalDocEntries > 0 ? (item.value / totalDocEntries) * 100 : 0;
                                 return (
@@ -383,8 +484,10 @@ export default function Dashboard({ dbChartData }) {
                 </div>
             </section>
 
+            <InvoiceProgressCard items={invoiceProgress} />
+
             {/* ── FAT Document Status ── */}
-            <section className="mb-6 grid gap-6 lg:grid-cols-2">
+            <section className="mb-6 grid min-w-0 gap-4 lg:grid-cols-2 lg:gap-6">
                 <FatStatusCard
                     title="FAT Document Primary"
                     icon={FileText}
@@ -405,7 +508,7 @@ export default function Dashboard({ dbChartData }) {
 
             {/* ── Activity Overview ── */}
             <section className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+                <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                     <div className="flex items-center gap-3">
                         <div className="grid h-9 w-9 place-items-center rounded-xl bg-violet-50 text-violet-700">
                             <Activity size={16} />
@@ -417,20 +520,20 @@ export default function Dashboard({ dbChartData }) {
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
+                    <div className="flex w-full items-center gap-1 rounded-lg bg-slate-100 p-1 sm:w-auto">
                         <button onClick={() => setTab("primary")}
-                            className={`rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition ${
+                            className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition sm:flex-none ${
                                 tab === "primary" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-800"
                             }`}
                         >Primary</button>
                         <button onClick={() => setTab("secondary")}
-                            className={`rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition ${
+                            className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition sm:flex-none ${
                                 tab === "secondary" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-800"
                             }`}
                         >Secondary</button>
                     </div>
                 </div>
-                <div className="px-5 pb-5 pt-4">
+                <div className="min-w-0 px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
                     {tab === "primary" ? (
                         <ActivityChart dataByYear={primaryActivityByYear} years={primaryActivityYears}
                             baseRoute="/profit-unit/primary/table" />

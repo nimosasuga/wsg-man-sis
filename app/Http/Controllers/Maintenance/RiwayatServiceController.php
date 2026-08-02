@@ -552,6 +552,7 @@ class RiwayatServiceController extends Controller
     private function emptyServiceRecord(): array
     {
         return array_fill_keys([
+            'id_key',
             'nopol',
             'area',
             'driver',
@@ -575,6 +576,7 @@ class RiwayatServiceController extends Controller
     private function emptyBanRecord(): array
     {
         return array_fill_keys([
+            'id_key',
             'nopol',
             'area',
             'driver',

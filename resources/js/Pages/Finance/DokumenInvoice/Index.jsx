@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../../../Layouts/AdminLayout";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     ArrowDown,
     ArrowUp,
@@ -17,11 +17,11 @@ import {
 const statusTone = (status) => {
     const normalized = (status || "").toUpperCase();
 
-    if (normalized.includes("DITERIMA") || normalized.includes("LENGKAP")) {
+    if (normalized === "PAID" || normalized.includes("DITERIMA") || normalized.includes("LENGKAP")) {
         return "bg-emerald-100 text-emerald-700";
     }
 
-    if (normalized.includes("BELUM") || normalized.includes("KOSONG")) {
+    if (normalized === "UNPAID" || normalized.includes("BELUM") || normalized.includes("KOSONG")) {
         return "bg-rose-100 text-rose-700";
     }
 
@@ -31,21 +31,45 @@ const statusTone = (status) => {
 const formatRp = (value) =>
     `Rp ${Number(value || 0).toLocaleString("id-ID")}`;
 
+const normalizeInvoiceStatus = (status) => {
+    const normalized = String(status || "").trim().toUpperCase();
+
+    if (["PAID", "UNPAID", "PARTIAL PAID", "REFUND"].includes(normalized)) {
+        return normalized;
+    }
+
+    return "UNPAID";
+};
+
+const documentStatusLabel = (status) =>
+    String(status || "").trim() || "Blank";
+
 export default function Index({ rawTableData = [] }) {
+    const { url } = usePage();
+    const requestedStatus = useMemo(
+        () =>
+            new URLSearchParams(url.split("?")[1] || "").get("status") ||
+            "ALL",
+        [url],
+    );
     const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
     const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(true);
-    const [activeStatus, setActiveStatus] = useState("ALL");
+    const [activeStatus, setActiveStatus] = useState(requestedStatus);
     const [activeArea, setActiveArea] = useState("ALL");
     const [sortConfig, setSortConfig] = useState({
         key: null,
         direction: "asc",
     });
 
+    useEffect(() => {
+        setActiveStatus(requestedStatus);
+    }, [requestedStatus]);
+
     const statusList = useMemo(() => {
         const uniqueStatuses = [
             ...new Set(
                 rawTableData.map(
-                    (item) => item.status_dokumen_asli || "TIDAK DIKETAHUI",
+                    (item) => normalizeInvoiceStatus(item.status_invoice),
                 ),
             ),
         ];
@@ -60,7 +84,7 @@ export default function Index({ rawTableData = [] }) {
 
     const filteredData = useMemo(() => {
         return rawTableData.filter((item) => {
-            const itemStatus = item.status_dokumen_asli || "TIDAK DIKETAHUI";
+            const itemStatus = normalizeInvoiceStatus(item.status_invoice);
             const matchStatus =
                 activeStatus === "ALL" || itemStatus === activeStatus;
             const matchArea = activeArea === "ALL" || item.area === activeArea;
@@ -104,14 +128,16 @@ export default function Index({ rawTableData = [] }) {
 
     const countStatus = (status) =>
         rawTableData.filter((item) => {
-            const itemStatus = item.status_dokumen_asli || "TIDAK DIKETAHUI";
+            const itemStatus = normalizeInvoiceStatus(item.status_invoice);
             return status === "ALL" ? true : itemStatus === status;
         }).length;
     const countArea = (areaName) =>
         rawTableData.filter((item) => item.area === areaName).length;
 
     const columns = [
+        { label: "STATUS INVOICE", key: "status_invoice" },
         { label: "STATUS DOKUMEN", key: "status_dokumen_asli" },
+        { label: "EDITOR", key: "editor" },
         { label: "NO INVOICE", key: "no_invoice" },
         { label: "TANGGAL INVOICE", key: "invoice_date" },
         { label: "DUE DATE", key: "due_date" },
@@ -293,11 +319,18 @@ export default function Index({ rawTableData = [] }) {
                                         >
                                             <td className="border-r border-gray-50 px-4 py-2.5">
                                                 <span
-                                                    className={`rounded-md px-2 py-1 text-[10px] font-bold ${statusTone(row.status_dokumen_asli)}`}
+                                                    className={`rounded-md px-2 py-1 text-[10px] font-bold ${statusTone(row.status_invoice)}`}
                                                 >
-                                                    {row.status_dokumen_asli ||
-                                                        "TIDAK DIKETAHUI"}
+                                                    {normalizeInvoiceStatus(row.status_invoice)}
                                                 </span>
+                                            </td>
+                                            <td className="border-r border-gray-50 px-4 py-2.5">
+                                                <span className={`rounded-md px-2 py-1 text-[10px] font-bold ${statusTone(row.status_dokumen_asli)}`}>
+                                                    {documentStatusLabel(row.status_dokumen_asli)}
+                                                </span>
+                                            </td>
+                                            <td className="border-r border-gray-50 px-4 py-2.5 text-xs font-medium text-gray-700">
+                                                {row.editor || "-"}
                                             </td>
                                             <td className="border-r border-gray-50 px-4 py-2.5 text-xs font-bold text-gray-900">
                                                 {row.no_invoice || "-"}

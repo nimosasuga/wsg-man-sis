@@ -106,6 +106,8 @@ export default function Detail({ invoiceData }) {
                     <div className="grid grid-cols-1 gap-x-6 md:grid-cols-2">
                         <DataItem label="No Invoice" value={invoiceData.no_invoice} />
                         <DataItem label="Status Dokumen Asli" value={invoiceData.status_dokumen_asli} isBadge />
+                        <DataItem label="Editor" value={invoiceData.editor} />
+                        <DataItem label="Waktu Pembaruan" value={invoiceData.edit_time} />
                         <DataItem label="Tanggal Invoice" value={invoiceData.invoice_date} />
                         <DataItem label="Tanggal Input" value={invoiceData.create_date} />
                         <DataItem label="TOP" value={invoiceData.top} />
