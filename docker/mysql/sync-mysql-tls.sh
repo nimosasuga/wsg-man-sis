@@ -21,6 +21,8 @@ fi
 install -d -m 700 /tls
 install -m 644 "$certificate_file" /tls/server-cert.pem
 install -m 600 "$key_file" /tls/server-key.pem
-chown 999:999 /tls/server-cert.pem /tls/server-key.pem
+# MySQL runs as UID/GID 999 in the official image. It must also be able to
+# traverse the mounted directory, not only read the certificate files.
+chown 999:999 /tls /tls/server-cert.pem /tls/server-key.pem
 
 echo "Sertifikat MySQL untuk ${MYSQL_TLS_DOMAIN} berhasil disalin ke volume TLS."
