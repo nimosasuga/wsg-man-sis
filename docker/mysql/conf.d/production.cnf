@@ -1,0 +1,9 @@
+[mysqld]
+default_time_zone = '+00:00'
+max_allowed_packet = 64M
+table_open_cache = 2048
+thread_cache_size = 64
+slow_query_log = ON
+long_query_time = 2
+log_queries_not_using_indexes = OFF
+

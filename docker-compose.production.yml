@@ -1,0 +1,100 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: app
+    image: washeng-app:latest
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - washeng_storage:/var/www/html/storage
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - washeng
+
+  db:
+    image: mysql:8.4
+    env_file:
+      - .env
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-name-resolve
+      - --transaction-isolation=READ-COMMITTED
+      - --max-connections=300
+    restart: unless-stopped
+    volumes:
+      - washeng_mysql:/var/lib/mysql
+      - ./docker/mysql/conf.d/production.cnf:/etc/mysql/conf.d/production.cnf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - washeng
+
+  db-init-users:
+    image: mysql:8.4
+    profiles: ["maintenance"]
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/usr/local/bin/init-users.sh"]
+    volumes:
+      - ./docker/mysql/init-users.sh:/usr/local/bin/init-users.sh:ro
+    networks:
+      - washeng
+
+  db-backup:
+    image: mysql:8.4
+    profiles: ["maintenance"]
+    env_file:
+      - .env
+    environment:
+      MYSQL_PWD: ${MYSQL_ROOT_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/usr/local/bin/backup.sh"]
+    volumes:
+      - ./docker/mysql/backup.sh:/usr/local/bin/backup.sh:ro
+      - ./backups:/backups
+    networks:
+      - washeng
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    image: washeng-web:latest
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+    restart: unless-stopped
+    volumes:
+      - washeng_storage:/var/www/html/storage:ro
+    networks:
+      - washeng
+
+volumes:
+  washeng_storage:
+  washeng_mysql:
+
+networks:
+  washeng:
+    driver: bridge
