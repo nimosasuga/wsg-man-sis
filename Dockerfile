@@ -22,6 +22,7 @@ RUN composer install \
     --prefer-dist \
     --no-interaction \
     --no-progress \
+    --no-scripts \
     --optimize-autoloader
 
 FROM php:8.3-fpm-alpine AS app
@@ -62,7 +63,8 @@ COPY . .
 COPY --from=frontend /app/public/build ./public/build
 COPY docker/php/zz-washeng.ini /usr/local/etc/php/conf.d/zz-washeng.ini
 
-RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+RUN php artisan package:discover --ansi \
+    && mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
 USER www-data
