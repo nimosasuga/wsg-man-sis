@@ -20,7 +20,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if ($this->app->environment('production')) {
+        $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+
+        // Railway and the final domain must stay HTTPS. During first VPS setup we
+        // access the app through its raw HTTP IP, which cannot serve HTTPS yet.
+        if ($this->app->environment('production') && $appHost && ! filter_var($appHost, FILTER_VALIDATE_IP)) {
             URL::forceScheme('https');
         }
     }
