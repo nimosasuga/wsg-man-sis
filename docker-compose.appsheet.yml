@@ -1,0 +1,7 @@
+services:
+  db:
+    ports:
+      - "3306:3306"
+    volumes:
+      - washeng_mysql_tls:/etc/mysql/tls:ro
+      - ./docker/mysql/conf.d/appsheet-tls.cnf:/etc/mysql/conf.d/appsheet-tls.cnf:ro

@@ -6,3 +6,7 @@
     encode zstd gzip
     reverse_proxy web:80
 }
+
+{$MYSQL_TLS_DOMAIN:db.cargo.washeng.online} {
+    respond "MySQL endpoint" 404
+}

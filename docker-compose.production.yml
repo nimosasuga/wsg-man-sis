@@ -75,6 +75,19 @@ services:
     networks:
       - washeng
 
+  mysql-tls-sync:
+    image: alpine:3.21
+    profiles: ["maintenance"]
+    env_file:
+      - .env
+    entrypoint: ["/bin/sh", "/usr/local/bin/sync-mysql-tls.sh"]
+    volumes:
+      - ./docker/mysql/sync-mysql-tls.sh:/usr/local/bin/sync-mysql-tls.sh:ro
+      - washeng_caddy_data:/caddy-data:ro
+      - washeng_mysql_tls:/tls
+    networks:
+      - washeng
+
   web:
     build:
       context: .
@@ -114,6 +127,7 @@ volumes:
   washeng_mysql:
   washeng_caddy_data:
   washeng_caddy_config:
+  washeng_mysql_tls:
 
 networks:
   washeng:

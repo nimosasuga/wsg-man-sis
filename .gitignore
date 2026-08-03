@@ -25,6 +25,7 @@
 /vendor
 /data_db
 /flow
+/vps-local
 _ide_helper.php
 Homestead.json
 Homestead.yaml
