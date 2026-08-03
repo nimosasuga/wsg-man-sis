@@ -22,6 +22,7 @@ return [
         'finance-documents.view' => 'Lihat Dokumen Finance',
         'finance-documents.manage' => 'Kelola Dokumen Finance',
         'access-control.manage' => 'Kelola Role dan Hak Akses',
+        'database.manage' => 'Kelola Struktur dan Ekspor Database',
     ],
 
     'roles' => [

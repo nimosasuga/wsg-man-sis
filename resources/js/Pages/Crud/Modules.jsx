@@ -26,7 +26,7 @@ const groupMeta = {
     administrasi: { icon: Boxes, tone: "text-slate-600 bg-slate-100", description: "Konfigurasi data administratif." },
 };
 
-export default function Modules({ modules = [] }) {
+export default function Modules({ modules = [], canManageDatabase = false }) {
     const [search, setSearch] = useState("");
 
     const filtered = useMemo(() => {
@@ -82,6 +82,12 @@ export default function Modules({ modules = [] }) {
                                 <Upload size={16} />
                                 Impor & Ekspor
                             </Link>
+                            {canManageDatabase && (
+                                <Link href="/database-manager" className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700">
+                                    <Database size={16} />
+                                    Struktur Database
+                                </Link>
+                            )}
                         </div>
                     </div>
                 </section>

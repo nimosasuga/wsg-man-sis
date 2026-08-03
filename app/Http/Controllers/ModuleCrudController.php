@@ -33,6 +33,7 @@ class ModuleCrudController extends Controller
 
         return Inertia::render('Crud/Modules', [
             'modules' => $modules,
+            'canManageDatabase' => $request->user()?->can('database.manage') ?? false,
         ]);
     }
 

@@ -88,6 +88,7 @@ const menus = [
             "system.manage",
         ],
     },
+    { name: "Database", icon: Database, path: "/database-manager", activePaths: ["/database-manager"], permission: "database.manage" },
     { name: "Role & Akses", icon: ShieldCheck, path: "/system/access-control", permission: "access-control.manage" },
 ];
 
@@ -263,8 +264,8 @@ export default function AdminLayout({ children }) {
 
     const isExpanded = isDesktop ? isSidebarOpen : true;
     const sidebarWidthClass = isExpanded ? "w-72" : "w-[88px]";
-    const mainMenus = visibleMenus.filter((menu) => !["CRUD Data", "Role & Akses"].includes(menu.name));
-    const administrationMenus = visibleMenus.filter((menu) => ["CRUD Data", "Role & Akses"].includes(menu.name));
+    const mainMenus = visibleMenus.filter((menu) => !["CRUD Data", "Database", "Role & Akses"].includes(menu.name));
+    const administrationMenus = visibleMenus.filter((menu) => ["CRUD Data", "Database", "Role & Akses"].includes(menu.name));
     const handleLogout = () => {
         if (isLoggingOut) return;
 
