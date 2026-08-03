@@ -18,6 +18,8 @@ Salin `.env.example` menjadi `.env` di direktori aplikasi VPS, lalu isi nilai pr
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://cargo.washeng.online
+APP_DOMAIN=cargo.washeng.online
+ACME_EMAIL=<email-admin-untuk-notifikasi-sertifikat>
 LOG_LEVEL=warning
 
 DB_CONNECTION=mysql
@@ -84,11 +86,30 @@ Jalankan baris kedua hanya setelah daftar status diverifikasi.
 ## Uji sebelum DNS
 
 ```bash
-curl -I -H "Host: cargo.washeng.online" http://127.0.0.1
+curl -I http://127.0.0.1:8080/login
 docker compose -f docker-compose.production.yml logs --tail=100 app web
 ```
 
-Setelah uji aplikasi berhasil, arahkan DNS domain utama `cargo.washeng.online` ke IP VPS. SSL HTTPS dipasang setelah DNS sudah mengarah ke VPS.
+## DNS dan HTTPS
+
+Setelah uji aplikasi berhasil, arahkan DNS domain utama `cargo.washeng.online` ke IP VPS. Service Caddy pada Compose akan menerbitkan dan memperbarui sertifikat HTTPS secara otomatis.
+
+Tambahkan record berikut di pengelola DNS domain:
+
+```text
+A      @      <IP-VPS>
+A      www    <IP-VPS>
+```
+
+Setelah propagasi DNS selesai, jalankan:
+
+```bash
+docker compose -f docker-compose.production.yml up -d caddy
+docker compose -f docker-compose.production.yml logs --tail=100 caddy
+curl -I https://cargo.washeng.online/login
+```
+
+Port `80` dan `443` hanya dilayani oleh Caddy. Nginx aplikasi berjalan internal pada `127.0.0.1:8080` agar tidak bisa diakses langsung dari internet.
 
 ## AppSheet dan port MySQL
 

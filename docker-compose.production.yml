@@ -84,16 +84,36 @@ services:
     depends_on:
       - app
     ports:
-      - "80:80"
+      - "127.0.0.1:8080:80"
     restart: unless-stopped
     volumes:
       - washeng_storage:/var/www/html/storage:ro
     networks:
       - washeng
 
+  caddy:
+    image: caddy:2.10-alpine
+    env_file:
+      - .env
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    restart: unless-stopped
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - washeng_caddy_data:/data
+      - washeng_caddy_config:/config
+    networks:
+      - washeng
+
 volumes:
   washeng_storage:
   washeng_mysql:
+  washeng_caddy_data:
+  washeng_caddy_config:
 
 networks:
   washeng:
