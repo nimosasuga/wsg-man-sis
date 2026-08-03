@@ -8,5 +8,9 @@
 }
 
 {$MYSQL_TLS_DOMAIN:db.cargo.washeng.online} {
+    # MySQL 8 on the production image requires an RSA certificate/key pair.
+    tls {
+        key_type rsa2048
+    }
     respond "MySQL endpoint" 404
 }
