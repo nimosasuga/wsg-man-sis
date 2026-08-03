@@ -17,16 +17,26 @@ use App\Http\Controllers\Maintenance\RiwayatServiceController;
 use App\Http\Controllers\System\DataHealthController;
 use App\Http\Controllers\System\SystemActivityLogController;
 use App\Http\Controllers\System\AccessControlController;
+use App\Http\Controllers\System\HeaderNotificationController;
 use App\Http\Controllers\Karyawan\DaftarKaryawanController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\ModuleCrudController;
 use App\Http\Controllers\BusinessControlController;
+use App\Http\Controllers\ImportExportController;
 
 Route::redirect('/', '/dashboard');
 
 Route::middleware(['auth'])->group(function () {
 
     Route::get('/global-search', GlobalSearchController::class)->name('global-search');
+    Route::get('/import-export', [ImportExportController::class, 'index'])->name('import-export.index');
+    Route::get('/import-export/{module}/template', [ImportExportController::class, 'template'])->name('import-export.template');
+    Route::get('/import-export/{module}/export', [ImportExportController::class, 'export'])->name('import-export.export');
+    Route::post('/import-export/{module}/preview', [ImportExportController::class, 'preview'])->name('import-export.preview');
+    Route::post('/import-export/{module}/commit', [ImportExportController::class, 'commit'])->name('import-export.commit');
+    Route::get('/notifications', [HeaderNotificationController::class, 'index'])->name('notifications.index');
+    Route::put('/notifications/read-all', [HeaderNotificationController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::put('/notifications/{notification}/read', [HeaderNotificationController::class, 'markRead'])->name('notifications.read');
     Route::prefix('module-records')->name('module-records.')->group(function () {
         Route::get('/', [ModuleCrudController::class, 'modules'])->name('modules');
         Route::get('/{module}', [ModuleCrudController::class, 'index'])->name('index');
@@ -169,4 +179,3 @@ Route::middleware(['auth'])->group(function () {
 });
 
 require __DIR__ . '/auth.php';
-

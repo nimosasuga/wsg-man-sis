@@ -35,13 +35,13 @@ const defaultFilters = {
 
 function SummaryCard({ title, value, helper, icon: Icon }) {
     return (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70">
             <div className="flex items-start justify-between gap-3">
-                <div>
-                    <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">{title}</p>
-                    <p className="mt-2 break-words text-2xl font-black text-slate-950">{value}</p>
+                <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-500">{title}</p>
+                    <p className="mt-2 max-w-full overflow-x-auto whitespace-nowrap text-xl font-bold text-slate-950 tabular-nums sm:text-2xl">{value}</p>
                 </div>
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-600">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#f1efff] text-[#635bff]">
                     <Icon size={19} />
                 </div>
             </div>
@@ -80,24 +80,24 @@ function MenuCard({ title, helper, href, icon: Icon, count, amount, tone }) {
     return (
         <Link
             href={href}
-            className="group block rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-lg hover:shadow-slate-200/80"
+            className="group block min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/70 transition hover:-translate-y-0.5 hover:border-[#c7c3ff] hover:shadow-lg hover:shadow-[#635bff]/10"
         >
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                    <div className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wider ${tone}`}>
+                    <div className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold ${tone}`}>
                         <Icon size={16} />
                         {title}
                     </div>
-                    <h2 className="mt-4 text-2xl font-black text-slate-950">{formatRp(amount)}</h2>
-                    <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">{helper}</p>
+                    <h2 className="mt-4 max-w-full overflow-x-auto whitespace-nowrap text-xl font-bold text-slate-950 tabular-nums sm:text-2xl">{formatRp(amount)}</h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">{helper}</p>
                 </div>
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-slate-950 text-white transition group-hover:bg-violet-600">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-slate-950 text-white transition group-hover:bg-[#635bff]">
                     <ArrowRight size={19} />
                 </div>
             </div>
-            <div className="mt-5 rounded-lg bg-slate-50 px-4 py-3">
-                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">Total Record</p>
-                <p className="mt-1 text-lg font-black text-slate-950">{count}</p>
+            <div className="mt-5 rounded-xl bg-slate-50 px-4 py-3">
+                <p className="text-xs font-semibold text-slate-500">Total record</p>
+                <p className="mt-1 text-lg font-bold text-slate-950 tabular-nums">{count}</p>
             </div>
         </Link>
     );
@@ -232,15 +232,21 @@ export default function Index({
             <Head title="Riwayat Service Unit" />
 
             <div className="space-y-5">
-                <section className="rounded-xl bg-slate-950 p-5 text-white shadow-sm">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                        <div>
-                            <div className="inline-flex items-center gap-2 rounded-lg bg-violet-400/15 px-3 py-1.5 text-xs font-black tracking-wider text-violet-200">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-400">
+                    <Link href="/dashboard" className="transition hover:text-[#635bff]">Dashboard</Link>
+                    <ArrowRight size={15} />
+                    <span className="text-slate-700">Riwayat Service Unit</span>
+                </div>
+
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
+                    <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.55fr)] lg:items-center">
+                        <div className="min-w-0">
+                            <div className="inline-flex items-center gap-2 rounded-full bg-[#f1efff] px-3 py-1.5 text-xs font-bold text-[#635bff]">
                                 <PenTool size={15} />
                                 Maintenance
                             </div>
-                            <h1 className="mt-4 text-2xl font-black tracking-tight">Riwayat Service Unit</h1>
-                            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-300">
+                            <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Riwayat Service Unit</h1>
+                            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                                 {isMenu
                                     ? "Pilih jenis riwayat yang mau dibuka. Filter dan tabel detail ada di halaman masing-masing."
                                     : "Di sini kita cari unit yang mulai sering masuk service atau biayanya mulai berat."}
@@ -253,16 +259,17 @@ export default function Index({
                                 value={search}
                                 onChange={(event) => setSearch(event.target.value)}
                                 placeholder="Cari nopol, area, driver, keluhan..."
-                                className="h-11 w-full rounded-lg border border-white/10 bg-white/10 pl-10 pr-3 text-sm font-semibold text-white placeholder:text-slate-400 outline-none focus:border-violet-300/60 focus:ring-4 focus:ring-violet-300/10"
+                                className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 pl-10 pr-3 text-sm font-semibold text-slate-900 placeholder:text-slate-400 outline-none focus:border-[#635bff] focus:ring-4 focus:ring-[#635bff]/10"
                             />
                         </div>
                         )}
                     </div>
+                    <div className="h-1 bg-gradient-to-r from-[#635bff] via-cyan-400 to-emerald-400" />
                 </section>
 
                 {isMenu ? (
                     <>
-                        <div className="grid gap-5 lg:grid-cols-2">
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-5">
                             <MenuCard
                                 title="Service Umum Berkala"
                                 helper="Buka history perbaikan unit, keluhan, spare part, bengkel, odometer, dan total biaya service."
@@ -283,16 +290,16 @@ export default function Index({
                             />
                         </div>
 
-                        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Kondisi Data</h2>
-                            <p className="mt-1 text-sm font-semibold text-slate-500">
+                        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/70">
+                            <h2 className="text-base font-bold text-slate-950">Kondisi Data</h2>
+                            <p className="mt-1 text-sm leading-6 text-slate-500">
                                 Kalau angkanya masih 0, bukan menunya rusak. Artinya tabel maintenance lokal belum terisi data.
                             </p>
-                            <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
                                 {Object.entries(sourceStatus).map(([table, count]) => (
-                                    <div key={table} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
-                                        <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{table}</p>
-                                        <p className="mt-1 text-lg font-black text-slate-950">{count} data</p>
+                                    <div key={table} className="min-w-0 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                                        <p className="truncate text-xs font-semibold text-slate-500" title={table}>{table}</p>
+                                        <p className="mt-1 text-lg font-bold text-slate-950 tabular-nums">{count} data</p>
                                     </div>
                                 ))}
                             </div>

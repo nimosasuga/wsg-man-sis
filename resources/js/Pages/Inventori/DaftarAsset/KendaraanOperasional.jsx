@@ -55,6 +55,7 @@ export default function KendaraanOperasional({ rawTableData = [] }) {
                 !query ||
                 searchText(item, [
                     "nopol",
+                    "inventaris",
                     "area",
                     "tipe",
                     "jenis",
@@ -95,6 +96,7 @@ export default function KendaraanOperasional({ rawTableData = [] }) {
     const countArea = (area) => rawTableData.filter((item) => item.area === area).length;
 
     const columns = [
+        { label: "KEPEMILIKAN", key: "inventaris" },
         { label: "JENIS", key: "jenis" },
         { label: "NOPOL", key: "nopol" },
         { label: "AREA", key: "area" },

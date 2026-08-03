@@ -56,26 +56,29 @@ const FlowChart = memo(function FlowChart({ data = [], filters = {} }) {
     ];
 
     return (
-        <div className="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-5">
-                <h2 className="text-sm font-black uppercase tracking-wider text-slate-800">
-                    Statistik Biaya
-                </h2>
-                <p className="mt-1 text-sm font-medium text-slate-500">
-                    {modeText}
-                </p>
+        <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
+            <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-700">
+                        <BarChart3 size={16} />
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-bold text-slate-900">Statistik biaya</h2>
+                        <p className="mt-0.5 text-xs font-medium text-slate-500">{modeText}</p>
+                    </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {series.map(([key, label, color]) => (
+                        <span key={key} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                            {label}
+                        </span>
+                    ))}
+                </div>
             </div>
             {chartData.length ? (
-                <div>
-                    <div className="mb-4 flex flex-wrap gap-3">
-                        {series.map(([key, label, color]) => (
-                            <div key={key} className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-600">
-                                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-                                {label}
-                            </div>
-                        ))}
-                    </div>
-                    <div className="overflow-x-auto rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <div className="p-4 sm:p-5">
+                    <div className="overflow-x-auto rounded-xl border border-slate-100 bg-slate-50/70 p-3">
                         <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} width={chartWidth} height={chartHeight} className="min-w-full">
                             {[0, 0.25, 0.5, 0.75, 1].map((step) => {
                                 const value = maxAmount * (1 - step);
@@ -109,10 +112,10 @@ const FlowChart = memo(function FlowChart({ data = [], filters = {} }) {
                             ))}
                         </svg>
                     </div>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-3">
                         {chartData.map((item) => (
-                            <div key={item.key} className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
-                                <p className="text-sm font-black text-slate-950">{item.label}</p>
+                            <div key={item.key} className="rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3">
+                                <p className="text-sm font-bold text-slate-950">{item.label}</p>
                                 <div className="mt-2 space-y-1 text-xs font-semibold text-slate-600">
                                     <div className="flex justify-between gap-3"><span>Primary</span><span>{formatRp(item.primary)}</span></div>
                                     <div className="flex justify-between gap-3"><span>Secondary</span><span>{formatRp(item.secondary)}</span></div>
@@ -123,11 +126,11 @@ const FlowChart = memo(function FlowChart({ data = [], filters = {} }) {
                     </div>
                 </div>
             ) : (
-                <p className="rounded-lg bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-500">
+                <p className="m-4 rounded-xl bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-500 sm:m-5">
                     Belum ada biaya operasional Primary atau Secondary untuk filter ini.
                 </p>
             )}
-        </div>
+        </section>
     );
 });
 
@@ -215,23 +218,23 @@ function FilterPanel({ filters = {}, options = {}, onChange, onReset }) {
     ];
 
     return (
-        <section className="mb-5 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                    <div className="grid h-9 w-9 place-items-center rounded-lg bg-cyan-50 text-cyan-700">
+                    <div className="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-700">
                         <Filter size={17} />
                     </div>
                     <div>
-                        <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Saring Data Biaya</h2>
+                        <h2 className="text-sm font-bold text-slate-900">Saring data biaya</h2>
                         <p className="text-xs font-semibold text-slate-500">Default menampilkan semua data.</p>
                     </div>
                 </div>
-                <button onClick={resetFilters} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-black uppercase tracking-wide text-slate-600 transition hover:bg-slate-50">
+                <button onClick={resetFilters} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50">
                     <RotateCcw size={14} />
                     Reset
                 </button>
             </div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 {fields.map(([key, label]) => (
                     <SearchableSelect
                         key={key}
@@ -373,15 +376,15 @@ function SmartAnalysisLegacy({ summaryData, totalBiaya, operationRows = [], vehi
     }, [summaryData, totalBiaya, operationRows, vehicleCosts, filters]);
 
     return (
-        <section className="mb-5 rounded-xl border border-cyan-100 bg-white p-5 shadow-sm">
+        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
             <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex items-start gap-3">
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-700">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-700">
                         <Lightbulb size={19} />
                     </div>
                     <div>
-                        <p className="text-xs font-black uppercase tracking-wider text-cyan-700">Catatan biaya</p>
-                        <h2 className="mt-1 text-lg font-black text-slate-950">Keuntungan dan pengeluaran yang perlu dijaga</h2>
+                        <p className="text-xs font-bold text-amber-700">Catatan biaya</p>
+                        <h2 className="mt-1 text-lg font-bold text-slate-950">Keuntungan dan pengeluaran yang perlu dijaga</h2>
                         <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
                             Membandingkan pendapatan dengan seluruh beban kendaraan, lalu melihat area dan nopol yang paling sehat atau perlu dibenahi.
                         </p>
@@ -637,15 +640,15 @@ function SmartAnalysis({ analysis = {} }) {
                 </div>
                 {analysis.top && (
                     <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 lg:min-w-64">
-                        <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-slate-500"><TrendingUp size={14} /> Beban utama</div>
-                        <p className="mt-2 text-sm font-black text-slate-950">{analysis.top.title}</p>
-                        <p className="mt-1 break-words text-lg font-black text-blue-600">{formatRp(analysis.top.amount)}</p>
+                        <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500"><TrendingUp size={14} /> Beban utama</div>
+                        <p className="mt-2 text-sm font-bold text-slate-950">{analysis.top.title}</p>
+                        <p className="mt-1 break-words text-lg font-extrabold text-blue-600">{formatRp(analysis.top.amount)}</p>
                     </div>
                 )}
             </div>
 
             {Number(analysis.revenue || 0) > 0 && (
-                <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+                <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
                     {[
                         ["Pendapatan terbaca", formatRp(analysis.revenue)],
                         ["Pengeluaran kendaraan", formatRp(analysis.expense)],
@@ -654,7 +657,7 @@ function SmartAnalysis({ analysis = {} }) {
                     ].map(([label, value]) => (
                         <div key={label} className="min-w-0 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
                             <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{label}</p>
-                            <p className="mt-1 break-words text-base font-black tabular-nums text-slate-950">{value}</p>
+                            <p className="mt-1 overflow-x-auto whitespace-nowrap text-sm font-black tabular-nums text-slate-950 sm:text-base">{value}</p>
                         </div>
                     ))}
                 </div>
@@ -690,21 +693,21 @@ function DataComparison({ data }) {
     ];
 
     return (
-        <section className="mb-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 sm:p-5">
             <div className="mb-4 flex items-center gap-2">
                 <div className="grid h-9 w-9 place-items-center rounded-lg bg-violet-50 text-violet-700"><BarChart3 size={17} /></div>
                 <div>
-                    <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Perbandingan Data</h2>
+                    <h2 className="text-sm font-bold text-slate-900">Perbandingan data</h2>
                     <p className="text-xs font-semibold text-slate-500">Membandingkan filter aktif dengan {data.previousLabel || "periode sebelumnya"}.</p>
                 </div>
             </div>
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
                 {metrics.map(([label, value, previous]) => {
                     const delta = change(value, previous);
                     return (
                         <div key={label} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
                             <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{label}</p>
-                            <p className="mt-1 break-words text-lg font-black tabular-nums text-slate-950">{formatRp(value)}</p>
+                            <p className="mt-1 overflow-x-auto whitespace-nowrap text-base font-black tabular-nums text-slate-950 sm:text-lg">{formatRp(value)}</p>
                             <p className="mt-2 text-xs font-bold text-slate-500">
                                 {delta === null ? "Belum ada pembanding" : <span className={delta > 0 ? "text-rose-600" : "text-emerald-600"}>{delta > 0 ? "+" : ""}{delta.toFixed(1)}%</span>}
                                 {data.previous && <span className="ml-1 text-slate-400">vs {data.previousLabel}</span>}
@@ -728,6 +731,10 @@ export default function Index({ summaryData = [], vehicleCosts = {}, operationFl
     });
     const totalBiaya = useMemo(
         () => summaryData.reduce((total, item) => total + Number(item.amount || 0), 0),
+        [summaryData],
+    );
+    const activeCategoryCount = useMemo(
+        () => summaryData.filter((item) => Number(item.amount || 0) > 0).length,
         [summaryData],
     );
     const normalizedFilterOptions = useMemo(() => Object.fromEntries(
@@ -777,17 +784,35 @@ export default function Index({ summaryData = [], vehicleCosts = {}, operationFl
         <AdminLayout>
             <Head title="Biaya" />
 
-            <div className="mb-4 flex items-center text-xs font-bold uppercase tracking-widest text-slate-500">
-                <span>BIAYA</span>
+            <div className="mb-5 flex items-center text-xs font-semibold text-slate-500">
+                <span>Biaya</span>
                 <ChevronRight size={14} className="mx-1" />
-                <span className="text-slate-900">TABEL BIAYA</span>
+                <span className="text-slate-900">Ringkasan</span>
             </div>
 
-            <div className="mb-5 rounded-xl border border-slate-200 bg-slate-950 p-5 text-white shadow-sm">
-                <p className="text-xs font-black uppercase tracking-wider text-cyan-200">Total Biaya</p>
-                <h1 className="mt-2 text-2xl font-black">{formatRp(totalBiaya)}</h1>
-                <p className="mt-1 text-sm font-medium text-slate-300">Total dari semua kategori biaya yang sudah terbaca.</p>
-            </div>
+            <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
+                <div className="grid min-w-0 gap-5 p-4 sm:p-5 lg:grid-cols-[1.35fr_0.65fr] lg:items-center lg:gap-8 lg:p-7">
+                    <div className="min-w-0">
+                        <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-bold text-blue-700">
+                            <TrendingUp size={13} /> Kendali biaya
+                        </div>
+                        <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">Biaya operasional per kendaraan</h1>
+                        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">Baca beban legalitas, maintenance, dan operasional dalam satu tampilan. Gunakan filter untuk melihat periode, area, atau unit tertentu.</p>
+                    </div>
+                    <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-3">
+                        <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-4">
+                            <p className="text-[11px] font-bold text-blue-700">Total biaya</p>
+                            <p className="mt-1 overflow-x-auto whitespace-nowrap text-lg font-extrabold tabular-nums text-slate-950 sm:text-xl">{formatRp(totalBiaya)}</p>
+                            <p className="mt-1 text-xs font-medium text-slate-500">Sesuai filter aktif</p>
+                        </div>
+                        <div className="rounded-xl border border-violet-100 bg-violet-50/70 p-4">
+                            <p className="text-[11px] font-bold text-violet-700">Kategori aktif</p>
+                            <p className="mt-1 text-xl font-extrabold tabular-nums text-slate-950">{activeCategoryCount}</p>
+                            <p className="mt-1 text-xs font-medium text-slate-500">Pos biaya terbaca</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             <SmartAnalysis
                 analysis={smartAnalysis}
@@ -804,14 +829,18 @@ export default function Index({ summaryData = [], vehicleCosts = {}, operationFl
 
             <DataComparison data={dataComparison} />
 
-            <section className="mb-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 px-4 py-4">
-                    <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">
-                        Beban Biaya per Kendaraan
-                    </h2>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">
+            <section className="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
+                <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <div className="flex items-center gap-3">
+                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-50 text-emerald-700"><BarChart3 size={16} /></div>
+                        <div>
+                            <h2 className="text-sm font-bold text-slate-900">Beban biaya per kendaraan</h2>
+                            <p className="mt-0.5 text-xs font-medium text-slate-500">
                         Legalitas, service, ban, dan operasional digabung ke nopol yang sama.
-                    </p>
+                            </p>
+                        </div>
+                    </div>
+                    <span className="w-fit rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">{vehicleCosts.total || 0} kendaraan</span>
                 </div>
                 <div className="custom-scrollbar max-h-[520px] overflow-auto">
                     <table className="w-full min-w-[1080px] border-collapse text-left">
@@ -822,7 +851,7 @@ export default function Index({ summaryData = [], vehicleCosts = {}, operationFl
                                     const SortIcon = isActive && direction === "desc" ? ArrowDownAZ : ArrowUpAZ;
 
                                     return (
-                                    <th key={column.key} className="border-b border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                                    <th key={column.key} className="border-b border-slate-200 px-4 py-3 text-[11px] font-bold tracking-wide text-slate-500">
                                         <button
                                             type="button"
                                             onClick={() => sortVehicleCosts(column.key)}
@@ -849,7 +878,7 @@ export default function Index({ summaryData = [], vehicleCosts = {}, operationFl
                                     }}
                                     role="button"
                                     tabIndex={0}
-                                    className="cursor-pointer hover:bg-cyan-50/40 focus:bg-cyan-50/60 focus:outline-none"
+                                    className="cursor-pointer transition-colors hover:bg-blue-50/60 focus:bg-blue-50/70 focus:outline-none"
                                 >
                                     <td className="px-4 py-3 text-xs font-black text-slate-950">{row.nopol || "-"}</td>
                                     <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.area || "-"}</td>
@@ -874,7 +903,7 @@ export default function Index({ summaryData = [], vehicleCosts = {}, operationFl
                         </tbody>
                     </table>
                 </div>
-                <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                     <p className="text-xs font-semibold text-slate-500">Menampilkan {vehicleCosts.from || 0}&ndash;{vehicleCosts.to || 0} dari {vehicleCosts.total || 0} kendaraan</p>
                     <div className="flex items-center gap-2">
                         <button type="button" onClick={() => requestData(activeFilters, Math.max(1, Number(vehicleCosts.current_page || 1) - 1))} disabled={Number(vehicleCosts.current_page || 1) <= 1} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Sebelumnya</button>

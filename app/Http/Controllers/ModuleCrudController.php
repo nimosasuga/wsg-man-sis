@@ -25,6 +25,7 @@ class ModuleCrudController extends Controller
                     'label' => $config['label'],
                     'permission' => $config['permission'],
                     'href' => '/module-records/'.$key,
+                    ...$this->moduleGroup($key),
                 ];
             })
             ->filter()
@@ -33,6 +34,44 @@ class ModuleCrudController extends Controller
         return Inertia::render('Crud/Modules', [
             'modules' => $modules,
         ]);
+    }
+
+    /**
+     * Kelompok ini hanya untuk navigasi katalog CRUD, bukan pembatasan akses.
+     * Otorisasi tetap ditentukan oleh permission pada konfigurasi modul.
+     */
+    private function moduleGroup(string $key): array
+    {
+        return match (true) {
+            str_starts_with($key, 'profit-') => [
+                'group' => 'Profit Unit',
+                'group_key' => 'profit',
+            ],
+            in_array($key, ['biaya-inventori', 'pajak-inventori'], true) => [
+                'group' => 'Biaya & Legalitas',
+                'group_key' => 'biaya',
+            ],
+            in_array($key, ['unit-inventori', 'kendaraan-operasional', 'asset-ho', 'toolkit'], true) => [
+                'group' => 'Inventori',
+                'group_key' => 'inventori',
+            ],
+            in_array($key, ['monitoring-unit', 'upload-dokumen-operasional'], true) => [
+                'group' => 'Operasional',
+                'group_key' => 'operasional',
+            ],
+            $key === 'finance-fat' => [
+                'group' => 'Finance',
+                'group_key' => 'finance',
+            ],
+            str_starts_with($key, 'dropdown-') => [
+                'group' => 'Master Data',
+                'group_key' => 'master-data',
+            ],
+            default => [
+                'group' => 'Administrasi',
+                'group_key' => 'administrasi',
+            ],
+        };
     }
 
     public function index(Request $request, string $module): Response
@@ -155,6 +194,7 @@ class ModuleCrudController extends Controller
             'back' => $config['back'],
             'index' => '/module-records/'.$module,
             'fields' => $this->fields($config),
+            'importEnabled' => (bool) ($config['import_enabled'] ?? false),
         ];
     }
 

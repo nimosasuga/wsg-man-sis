@@ -29,8 +29,9 @@ import {
     PinOff,
     PanelLeftClose,
     PanelLeftOpen,
-    Globe2,
     Grid2X2,
+    CheckCheck,
+    CircleAlert,
 } from "lucide-react";
 
 
@@ -90,6 +91,16 @@ const menus = [
     { name: "Role & Akses", icon: ShieldCheck, path: "/system/access-control", permission: "access-control.manage" },
 ];
 
+function notificationTime(value) {
+    if (!value) return "Baru saja";
+
+    const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+    if (seconds < 60) return "Baru saja";
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} menit lalu`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} jam lalu`;
+    return `${Math.floor(seconds / 86400)} hari lalu`;
+}
+
 export default function AdminLayout({ children }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
         if (typeof window === "undefined") {
@@ -111,8 +122,16 @@ export default function AdminLayout({ children }) {
     const [globalResults, setGlobalResults] = useState([]);
     const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
     const [isGlobalSearchLoading, setIsGlobalSearchLoading] = useState(false);
+    const [isAppsOpen, setIsAppsOpen] = useState(false);
+    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+    const [notifications, setNotifications] = useState([]);
+    const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
+    const [isNotificationsLoading, setIsNotificationsLoading] = useState(false);
+    const [notificationMigrationRequired, setNotificationMigrationRequired] = useState(false);
     const [collapsedMenus, setCollapsedMenus] = useState({});
     const searchInputRef = useRef(null);
+    const appMenuRef = useRef(null);
+    const notificationMenuRef = useRef(null);
     const [isDesktop, setIsDesktop] = useState(() =>
         typeof window === "undefined"
             ? true
@@ -130,6 +149,9 @@ export default function AdminLayout({ children }) {
         return (menu.anyPermissions || []).some((permission) => permissions.includes(permission));
     }), [permissions]);
     const activePath = useMemo(() => url?.split("?")[0] || "/dashboard", [url]);
+    const appShortcuts = useMemo(() => visibleMenus.flatMap((menu) => menu.children
+        ? menu.children.map((child) => ({ ...child, icon: menu.icon }))
+        : [menu]), [visibleMenus]);
 
     const setDesktopSidebarOpen = (value) => {
         setIsSidebarOpen(value);
@@ -210,6 +232,35 @@ export default function AdminLayout({ children }) {
         };
     }, [globalSearch]);
 
+    const loadNotifications = () => {
+        setIsNotificationsLoading(true);
+        fetch("/notifications", { headers: { Accept: "application/json" } })
+            .then((response) => response.ok ? response.json() : { items: [], unreadCount: 0 })
+            .then((payload) => {
+                setNotifications(Array.isArray(payload.items) ? payload.items : []);
+                setNotificationUnreadCount(Number(payload.unreadCount || 0));
+                setNotificationMigrationRequired(Boolean(payload.requiresMigration));
+            })
+            .catch(() => {
+                setNotifications([]);
+                setNotificationUnreadCount(0);
+            })
+            .finally(() => setIsNotificationsLoading(false));
+    };
+
+    useEffect(() => {
+        if (isNotificationOpen) loadNotifications();
+    }, [isNotificationOpen]);
+
+    useEffect(() => {
+        const closeMenus = (event) => {
+            if (!appMenuRef.current?.contains(event.target)) setIsAppsOpen(false);
+            if (!notificationMenuRef.current?.contains(event.target)) setIsNotificationOpen(false);
+        };
+        document.addEventListener("mousedown", closeMenus);
+        return () => document.removeEventListener("mousedown", closeMenus);
+    }, []);
+
     const isExpanded = isDesktop ? isSidebarOpen : true;
     const sidebarWidthClass = isExpanded ? "w-72" : "w-[88px]";
     const mainMenus = visibleMenus.filter((menu) => !["CRUD Data", "Role & Akses"].includes(menu.name));
@@ -228,6 +279,41 @@ export default function AdminLayout({ children }) {
         setGlobalSearch("");
         setGlobalResults([]);
         router.visit(url);
+    };
+
+    const markAllNotificationsRead = () => {
+        if (notificationUnreadCount === 0) return;
+
+        router.put("/notifications/read-all", {}, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setNotificationUnreadCount(0);
+                setNotifications((items) => items.map((item) => ({ ...item, readAt: item.readAt || new Date().toISOString() })));
+            },
+        });
+    };
+
+    const openNotification = (notification) => {
+        const visit = () => {
+            setIsNotificationOpen(false);
+            router.visit(notification.url || "/dashboard");
+        };
+
+        if (notification.readAt) {
+            visit();
+            return;
+        }
+
+        router.put(`/notifications/${notification.id}/read`, {}, {
+            preserveScroll: true,
+            preserveState: true,
+            onFinish: () => {
+                setNotificationUnreadCount((count) => Math.max(0, count - 1));
+                setNotifications((items) => items.map((item) => item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item));
+                visit();
+            },
+        });
     };
 
     return (
@@ -316,9 +402,9 @@ export default function AdminLayout({ children }) {
 
                                                 setCollapsedMenus((prev) => ({ ...prev, [menu.name]: isOpen ? false : true }));
                                             }}
-                                            className={`group relative flex min-h-[40px] w-full items-center overflow-hidden rounded-lg transition-colors duration-150 ${
+                                            className={`group relative flex min-h-[40px] w-full items-center overflow-hidden rounded-lg text-[12px] font-semibold tracking-normal transition-colors duration-150 ${
                                                 isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"
-                                            } ${isAnyChildActive ? "bg-[#f5f3ff] text-[#7367f0]" : "mt-2 text-[12px] font-semibold tracking-normal text-slate-500 hover:bg-[#f5f3ff] hover:text-[#7367f0]"}`}
+                                            } ${isAnyChildActive ? "bg-[#f5f3ff] text-[#7367f0]" : "mt-2 text-slate-500 hover:bg-[#f5f3ff] hover:text-[#7367f0]"}`}
                                         >
                                             <span
                                                 className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 transition group-hover:bg-white group-hover:text-[#7367f0]`}
@@ -429,7 +515,7 @@ export default function AdminLayout({ children }) {
 
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[#f8f7fa]">
             <header
-                className="shrink-0 flex h-[74px] min-w-0 items-center justify-between border-b border-[#e7e3eb] bg-white px-4 text-slate-800 sm:px-6"
+                className="relative z-20 shrink-0 flex h-[74px] min-w-0 items-center justify-between border-b border-[#e7e3eb] bg-white px-4 text-slate-800 sm:px-6"
             >
                 <div className="flex min-w-0 flex-1 items-center gap-4">
                     <button
@@ -502,19 +588,20 @@ export default function AdminLayout({ children }) {
                 </div>
 
                 <div className="ml-3 flex shrink-0 items-center gap-2 sm:ml-4 sm:gap-3">
-                    <button className="hidden h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] xl:grid" title="Pilihan wilayah">
-                        <Globe2 size={18} />
-                    </button>
-                    <button className="hidden h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] xl:grid" title="Menu aplikasi">
-                        <Grid2X2 size={18} />
-                    </button>
+                    <div ref={appMenuRef} className="relative hidden sm:block">
+                        <button type="button" onClick={() => setIsAppsOpen((open) => !open)} className={`grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] ${isAppsOpen ? "bg-[#f5f3ff] text-[#7367f0]" : ""}`} title="Menu aplikasi" aria-expanded={isAppsOpen}><Grid2X2 size={18} /></button>
+                        {isAppsOpen && <div className="absolute right-0 top-11 z-50 w-[min(29rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-[0_18px_55px_rgba(15,23,42,0.22)]"><div className="mb-3 flex items-center justify-between px-1"><div><p className="text-sm font-extrabold text-slate-900">Menu aplikasi</p><p className="mt-0.5 text-xs text-slate-500">Akses cepat sesuai hak pengguna.</p></div><span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{appShortcuts.length} menu</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{appShortcuts.map((menu) => { const Icon = menu.icon; const isActive = activePath.startsWith(menu.path); return <Link key={menu.path} href={menu.path} onClick={() => setIsAppsOpen(false)} className={`group flex min-w-0 flex-col gap-2 rounded-xl border p-3 text-left transition ${isActive ? "border-violet-200 bg-violet-50" : "border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/50"}`}><span className={`grid h-8 w-8 place-items-center rounded-lg ${isActive ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600 group-hover:bg-white group-hover:text-violet-600"}`}><Icon size={16} /></span><span className="truncate text-xs font-bold text-slate-800">{menu.name}</span></Link>; })}</div></div>}
+                    </div>
                     <button onClick={() => router.reload()} className="hidden h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] sm:grid" title="Muat Ulang">
                         <RefreshCw size={16} />
                     </button>
-                    <button className="relative grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0]" title="Notifikasi">
-                        <Bell size={18} />
-                        <span className="absolute right-2.5 top-2.5 block h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
-                    </button>
+                    <div ref={notificationMenuRef} className="relative">
+                        <button type="button" onClick={() => { setIsNotificationOpen((open) => !open); setIsAppsOpen(false); }} className={`relative grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] ${isNotificationOpen ? "bg-[#f5f3ff] text-[#7367f0]" : ""}`} title="Notifikasi" aria-label="Buka notifikasi" aria-expanded={isNotificationOpen}>
+                            <Bell size={18} />
+                            {notificationUnreadCount > 0 && <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">{notificationUnreadCount > 9 ? "9+" : notificationUnreadCount}</span>}
+                        </button>
+                        {isNotificationOpen && <div className="absolute right-0 top-11 z-50 w-[min(25rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.22)]"><div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3"><div><p className="text-sm font-extrabold text-slate-900">Notifikasi</p><p className="mt-0.5 text-xs text-slate-500">Hal yang perlu diperhatikan hari ini.</p></div>{notificationUnreadCount > 0 && <button type="button" onClick={markAllNotificationsRead} className="inline-flex shrink-0 items-center gap-1.5 text-xs font-bold text-violet-600 transition hover:text-violet-800"><CheckCheck size={15} />Tandai dibaca</button>}</div><div className="custom-scrollbar max-h-[min(31rem,70vh)] overflow-y-auto">{isNotificationsLoading && <p className="px-4 py-5 text-sm text-slate-500">Memuat notifikasi...</p>}{!isNotificationsLoading && notificationMigrationRequired && <div className="m-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-800">Pusat notifikasi akan aktif setelah migration database dijalankan.</div>}{!isNotificationsLoading && !notificationMigrationRequired && notifications.length === 0 && <div className="px-4 py-8 text-center"><CheckCheck size={23} className="mx-auto text-emerald-500" /><p className="mt-2 text-sm font-bold text-slate-800">Tidak ada perhatian baru</p><p className="mt-1 text-xs text-slate-500">Semuanya sudah terlihat aman untuk saat ini.</p></div>}{!isNotificationsLoading && notifications.map((notification) => <button key={notification.id} type="button" onClick={() => openNotification(notification)} className={`flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 hover:bg-violet-50/60 ${notification.readAt ? "bg-white" : "bg-violet-50/40"}`}><span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg ${notification.severity === "danger" ? "bg-rose-100 text-rose-600" : notification.severity === "warning" ? "bg-amber-100 text-amber-600" : notification.severity === "success" ? "bg-emerald-100 text-emerald-600" : "bg-cyan-100 text-cyan-600"}`}><CircleAlert size={16} /></span><span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-2"><span className="text-sm font-bold text-slate-900">{notification.title}</span>{!notification.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-violet-500" />}</span><span className="mt-1 block text-xs leading-5 text-slate-600">{notification.message}</span><span className="mt-1.5 block text-[11px] font-medium text-slate-400">{notificationTime(notification.createdAt)}</span></span></button>)}</div></div>}
+                    </div>
                     <div className="mx-1 hidden h-8 w-px bg-slate-200 sm:block" />
                     <div className="hidden text-right md:block">
                         <p className="text-xs font-black leading-tight text-slate-800">{auth.user?.nik || "Pengguna"}</p>

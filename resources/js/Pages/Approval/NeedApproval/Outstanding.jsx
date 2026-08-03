@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Head, Link, router, usePage } from "@inertiajs/react";
-import { ArrowLeft, CheckCircle, CheckSquare, Clock, FileText, RotateCcw, Search, XCircle } from "lucide-react";
+import { ArrowDownUp, ArrowLeft, CheckCircle, CheckSquare, Clock, FileText, RotateCcw, Search, XCircle } from "lucide-react";
 import AdminLayout from "../../../Layouts/AdminLayout";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
@@ -45,6 +45,61 @@ export default function Outstanding({ rows = [], summary = {}, filters = {}, fil
     const [status, setStatus] = useState(filters.status || "ALL");
     const [divisi, setDivisi] = useState(filters.divisi || "ALL");
     const [regional, setRegional] = useState(filters.regional || "ALL");
+    const [sortKey, setSortKey] = useState("tanggal_invoice");
+    const [sortDirection, setSortDirection] = useState("desc");
+
+    const columns = useMemo(() => [
+        { key: "status_pengajuan", label: "Status" },
+        ...(canManage ? [{ key: "action", label: "Aksi", sortable: false }] : []),
+        { key: "tanggal_invoice", label: "Tanggal Invoice", type: "date" },
+        { key: "due_date", label: "Due Date", type: "date" },
+        { key: "days_left", label: "Days Left", type: "number" },
+        { key: "regional", label: "Regional" },
+        { key: "divisi", label: "Divisi" },
+        { key: "no_invoice", label: "No Invoice" },
+        { key: "vendor_supplier", label: "Vendor" },
+        { key: "invoice_amount", label: "Invoice Amount", type: "number" },
+        { key: "ppn", label: "PPN", type: "number" },
+        { key: "pph", label: "PPh", type: "number" },
+        { key: "biaya_lainnya", label: "Biaya Lainnya", type: "number" },
+        { key: "payment_amount", label: "Payment Amount", type: "number" },
+        { key: "rekening_tujuan", label: "Rekening Tujuan" },
+        { key: "nama_penerima", label: "Nama Penerima" },
+    ], [canManage]);
+
+    const sortedRows = useMemo(() => {
+        const column = columns.find((item) => item.key === sortKey);
+        if (!column) return rows;
+
+        const valueFor = (row) => {
+            const value = row[sortKey];
+            if (column.type === "number") return Number(value || 0);
+            if (column.type === "date") {
+                const time = Date.parse(value || "");
+                return Number.isNaN(time) ? String(value || "") : time;
+            }
+            return String(value || "").toLocaleLowerCase("id-ID");
+        };
+
+        return [...rows].sort((left, right) => {
+            const leftValue = valueFor(left);
+            const rightValue = valueFor(right);
+            const comparison = typeof leftValue === "string"
+                ? leftValue.localeCompare(rightValue, "id")
+                : leftValue - rightValue;
+            return sortDirection === "asc" ? comparison : -comparison;
+        });
+    }, [columns, rows, sortDirection, sortKey]);
+
+    const toggleSort = (key) => {
+        if (key === "action") return;
+        if (key === sortKey) {
+            setSortDirection((direction) => direction === "asc" ? "desc" : "asc");
+            return;
+        }
+        setSortKey(key);
+        setSortDirection("asc");
+    };
 
     const topNotes = useMemo(() => {
         if (!rows.length) return ["Belum ada data outstanding untuk filter ini."];
@@ -137,14 +192,10 @@ export default function Outstanding({ rows = [], summary = {}, filters = {}, fil
                     <div className="custom-scrollbar max-h-[720px] overflow-auto">
                         <table className="w-full border-collapse text-left whitespace-nowrap">
                             <thead className="sticky top-0 z-10 bg-slate-50">
-                                <tr>
-                                    {["Tanggal Invoice", "Due Date", "Days Left", "Regional", "Divisi", "No Invoice", "Vendor", "Invoice Amount", "PPN", "PPh", "Biaya Lainnya", "Payment Amount", "Rekening Tujuan", "Nama Penerima", "Status", ...(canManage ? ["Aksi"] : [])].map((head) => (
-                                        <th key={head} className="border-b border-slate-200 px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500">{head}</th>
-                                    ))}
-                                </tr>
+                                <tr>{columns.map((column) => <th key={column.key} className="border-b border-slate-200 px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500"><button type="button" disabled={column.sortable === false} onClick={() => toggleSort(column.key)} className={`inline-flex items-center gap-1.5 text-left transition ${column.sortable === false ? "cursor-default" : "hover:text-[#635bff]"}`}><span>{column.label}</span>{column.sortable !== false && <ArrowDownUp size={13} className={sortKey === column.key ? "text-[#635bff]" : "text-slate-300"} aria-label={sortKey === column.key ? `Urutan ${sortDirection === "asc" ? "A-Z" : "Z-A"}` : "Urutkan"} />}</button></th>)}</tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {rows.length ? rows.map((row) => (
+                                {sortedRows.length ? sortedRows.map((row) => (
                                     <tr
                                         key={row.id_key}
                                         onClick={() => router.visit(`/need-approval/outstanding/${row.id_key}`)}
@@ -157,20 +208,6 @@ export default function Outstanding({ rows = [], summary = {}, filters = {}, fil
                                         tabIndex={0}
                                         className="cursor-pointer transition hover:bg-[#f5f3ff] focus:bg-[#f5f3ff] focus:outline-none"
                                     >
-                                        <td className="px-4 py-3 text-xs font-bold text-slate-700">{row.tanggal_invoice || "-"}</td>
-                                        <td className="px-4 py-3 text-xs font-bold text-slate-700">{row.due_date || "-"}</td>
-                                        <td className="px-4 py-3 text-xs font-black text-slate-950">{row.days_left ?? "-"}</td>
-                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.regional || "-"}</td>
-                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.divisi || "-"}</td>
-                                        <td className="px-4 py-3 text-xs font-black text-slate-950">{row.no_invoice || "-"}</td>
-                                        <td className="max-w-sm px-4 py-3 text-xs font-semibold text-slate-600"><span className="block truncate">{row.vendor_supplier || "-"}</span></td>
-                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{formatRp(row.invoice_amount)}</td>
-                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{formatRp(row.ppn)}</td>
-                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{formatRp(row.pph)}</td>
-                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{formatRp(row.biaya_lainnya)}</td>
-                                        <td className="px-4 py-3 text-xs font-bold text-[#635bff]">{formatRp(row.payment_amount)}</td>
-                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.rekening_tujuan || "-"}</td>
-                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.nama_penerima || "-"}</td>
                                         <td className="px-4 py-3"><StatusPill status={row.status_pengajuan} /></td>
                                         {canManage && (
                                             <td className="px-4 py-3">
@@ -192,6 +229,20 @@ export default function Outstanding({ rows = [], summary = {}, filters = {}, fil
                                                 </div>
                                             </td>
                                         )}
+                                        <td className="px-4 py-3 text-xs font-bold text-slate-700">{row.tanggal_invoice || "-"}</td>
+                                        <td className="px-4 py-3 text-xs font-bold text-slate-700">{row.due_date || "-"}</td>
+                                        <td className="px-4 py-3 text-xs font-black text-slate-950">{row.days_left ?? "-"}</td>
+                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.regional || "-"}</td>
+                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.divisi || "-"}</td>
+                                        <td className="px-4 py-3 text-xs font-black text-slate-950">{row.no_invoice || "-"}</td>
+                                        <td className="max-w-sm px-4 py-3 text-xs font-semibold text-slate-600"><span className="block truncate">{row.vendor_supplier || "-"}</span></td>
+                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{formatRp(row.invoice_amount)}</td>
+                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{formatRp(row.ppn)}</td>
+                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{formatRp(row.pph)}</td>
+                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{formatRp(row.biaya_lainnya)}</td>
+                                        <td className="px-4 py-3 text-xs font-bold text-[#635bff]">{formatRp(row.payment_amount)}</td>
+                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.rekening_tujuan || "-"}</td>
+                                        <td className="px-4 py-3 text-xs font-semibold text-slate-600">{row.nama_penerima || "-"}</td>
                                     </tr>
                                 )) : (
                                     <tr><td colSpan={canManage ? 16 : 15} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">Tidak ada data outstanding untuk filter ini.</td></tr>

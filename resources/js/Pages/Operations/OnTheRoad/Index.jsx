@@ -87,7 +87,7 @@ function StatCard({ title, value, helper, icon: Icon, tone = "violet" }) {
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <p className="text-xs font-semibold text-slate-500">{title}</p>
-                    <p className="mt-2 break-words text-2xl font-bold tracking-tight text-slate-950">{value}</p>
+                    <p className="mt-2 max-w-full overflow-x-auto whitespace-nowrap text-xl font-bold tracking-tight text-slate-950 tabular-nums sm:text-2xl">{value}</p>
                 </div>
                 <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tones[tone]}`}><Icon size={19} /></div>
             </div>
@@ -109,9 +109,9 @@ function UnitCard({ item }) {
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#f1efff] text-[#635bff] transition group-hover:bg-[#635bff] group-hover:text-white"><ArrowRight size={19} /></div>
             </div>
             <div className="mt-5 grid gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
-                <div className="flex justify-between gap-3"><span>Tarif</span><span className="font-black text-slate-950">{formatRp(item.tarif)}</span></div>
-                <div className="flex justify-between gap-3"><span>Biaya</span><span className="font-black text-slate-950">{formatRp(item.biaya)}</span></div>
-                <div className="flex justify-between gap-3"><span>Profit</span><span className="font-black text-emerald-600">{formatRp(item.profit)}</span></div>
+                <div className="flex min-w-0 items-center justify-between gap-3"><span className="shrink-0">Tarif</span><span className="min-w-0 overflow-x-auto whitespace-nowrap text-right font-black text-slate-950 tabular-nums">{formatRp(item.tarif)}</span></div>
+                <div className="flex min-w-0 items-center justify-between gap-3"><span className="shrink-0">Biaya</span><span className="min-w-0 overflow-x-auto whitespace-nowrap text-right font-black text-slate-950 tabular-nums">{formatRp(item.biaya)}</span></div>
+                <div className="flex min-w-0 items-center justify-between gap-3"><span className="shrink-0">Profit</span><span className="min-w-0 overflow-x-auto whitespace-nowrap text-right font-black text-emerald-600 tabular-nums">{formatRp(item.profit)}</span></div>
             </div>
         </Link>
     );
@@ -291,7 +291,7 @@ export default function Index({ date, dateOptions = [], summary = {}, cards = []
                     <div className="h-1 bg-gradient-to-r from-[#635bff] via-cyan-400 to-emerald-400" />
                 </section>
 
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-4">
                     <StatCard title="Total Unit" value={formatNumber(summary.totalUnit)} helper="Armada terdaftar" icon={Truck} tone="violet" />
                     <StatCard title="Unit Jalan" value={formatNumber(summary.runningCount)} helper="Masuk data jalan tanggal ini" icon={Route} tone="cyan" />
                     <StatCard title="Unit Standby" value={formatNumber(summary.standbyCount)} helper="Belum muncul di data jalan" icon={Truck} tone="amber" />

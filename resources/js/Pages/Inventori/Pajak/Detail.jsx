@@ -1,12 +1,14 @@
 // resources/js/Pages/Inventori/Pajak/Detail.jsx
 import React, { useState } from "react";
 import AdminLayout from "../../../Layouts/AdminLayout";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     ChevronRight,
     ArrowLeft,
     Truck,
     PenTool,
+    Pencil,
+    Trash2,
     AlertCircle,
     DollarSign,
     Calendar,
@@ -68,6 +70,8 @@ export default function Detail({
     aggregates = {},
     vehicleCost = {},
 }) {
+    const permissions = usePage().props.auth?.permissions || [];
+    const canManageInventory = permissions.includes("inventory.manage");
     const [activeTab, setActiveTab] = useState("spesifikasi");
 
     if (!unitData) return <div>Data tidak ditemukan...</div>;
@@ -133,14 +137,14 @@ export default function Detail({
                         <ChevronRight size={12} className="mx-1" />
                         <span className="text-gray-800">DETAIL UNIT</span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                         <Link
                             href="/inventori/pajak"
                             className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-slate-600 transition-colors hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
                         >
                             <ArrowLeft size={20} className="text-gray-600" />
                         </Link>
-                        <div>
+                        <div className="min-w-0">
                             <h1 className="flex min-w-0 flex-wrap items-center gap-2 text-xl font-black tracking-tight text-gray-800 sm:gap-3 sm:text-2xl">
                                 {unitData.nopol}{" "}
                                 <span className="rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-bold text-violet-700">
@@ -426,6 +430,29 @@ export default function Detail({
                                 {formatRp(vehicleCost.total)}
                             </p>
                         </div>
+                        {canManageInventory && (
+                            <div className="ml-auto flex items-center gap-2">
+                                <Link
+                                    href={`/module-records/pajak-inventori/${encodeURIComponent(unitData.id_key)}/edit`}
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-700 transition hover:bg-violet-100"
+                                >
+                                    <Pencil size={16} />
+                                    Edit
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (window.confirm(`Hapus data pajak unit ${unitData.nopol || unitData.id_key}?`)) {
+                                            router.delete(`/module-records/pajak-inventori/${encodeURIComponent(unitData.id_key)}`);
+                                        }
+                                    }}
+                                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 text-sm font-bold text-rose-700 transition hover:bg-rose-100"
+                                >
+                                    <Trash2 size={16} />
+                                    Hapus
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="h-full min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">

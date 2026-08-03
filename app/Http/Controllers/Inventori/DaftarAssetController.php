@@ -82,7 +82,11 @@ class DaftarAssetController extends Controller
                 'status_kir',
                 'my_pertamina'
             )
-            ->where('project', 'OPERASIONAL UNIT')
+            ->where(function ($query) {
+                $query
+                    ->where('project', 'OPERASIONAL UNIT')
+                    ->orWhere('inventaris', 'WASHENG KEKE MANDIRI');
+            })
             ->get();
 
         return Inertia::render('Inventori/DaftarAsset/KendaraanOperasional', [
@@ -94,7 +98,11 @@ class DaftarAssetController extends Controller
     {
         $asset = DB::table('hr_manager_db_inventori')
             ->where('id_key', $id)
-            ->where('project', 'OPERASIONAL UNIT')
+            ->where(function ($query) {
+                $query
+                    ->where('project', 'OPERASIONAL UNIT')
+                    ->orWhere('inventaris', 'WASHENG KEKE MANDIRI');
+            })
             ->first();
 
         abort_if(!$asset, 404);

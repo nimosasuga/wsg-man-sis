@@ -9,7 +9,7 @@ function InfoItem({ label, value }) {
     return (
         <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
             <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</p>
-            <p className="mt-1 break-words text-sm font-black text-slate-900">{value || "-"}</p>
+            <p className="mt-1 max-w-full overflow-x-auto whitespace-nowrap text-sm font-black text-slate-900 tabular-nums">{value || "-"}</p>
         </div>
     );
 }
@@ -39,15 +39,15 @@ export default function Detail({ record = {}, isStandby = false, backUrl = "/on-
                         </div>
                         <div className="rounded-lg border border-white/10 bg-white/10 p-4">
                             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-300"><CircleDollarSign size={15} /> Tarif</div>
-                            <p className="mt-2 break-words text-lg font-black">{formatRp(record.tagihan)}</p>
+                            <p className="mt-2 max-w-full overflow-x-auto whitespace-nowrap text-lg font-black tabular-nums">{formatRp(record.tagihan)}</p>
                         </div>
                         <div className="rounded-lg border border-white/10 bg-white/10 p-4">
                             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-300"><Gauge size={15} /> Biaya</div>
-                            <p className="mt-2 break-words text-lg font-black">{formatRp(record.total_biaya_operasional)}</p>
+                            <p className="mt-2 max-w-full overflow-x-auto whitespace-nowrap text-lg font-black tabular-nums">{formatRp(record.total_biaya_operasional)}</p>
                         </div>
                         <div className="rounded-lg border border-white/10 bg-white/10 p-4">
                             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-300"><MapPin size={15} /> Profit</div>
-                            <p className="mt-2 break-words text-lg font-black">{formatRp(record.profit_trip)}</p>
+                            <p className="mt-2 max-w-full overflow-x-auto whitespace-nowrap text-lg font-black tabular-nums">{formatRp(record.profit_trip)}</p>
                         </div>
                     </div>
                 </section>

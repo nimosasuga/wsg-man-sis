@@ -1,7 +1,7 @@
 // resources/js/Pages/Inventori/Pajak/Index.jsx
 import React, { useState, useMemo } from "react";
 import AdminLayout from "../../../Layouts/AdminLayout";
-import { Head, Link, router } from "@inertiajs/react";
+import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     ChevronRight,
     ChevronDown,
@@ -13,9 +13,14 @@ import {
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
+    Pencil,
+    Plus,
+    Trash2,
 } from "lucide-react";
 
 export default function Index({ rawTableData = [], filterStatus = null }) {
+    const permissions = usePage().props.auth?.permissions || [];
+    const canManageInventory = permissions.includes("inventory.manage");
     const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
     const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(true);
     const [activeStatus, setActiveStatus] = useState(filterStatus || "ALL");
@@ -124,11 +129,15 @@ export default function Index({ rawTableData = [], filterStatus = null }) {
                         </button>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-[0_4px_12px_rgba(124,58,237,0.2)] transition-all hover:bg-violet-700">
-                        + Tambah Data
-                    </button>
-                </div>
+                {canManageInventory && (
+                    <Link
+                        href="/module-records/pajak-inventori/create"
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-[0_4px_12px_rgba(124,58,237,0.2)] transition-all hover:bg-violet-700"
+                    >
+                        <Plus size={16} />
+                        Tambah data
+                    </Link>
+                )}
             </div>
 
             <div className="flex min-w-0 flex-col gap-4 overflow-hidden lg:h-[calc(100vh-180px)] lg:flex-row">
@@ -265,7 +274,9 @@ export default function Index({ rawTableData = [], filterStatus = null }) {
                                         <th className="px-4 py-3 text-[10px] font-black text-gray-500 uppercase tracking-wider border-r border-gray-100">
                                             FOTO STNK
                                         </th>
-                                        <th className="px-3 py-3 w-10 sticky right-0 bg-gray-50 shadow-[-4px_0_10px_rgba(0,0,0,0.02)]"></th>
+                                        <th className="sticky right-0 z-20 w-24 bg-slate-50 px-3 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-500 shadow-[-4px_0_10px_rgba(0,0,0,0.02)]">
+                                            {canManageInventory ? "Aksi" : ""}
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
@@ -320,10 +331,38 @@ export default function Index({ rawTableData = [], filterStatus = null }) {
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-3 py-2.5 sticky right-0 bg-white group-hover:bg-blue-50/50 transition-colors shadow-[-4px_0_10px_rgba(0,0,0,0.02)] text-center">
-                                                <div className="inline-flex text-gray-300 group-hover:text-blue-600 group-hover:bg-white p-1 rounded transition-all shadow-sm border border-transparent group-hover:border-gray-200 pointer-events-none">
-                                                    <ChevronRight size={16} />
-                                                </div>
+                                            <td className="sticky right-0 z-10 bg-white px-3 py-2.5 text-center shadow-[-4px_0_10px_rgba(0,0,0,0.02)] transition-colors group-hover:bg-violet-50/60">
+                                                {canManageInventory ? (
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Link
+                                                            href={`/module-records/pajak-inventori/${encodeURIComponent(row.id_key)}/edit`}
+                                                            onClick={(event) => event.stopPropagation()}
+                                                            className="grid h-8 w-8 place-items-center rounded-md text-slate-400 transition hover:bg-violet-100 hover:text-violet-700"
+                                                            title={`Edit ${row.nopol || "unit"}`}
+                                                            aria-label={`Edit ${row.nopol || "unit"}`}
+                                                        >
+                                                            <Pencil size={15} />
+                                                        </Link>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                if (window.confirm(`Hapus data pajak unit ${row.nopol || row.id_key}?`)) {
+                                                                    router.delete(`/module-records/pajak-inventori/${encodeURIComponent(row.id_key)}`);
+                                                                }
+                                                            }}
+                                                            className="grid h-8 w-8 place-items-center rounded-md text-slate-400 transition hover:bg-rose-100 hover:text-rose-600"
+                                                            title={`Hapus ${row.nopol || "unit"}`}
+                                                            aria-label={`Hapus ${row.nopol || "unit"}`}
+                                                        >
+                                                            <Trash2 size={15} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="inline-flex rounded p-1 text-gray-300 transition-all group-hover:border-gray-200 group-hover:bg-white group-hover:text-violet-600">
+                                                        <ChevronRight size={16} />
+                                                    </div>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
