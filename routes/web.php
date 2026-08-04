@@ -37,10 +37,16 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/import-export/{module}/commit', [ImportExportController::class, 'commit'])->name('import-export.commit');
     Route::middleware('permission:database.manage')->prefix('database-manager')->name('database-manager.')->group(function () {
         Route::get('/', [DatabaseManagerController::class, 'index'])->name('index');
-      Route::get('/{table}/template', [DatabaseManagerController::class, 'template'])->name('template');
-      Route::get('/{table}/export', [DatabaseManagerController::class, 'export'])->name('export');
-      Route::get('/{table}/export-csv', [DatabaseManagerController::class, 'exportCsv'])->name('export-csv');
-      Route::get('/{table}', [DatabaseManagerController::class, 'show'])->name('show');
+        Route::get('/{table}/template', [DatabaseManagerController::class, 'template'])->name('template');
+        Route::get('/{table}/export', [DatabaseManagerController::class, 'export'])->name('export');
+        Route::get('/{table}/export-csv', [DatabaseManagerController::class, 'exportCsv'])->name('export-csv');
+        Route::get('/{table}/import', [DatabaseManagerController::class, 'import'])->name('import');
+        Route::post('/{table}/import/preview', [DatabaseManagerController::class, 'previewImport'])->name('import.preview');
+        Route::post('/{table}/import/commit', [DatabaseManagerController::class, 'commitImport'])->name('import.commit');
+        Route::get('/{table}/structure', [DatabaseManagerController::class, 'structure'])->name('structure');
+        Route::post('/{table}/structure/preview', [DatabaseManagerController::class, 'previewStructure'])->name('structure.preview');
+        Route::put('/{table}/structure', [DatabaseManagerController::class, 'updateStructure'])->name('structure.update');
+        Route::get('/{table}', [DatabaseManagerController::class, 'show'])->name('show');
     });
     Route::get('/notifications', [HeaderNotificationController::class, 'index'])->name('notifications.index');
     Route::put('/notifications/read-all', [HeaderNotificationController::class, 'markAllRead'])->name('notifications.read-all');
