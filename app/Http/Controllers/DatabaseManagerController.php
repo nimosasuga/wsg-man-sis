@@ -390,6 +390,9 @@ class DatabaseManagerController extends Controller
                     column_key AS columnKey,
                     extra AS extraValue,
                     column_comment AS columnComment,
+                    character_set_name AS characterSetName,
+                    collation_name AS collationName,
+                    srs_id AS srsId,
                     ordinal_position AS ordinalPosition
              FROM information_schema.columns
              WHERE table_schema = ? AND table_name = ?
@@ -403,6 +406,9 @@ class DatabaseManagerController extends Controller
             'key' => $column->columnKey,
             'extra' => $column->extraValue,
             'comment' => $column->columnComment,
+            'characterSet' => $column->characterSetName,
+            'collation' => $column->collationName,
+            'srsId' => $column->srsId === null ? null : (int) $column->srsId,
             'position' => (int) $column->ordinalPosition,
         ])->values()->all();
     }
@@ -475,7 +481,7 @@ class DatabaseManagerController extends Controller
             'name' => $table,
             'columns' => $columns,
             'editableColumns' => collect($columns)
-                ->filter(fn (array $column) => $column['key'] === '' && ! str_contains(strtolower((string) $column['extra']), 'auto_increment'))
+                ->filter(fn (array $column) => $column['key'] === '' && ! str_contains(strtolower((string) $column['extra']), 'auto_increment') && ! str_contains(strtolower((string) $column['extra']), 'generated'))
                 ->map(fn (array $column) => [
                     'name' => $column['name'],
                     'type' => $column['type'],
@@ -486,19 +492,20 @@ class DatabaseManagerController extends Controller
             'detailUrl' => route('database-manager.show', $table),
             'previewUrl' => route('database-manager.structure.preview', $table),
             'commitUrl' => route('database-manager.structure.update', $table),
+            'typeGroups' => $this->mysqlTypeGroups(),
         ];
     }
 
     private function prepareStructureChange(string $table, array $columns, string $columnName, string $targetType): array
     {
         $column = collect($columns)->firstWhere('name', $columnName);
-        if (! $column || $column['key'] !== '' || str_contains(strtolower((string) $column['extra']), 'auto_increment')) {
+        if (! $column || $column['key'] !== '' || str_contains(strtolower((string) $column['extra']), 'auto_increment') || str_contains(strtolower((string) $column['extra']), 'generated')) {
             throw new \InvalidArgumentException('Kolom primary key, index, atau auto increment tidak dapat diubah dari halaman ini.');
         }
 
         $targetType = strtolower(trim($targetType));
-        if (! in_array($targetType, $this->typeOptions($column['type']), true)) {
-            throw new \InvalidArgumentException('Tipe yang dipilih tidak sesuai dengan kelompok data kolom ini.');
+        if (! $this->isSupportedMySqlColumnType($targetType)) {
+            throw new \InvalidArgumentException('Definisi tipe tidak didukung. Pilih dari daftar MySQL atau tulis definisi lengkap seperti varchar(100), decimal(15,2), enum(\'A\',\'B\'), atau geometry.');
         }
 
         if (preg_match('/^(?:var)?char\((\d+)\)$/', $targetType, $matches)) {
@@ -508,9 +515,21 @@ class DatabaseManagerController extends Controller
             }
         }
 
+        $baseType = $this->baseType($targetType);
+        if ($column['default'] !== null && in_array($baseType, ['tinyblob', 'blob', 'mediumblob', 'longblob', 'tinytext', 'text', 'mediumtext', 'longtext', 'json', 'geometry', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'], true)) {
+            throw new \InvalidArgumentException("Kolom ini memiliki nilai default. Tipe {$baseType} tidak dapat memakai nilai default yang sama, sehingga perubahan tidak diterapkan.");
+        }
+
+        $characterClause = $column['characterSet'] && $this->supportsCharacterSet($baseType)
+            ? " CHARACTER SET `{$column['characterSet']}`".($column['collation'] ? " COLLATE `{$column['collation']}`" : '')
+            : '';
+        $sridClause = $column['srsId'] !== null && in_array($baseType, ['geometry', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'], true)
+            ? " SRID {$column['srsId']}"
+            : '';
         $nullClause = $column['nullable'] ? 'NULL' : 'NOT NULL';
         $defaultClause = $this->defaultClause($column['default']);
-        $sql = "ALTER TABLE `{$table}` MODIFY COLUMN `{$columnName}` {$targetType} {$nullClause}{$defaultClause}";
+        $commentClause = $column['comment'] !== '' ? ' COMMENT '.DB::getPdo()->quote($column['comment']) : '';
+        $sql = "ALTER TABLE `{$table}` MODIFY COLUMN `{$columnName}` {$targetType}{$characterClause}{$sridClause} {$nullClause}{$defaultClause}{$commentClause}";
 
         return [
             'column' => $columnName,
@@ -522,20 +541,61 @@ class DatabaseManagerController extends Controller
 
     private function typeOptions(string $currentType): array
     {
-        $baseType = strtolower((string) preg_replace('/\(.+$/', '', $currentType));
+        return collect($this->mysqlTypeGroups())
+            ->flatMap(fn (array $group) => $group['types'])
+            ->pluck('value')
+            ->push(strtolower($currentType))
+            ->unique()
+            ->values()
+            ->all();
+    }
 
-        return match (true) {
-            in_array($baseType, ['char', 'varchar', 'tinytext', 'text', 'mediumtext', 'longtext'], true) => ['varchar(50)', 'varchar(100)', 'varchar(255)', 'text', 'mediumtext', 'longtext'],
-            $baseType === 'tinyint' => ['tinyint', 'smallint', 'int', 'bigint'],
-            $baseType === 'smallint' => ['smallint', 'int', 'bigint'],
-            in_array($baseType, ['mediumint', 'int', 'integer'], true) => ['int', 'bigint'],
-            $baseType === 'bigint' => ['bigint'],
-            in_array($baseType, ['decimal', 'numeric'], true) => ['decimal(12,2)', 'decimal(15,2)', 'decimal(20,2)'],
-            in_array($baseType, ['float', 'double'], true) => ['double'],
-            in_array($baseType, ['date', 'datetime', 'timestamp'], true) => ['date', 'datetime', 'timestamp'],
-            $baseType === 'json' => ['json'],
-            default => [],
-        };
+    private function mysqlTypeGroups(): array
+    {
+        return [
+            ['label' => 'Numerik', 'types' => $this->typeChoices(['bit(1)', 'tinyint', 'tinyint unsigned', 'smallint', 'smallint unsigned', 'mediumint', 'mediumint unsigned', 'int', 'int unsigned', 'integer', 'integer unsigned', 'bigint', 'bigint unsigned', 'decimal(10,2)', 'decimal(15,2)', 'decimal(20,2)', 'numeric(10,2)', 'fixed(10,2)', 'float', 'double', 'double precision', 'real', 'bool', 'boolean'], [['label' => 'SERIAL (dikunci: membuat auto increment)', 'value' => '__serial__']])],
+            ['label' => 'Tanggal dan waktu', 'types' => $this->typeChoices(['date', 'time', 'time(6)', 'datetime', 'datetime(6)', 'timestamp', 'timestamp(6)', 'year'])],
+            ['label' => 'Teks dan biner', 'types' => $this->typeChoices(['char(1)', 'char(255)', 'varchar(50)', 'varchar(100)', 'varchar(255)', 'varchar(500)', 'varchar(1000)', 'binary(1)', 'binary(255)', 'varbinary(255)', 'tinytext', 'text', 'mediumtext', 'longtext', 'tinyblob', 'blob', 'mediumblob', 'longblob'])],
+            ['label' => 'Pilihan dan dokumen', 'types' => $this->typeChoices(['json'], [['label' => "ENUM (tulis sendiri, contoh: enum('A','B'))", 'value' => '__enum__'], ['label' => "SET (tulis sendiri, contoh: set('A','B'))", 'value' => '__set__']])],
+            ['label' => 'Spasial', 'types' => $this->typeChoices(['geometry', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'])],
+        ];
+    }
+
+    private function typeChoices(array $types, array $disabled = []): array
+    {
+        return [
+            ...array_map(fn (string $type) => ['value' => $type, 'label' => strtoupper($type)], $types),
+            ...array_map(fn (array $type) => [...$type, 'disabled' => true], $disabled),
+        ];
+    }
+
+    private function baseType(string $type): string
+    {
+        return strtolower((string) preg_replace('/\(.+$/', '', preg_replace('/\s+(unsigned|zerofill)$/', '', $type)));
+    }
+
+    private function supportsCharacterSet(string $baseType): bool
+    {
+        return in_array($baseType, ['char', 'varchar', 'tinytext', 'text', 'mediumtext', 'longtext', 'enum', 'set'], true);
+    }
+
+    private function isSupportedMySqlColumnType(string $type): bool
+    {
+        $type = strtolower(trim(preg_replace('/\s+/', ' ', $type)));
+        $patterns = [
+            '/^(?:tinyint|smallint|mediumint|int|integer|bigint)(?:\(\d{1,3}\))?(?: unsigned)?(?: zerofill)?$/',
+            '/^(?:decimal|numeric|fixed)\((?:[1-9]|[1-5]\d|6[0-5]),(?:\d|[12]\d|3[0-0])\)(?: unsigned)?$/',
+            '/^(?:float|double|double precision|real)(?:\(\d{1,2},\d{1,2}\))?(?: unsigned)?$/',
+            '/^bit\((?:[1-9]|[1-5]\d|6[0-4])\)$/',
+            '/^(?:bool|boolean)$/',
+            '/^(?:char|varchar|binary|varbinary)\((?:[1-9]\d{0,4}|[1-5]\d{5}|6[0-4]\d{3}|65[0-4]\d{2}|655[0-2]\d|6553[0-5])\)$/',
+            '/^(?:tinyblob|blob|mediumblob|longblob|tinytext|text|mediumtext|longtext|json)$/',
+            '/^(?:date|time(?:\([0-6]\))?|datetime(?:\([0-6]\))?|timestamp(?:\([0-6]\))?|year)$/',
+            '/^(?:geometry|point|linestring|polygon|multipoint|multilinestring|multipolygon|geometrycollection)$/',
+            "/^(?:enum|set)\\((?:'(?:[^'\\\\]|\\\\.)*')(?:,(?:'(?:[^'\\\\]|\\\\.)*'))*\\)$/",
+        ];
+
+        return collect($patterns)->contains(fn (string $pattern) => preg_match($pattern, $type) === 1);
     }
 
     private function defaultClause(mixed $default): string
