@@ -273,7 +273,7 @@ class DatabaseManagerController extends Controller
                         continue;
                     }
 
-                    $buffer[] = $prepared;
+                    $buffer[] = [$rowNumber, $prepared];
                     if (count($buffer) >= self::IMPORT_CHUNK_SIZE) {
                         [$createdRows, $updatedRows] = $this->persistImportChunk($table, $definition['primaryKey'], $buffer);
                         $created += $createdRows;
@@ -288,9 +288,9 @@ class DatabaseManagerController extends Controller
                     $updated += $updatedRows;
                 }
             });
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
             return to_route('database-manager.import', $table)
-                ->with('error', 'Data belum disimpan karena ada nilai yang tidak sesuai dengan aturan tabel. Periksa kembali isi file atau gunakan template asli.');
+                ->with('error', $this->importFailureMessage($exception));
         }
 
         Storage::delete($import['path']);
@@ -645,30 +645,69 @@ class DatabaseManagerController extends Controller
 
     private function persistImportChunk(string $table, string $primaryKey, array $rows): array
     {
-        $keys = collect($rows)->pluck($primaryKey)->filter()->unique()->values();
+        $keys = collect($rows)->pluck(1)->pluck($primaryKey)->filter()->unique()->values();
         $existing = $keys->isEmpty()
             ? collect()
             : DB::table($table)->whereIn($primaryKey, $keys)->pluck($primaryKey)->flip();
         $created = 0;
         $updated = 0;
 
-        foreach ($rows as $row) {
-            $key = $row[$primaryKey];
-            if ($existing->has($key)) {
-                $updates = $row;
-                unset($updates[$primaryKey]);
-                if ($updates !== []) {
-                    DB::table($table)->where($primaryKey, $key)->update($updates);
+        foreach ($rows as [$rowNumber, $row]) {
+            try {
+                $key = $row[$primaryKey];
+                if ($existing->has($key)) {
+                    $updates = $row;
+                    unset($updates[$primaryKey]);
+                    if ($updates !== []) {
+                        DB::table($table)->where($primaryKey, $key)->update($updates);
+                    }
+                    $updated++;
+                    continue;
                 }
-                $updated++;
-                continue;
-            }
 
-            DB::table($table)->insert($row);
-            $created++;
+                DB::table($table)->insert($row);
+                $created++;
+            } catch (\Throwable $exception) {
+                throw new \RuntimeException(
+                    "IMPORT_ROW_ERROR:{$rowNumber}:".$this->databaseImportError($exception),
+                    previous: $exception,
+                );
+            }
         }
 
         return [$created, $updated];
+    }
+
+    private function importFailureMessage(\Throwable $exception): string
+    {
+        if (preg_match('/^IMPORT_ROW_ERROR:(\d+):(.*)$/', $exception->getMessage(), $matches) === 1) {
+            return "Baris {$matches[1]} belum disimpan: {$matches[2]}";
+        }
+
+        return 'Data belum disimpan karena ada nilai yang tidak sesuai dengan aturan tabel. Periksa kembali isi file atau gunakan template asli.';
+    }
+
+    private function databaseImportError(\Throwable $exception): string
+    {
+        $message = $exception->getMessage();
+
+        if (preg_match("/Data too long for column '([^']+)'/i", $message, $matches) === 1) {
+            return "nilai pada kolom {$matches[1]} terlalu panjang untuk tipe kolomnya.";
+        }
+
+        if (preg_match("/Column '([^']+)' cannot be null/i", $message, $matches) === 1) {
+            return "kolom {$matches[1]} wajib diisi.";
+        }
+
+        if (preg_match("/Incorrect (?:date|datetime|integer|decimal|double) value: .*? for column '([^']+)'/i", $message, $matches) === 1) {
+            return "format nilai pada kolom {$matches[1]} tidak sesuai.";
+        }
+
+        if (str_contains(strtolower($message), 'duplicate entry')) {
+            return 'primary key atau nilai unik sudah dipakai oleh data lain.';
+        }
+
+        return 'nilai pada salah satu kolom tidak sesuai dengan aturan tabel.';
     }
 
     private function prepareImportRow(int $rowNumber, array $row, array $definition): ?array

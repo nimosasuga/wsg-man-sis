@@ -5,12 +5,17 @@ import AdminLayout from "../../Layouts/AdminLayout";
 
 export default function Import({ table, preview = null }) {
     const [file, setFile] = useState(null);
+    const [uploadError, setUploadError] = useState(null);
     const canCommit = preview?.token && preview.validRows > 0 && preview.errorCount === 0;
 
     const submit = (event) => {
         event.preventDefault();
         if (!file) return;
-        router.post(table.previewUrl, { file }, { forceFormData: true });
+        setUploadError(null);
+        router.post(table.previewUrl, { file }, {
+            forceFormData: true,
+            onError: (errors) => setUploadError(Object.values(errors)[0] || "File belum dapat diperiksa. Pastikan format dan ukurannya sesuai."),
+        });
     };
 
     const commit = () => {
@@ -28,7 +33,7 @@ export default function Import({ table, preview = null }) {
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-violet-500 via-cyan-400 to-amber-300" />
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)] lg:items-end">
                     <div className="min-w-0"><span className="inline-flex items-center gap-2 rounded-lg bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700"><Upload size={15} /> Upload ke tabel</span><h1 className="mt-4 break-all font-mono text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl">{table.name}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Gunakan template asli agar nama dan urutan kolom tetap sama. Sistem hanya menambah data baru atau memperbarui baris dengan primary key yang sama.</p><div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold"><span className="rounded-lg bg-slate-100 px-3 py-2 text-slate-700">Primary key: {table.primaryKey || "tidak tersedia"}</span><span className="rounded-lg bg-cyan-50 px-3 py-2 text-cyan-700">{table.columns.length} kolom</span></div></div>
-                    <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="font-bold text-slate-950">Pilih file</p><p className="mt-1 text-sm leading-5 text-slate-500">`.xlsx`, `.xls`, atau `.csv` hingga 50 MB.</p><label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white p-3 transition hover:border-violet-300"><FileUp size={20} className="shrink-0 text-violet-600" /><span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-600">{file?.name || "Pilih file dari komputer"}</span><input className="sr-only" type="file" accept=".xlsx,.xls,.csv,.txt" onChange={(event) => setFile(event.target.files?.[0] || null)} /></label><button disabled={!file || !table.primaryKey} className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"><Upload size={16} />Periksa file</button><a href={table.templateUrl} className="mt-3 inline-flex w-full items-center justify-center gap-2 text-sm font-bold text-violet-700 hover:text-violet-900"><FileSpreadsheet size={16} />Download template asli</a></form>
+                    <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="font-bold text-slate-950">Pilih file</p><p className="mt-1 text-sm leading-5 text-slate-500">`.xlsx`, `.xls`, atau `.csv` hingga 50 MB.</p><label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-300 bg-white p-3 transition hover:border-violet-300"><FileUp size={20} className="shrink-0 text-violet-600" /><span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-600">{file?.name || "Pilih file dari komputer"}</span><input className="sr-only" type="file" accept=".xlsx,.xls,.csv,.txt" onChange={(event) => { setFile(event.target.files?.[0] || null); setUploadError(null); }} /></label>{uploadError && <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold leading-5 text-rose-700">{uploadError}</p>}<button disabled={!file || !table.primaryKey} className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"><Upload size={16} />Periksa file</button><a href={table.templateUrl} className="mt-3 inline-flex w-full items-center justify-center gap-2 text-sm font-bold text-violet-700 hover:text-violet-900"><FileSpreadsheet size={16} />Download template asli</a></form>
                 </div>
             </section>
 

@@ -140,6 +140,9 @@ export default function AdminLayout({ children }) {
     );
     const { url, props } = usePage();
     const auth = props.auth || {};
+    const flash = props.flash || {};
+    const flashMessage = flash.error || flash.success || null;
+    const [dismissedFlash, setDismissedFlash] = useState(null);
     const permissions = auth.permissions || [];
     const roles = auth.roles || [];
     const visibleMenus = useMemo(() => menus.filter((menu) => {
@@ -153,6 +156,10 @@ export default function AdminLayout({ children }) {
     const appShortcuts = useMemo(() => visibleMenus.flatMap((menu) => menu.children
         ? menu.children.map((child) => ({ ...child, icon: menu.icon }))
         : [menu]), [visibleMenus]);
+
+    useEffect(() => {
+        setDismissedFlash(null);
+    }, [flash.error, flash.success]);
 
     const setDesktopSidebarOpen = (value) => {
         setIsSidebarOpen(value);
@@ -319,6 +326,22 @@ export default function AdminLayout({ children }) {
 
     return (
         <>
+            {flashMessage && dismissedFlash !== flashMessage && (
+                <div className="fixed inset-x-4 top-4 z-[80] mx-auto w-auto max-w-xl sm:left-auto sm:right-6 sm:mx-0 sm:w-full" role="alert">
+                    <div className={`flex items-start gap-3 rounded-xl border p-4 shadow-xl ${flash.error ? "border-rose-200 bg-rose-50 text-rose-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
+                        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${flash.error ? "bg-rose-100 text-rose-600" : "bg-emerald-100 text-emerald-600"}`}>
+                            {flash.error ? <CircleAlert size={18} /> : <CheckCheck size={18} />}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-extrabold">{flash.error ? "Upload belum tersimpan" : "Data berhasil disimpan"}</p>
+                            <p className="mt-1 text-sm leading-5">{flashMessage}</p>
+                        </div>
+                        <button type="button" onClick={() => setDismissedFlash(flashMessage)} className="grid h-7 w-7 shrink-0 place-items-center rounded-lg transition hover:bg-white/70" aria-label="Tutup notifikasi">
+                            <X size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
             <div
                 className={`${isMobileSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"} fixed inset-0 z-30 bg-slate-900/35 backdrop-blur-[2px] transition-opacity lg:hidden`}
                 onClick={() => setIsMobileSidebarOpen(false)}
