@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -21,6 +22,23 @@ class DatabaseManagerController extends Controller
     private const EXPORT_LIMIT = 10000;
     private const IMPORT_CHUNK_SIZE = 500;
     private const IMPORT_ERROR_LIMIT = 30;
+    private const EMPTY_DATA_PROTECTED_TABLES = [
+        'users',
+        'password_reset_tokens',
+        'sessions',
+        'cache',
+        'cache_locks',
+        'jobs',
+        'job_batches',
+        'failed_jobs',
+        'migrations',
+        'roles',
+        'permissions',
+        'model_has_permissions',
+        'model_has_roles',
+        'role_has_permissions',
+        'personal_access_tokens',
+    ];
 
     public function index(Request $request): Response
     {
@@ -91,8 +109,67 @@ class DatabaseManagerController extends Controller
                 'importUrl' => route('database-manager.import', $table),
                 'canAlterStructure' => $request->user()?->hasRole('super-admin') ?? false,
                 'structureUrl' => route('database-manager.structure', $table),
+                'canEmptyData' => ($request->user()?->hasRole('super-admin') ?? false) && ! $this->isEmptyDataProtectedTable($table),
+                'prepareEmptyUrl' => route('database-manager.empty.prepare', $table),
+                'emptyUrl' => route('database-manager.empty', $table),
             ],
         ]);
+    }
+
+    public function prepareEmpty(Request $request, string $table): \Illuminate\Http\JsonResponse
+    {
+        $this->guardTable($table);
+        $this->guardSuperAdmin($request);
+        $this->guardEmptyDataTable($table);
+
+        $token = (string) Str::uuid();
+        $rowCount = DB::table($table)->count();
+        $request->session()->put("database-manager.empty.{$token}", [
+            'table' => $table,
+            'row_count' => $rowCount,
+            'prepared_at' => now()->toIso8601String(),
+        ]);
+
+        return response()->json([
+            'token' => $token,
+            'rowCount' => $rowCount,
+        ]);
+    }
+
+    public function empty(Request $request, string $table): \Illuminate\Http\RedirectResponse
+    {
+        $this->guardTable($table);
+        $this->guardSuperAdmin($request);
+        $this->guardEmptyDataTable($table);
+        $request->validate([
+            'token' => ['required', 'uuid'],
+            'confirmation_table' => ['required', 'string'],
+        ]);
+
+        if ($request->string('confirmation_table')->value() !== $table) {
+            return to_route('database-manager.show', $table)
+                ->with('error', 'Nama tabel tidak cocok. Data tidak dihapus.');
+        }
+
+        $token = $request->string('token')->value();
+        $prepared = $request->session()->get("database-manager.empty.{$token}");
+        $preparedAt = isset($prepared['prepared_at']) ? Carbon::parse($prepared['prepared_at']) : null;
+        if (! $prepared || ($prepared['table'] ?? null) !== $table || ! $preparedAt || $preparedAt->lt(now()->subMinutes(30))) {
+            return to_route('database-manager.show', $table)
+                ->with('error', 'Sesi unduhan tidak ditemukan atau sudah kedaluwarsa. Unduh data kembali sebelum mengosongkan tabel.');
+        }
+
+        try {
+            $deleted = DB::table($table)->delete();
+        } catch (\Throwable) {
+            return to_route('database-manager.show', $table)
+                ->with('error', 'Data belum dihapus karena tabel ini masih dipakai oleh relasi data lain.');
+        }
+
+        $request->session()->forget("database-manager.empty.{$token}");
+
+        return to_route('database-manager.show', $table)
+            ->with('success', "{$deleted} baris dari tabel {$table} berhasil dikosongkan.");
     }
 
     public function structure(Request $request, string $table): Response
@@ -378,6 +455,16 @@ class DatabaseManagerController extends Controller
     private function guardSuperAdmin(Request $request): void
     {
         abort_unless($request->user()?->hasRole('super-admin'), 403);
+    }
+
+    private function guardEmptyDataTable(string $table): void
+    {
+        abort_if($this->isEmptyDataProtectedTable($table), 403, 'Tabel sistem tidak dapat dikosongkan dari halaman ini.');
+    }
+
+    private function isEmptyDataProtectedTable(string $table): bool
+    {
+        return in_array(strtolower($table), self::EMPTY_DATA_PROTECTED_TABLES, true);
     }
 
     private function columns(string $table): array

@@ -40,6 +40,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{table}/template', [DatabaseManagerController::class, 'template'])->name('template');
         Route::get('/{table}/export', [DatabaseManagerController::class, 'export'])->name('export');
         Route::get('/{table}/export-csv', [DatabaseManagerController::class, 'exportCsv'])->name('export-csv');
+        Route::post('/{table}/empty/prepare', [DatabaseManagerController::class, 'prepareEmpty'])->name('empty.prepare');
+        Route::delete('/{table}/empty', [DatabaseManagerController::class, 'empty'])->name('empty');
         Route::get('/{table}/import', [DatabaseManagerController::class, 'import'])->name('import');
         Route::post('/{table}/import/preview', [DatabaseManagerController::class, 'previewImport'])->name('import.preview');
         Route::post('/{table}/import/commit', [DatabaseManagerController::class, 'commitImport'])->name('import.commit');
