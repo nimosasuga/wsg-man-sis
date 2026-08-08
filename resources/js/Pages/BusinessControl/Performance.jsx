@@ -208,7 +208,7 @@ export default function Performance({ dbChartData }) {
     const pajakAktif = pajak.find((d) => d.name === "AKTIF")?.value || 0;
     const stnkAktif = stnk.find((d) => d.name === "AKTIF")?.value || 0;
     const kirAktif = kir.find((d) => d.name === "AKTIF")?.value || 0;
-    const invoiceLengkap = invoice.find((d) => d.name === "LENGKAP")?.value || 0;
+    const invoiceLunas = invoice.find((d) => d.key === "PAID")?.value || 0;
 
     const healthScore = totalUnit > 0
         ? Math.round(((pajakAktif / totalUnit) + (stnkAktif / totalUnit) + (kirAktif / totalUnit) + (marginPct / 100)) / 4 * 100)
@@ -264,7 +264,7 @@ export default function Performance({ dbChartData }) {
 
                 <div className="grid grid-cols-2 gap-4">
                     <StatCard title="Total Unit" value={formatNum(totalUnit)} subtitle="Unit terdaftar" icon={Truck} color="cyan" />
-                    <StatCard title="Dokumen Lengkap" value={formatNum(invoiceLengkap)} subtitle={`Dari ${formatNum(totalInvoice)} total`} icon={FileText} color="emerald" />
+                    <StatCard title="Invoice Lunas" value={formatNum(invoiceLunas)} subtitle={`Dari ${formatNum(totalInvoice)} total invoice`} icon={FileText} color="emerald" />
                     <StatCard title="Area Aktif" value={formatNum(areaCount)} subtitle="Area operasional" icon={MapPin} color="orange" />
                     <StatCard title="Margin Global" value={`${marginPct.toFixed(1)}%`} subtitle="Rasio profit" icon={TrendingUp} color="purple" />
                 </div>
@@ -281,7 +281,7 @@ export default function Performance({ dbChartData }) {
                         <ComplianceBar label="Pajak Aktif" value={pajakAktif} total={totalUnit} />
                         <ComplianceBar label="STNK Aktif" value={stnkAktif} total={totalUnit} />
                         <ComplianceBar label="KIR Aktif" value={kirAktif} total={totalUnit} />
-                        <ComplianceBar label="Invoice Lengkap" value={invoiceLengkap} total={totalInvoice} />
+                        <ComplianceBar label="Invoice Lunas" value={invoiceLunas} total={totalInvoice} />
                     </div>
                 </div>
 
