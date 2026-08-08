@@ -35,16 +35,17 @@ function NavigationLoader() {
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        let loadingTimer;
-
         const removeStartListener = router.on('start', () => {
-            loadingTimer = window.setTimeout(() => setIsLoading(true), 120);
+            setIsLoading(true);
         });
         const removeFinishListener = router.on('finish', () => {
-            window.clearTimeout(loadingTimer);
             setIsLoading(false);
         });
+        const removeCancelListener = router.on('cancel', () => setIsLoading(false));
+        const removeInvalidListener = router.on('invalid', () => setIsLoading(false));
         const removeExceptionListener = router.on('exception', (event) => {
+            setIsLoading(false);
+
             if (isChunkLoadError(event.detail.exception)) {
                 event.preventDefault();
                 reloadOnceForFreshAssets();
@@ -60,9 +61,10 @@ function NavigationLoader() {
         window.addEventListener('unhandledrejection', onUnhandledRejection);
 
         return () => {
-            window.clearTimeout(loadingTimer);
             removeStartListener();
             removeFinishListener();
+            removeCancelListener();
+            removeInvalidListener();
             removeExceptionListener();
             window.removeEventListener('unhandledrejection', onUnhandledRejection);
         };
@@ -71,6 +73,7 @@ function NavigationLoader() {
     return (
         <div
             className={`pointer-events-none fixed inset-x-0 top-0 z-[9999] transition-opacity duration-200 ${isLoading ? 'opacity-100' : 'opacity-0'}`}
+            aria-live="polite"
             aria-hidden={!isLoading}
         >
             <div className="h-1 overflow-hidden bg-slate-950/10">

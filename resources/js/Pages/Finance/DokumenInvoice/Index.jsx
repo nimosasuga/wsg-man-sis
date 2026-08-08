@@ -5,6 +5,7 @@ import {
     ArrowDown,
     ArrowUp,
     ArrowUpDown,
+    ChevronLeft,
     ChevronDown,
     ChevronRight,
     FileText,
@@ -44,18 +45,15 @@ const normalizeInvoiceStatus = (status) => {
 const documentStatusLabel = (status) =>
     String(status || "").trim() || "Blank";
 
-export default function Index({ rawTableData = [] }) {
+export default function Index({ invoiceData = {}, filters = {}, areas = [] }) {
     const { url } = usePage();
-    const requestedStatus = useMemo(
-        () =>
-            new URLSearchParams(url.split("?")[1] || "").get("status") ||
-            "ALL",
-        [url],
-    );
+    const rawTableData = invoiceData.data || [];
+    const requestedStatus = filters.status || "ALL";
+    const requestedArea = filters.area || "ALL";
     const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
     const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(true);
     const [activeStatus, setActiveStatus] = useState(requestedStatus);
-    const [activeArea, setActiveArea] = useState("ALL");
+    const [activeArea, setActiveArea] = useState(requestedArea);
     const [sortConfig, setSortConfig] = useState({
         key: null,
         direction: "asc",
@@ -65,36 +63,27 @@ export default function Index({ rawTableData = [] }) {
         setActiveStatus(requestedStatus);
     }, [requestedStatus]);
 
-    const statusList = useMemo(() => {
-        const uniqueStatuses = [
-            ...new Set(
-                rawTableData.map(
-                    (item) => normalizeInvoiceStatus(item.status_invoice),
-                ),
-            ),
-        ];
+    useEffect(() => {
+        setActiveArea(requestedArea);
+    }, [requestedArea]);
 
-        return uniqueStatuses.filter(Boolean).sort();
-    }, [rawTableData]);
+    const statusList = ["PAID", "UNPAID", "PARTIAL PAID", "REFUND"];
+    const areaList = areas;
 
-    const areaList = useMemo(() => {
-        const uniqueAreas = [...new Set(rawTableData.map((item) => item.area))];
-        return uniqueAreas.filter(Boolean).sort();
-    }, [rawTableData]);
-
-    const filteredData = useMemo(() => {
-        return rawTableData.filter((item) => {
-            const itemStatus = normalizeInvoiceStatus(item.status_invoice);
-            const matchStatus =
-                activeStatus === "ALL" || itemStatus === activeStatus;
-            const matchArea = activeArea === "ALL" || item.area === activeArea;
-
-            return matchStatus && matchArea;
-        });
-    }, [activeStatus, activeArea, rawTableData]);
+    const visitFilters = (nextStatus, nextArea, page = null) => {
+        router.get(
+            "/finance/dokumen-invoice",
+            {
+                status: nextStatus,
+                area: nextArea,
+                ...(page ? { page } : {}),
+            },
+            { preserveScroll: true, preserveState: false },
+        );
+    };
 
     const sortedAndFilteredData = useMemo(() => {
-        const sortableItems = [...filteredData];
+        const sortableItems = [...rawTableData];
 
         if (sortConfig.key !== null) {
             sortableItems.sort((a, b) => {
@@ -114,7 +103,7 @@ export default function Index({ rawTableData = [] }) {
         }
 
         return sortableItems;
-    }, [filteredData, sortConfig]);
+    }, [rawTableData, sortConfig]);
 
     const handleSort = (key) => {
         let direction = "asc";
@@ -125,14 +114,6 @@ export default function Index({ rawTableData = [] }) {
 
         setSortConfig({ key, direction });
     };
-
-    const countStatus = (status) =>
-        rawTableData.filter((item) => {
-            const itemStatus = normalizeInvoiceStatus(item.status_invoice);
-            return status === "ALL" ? true : itemStatus === status;
-        }).length;
-    const countArea = (areaName) =>
-        rawTableData.filter((item) => item.area === areaName).length;
 
     const columns = [
         { label: "STATUS INVOICE", key: "status_invoice" },
@@ -187,8 +168,7 @@ export default function Index({ rawTableData = [] }) {
                 >
                     <div
                         onClick={() => {
-                            setActiveStatus("ALL");
-                            setActiveArea("ALL");
+                            visitFilters("ALL", "ALL");
                             setIsStatusMenuOpen(!isStatusMenuOpen);
                         }}
                         className={`flex cursor-pointer items-center justify-between border-b border-gray-100 p-3 transition-colors ${activeStatus === "ALL" && activeArea === "ALL" ? "border-blue-100 bg-blue-50" : "hover:bg-gray-50"}`}
@@ -211,8 +191,7 @@ export default function Index({ rawTableData = [] }) {
                             <div
                                 key={status}
                                 onClick={() => {
-                                    setActiveStatus(status);
-                                    setActiveArea("ALL");
+                                    visitFilters(status, "ALL");
                                 }}
                                 className={`flex cursor-pointer items-center justify-between p-2 transition-colors ${activeStatus === status ? "bg-blue-50/50" : "hover:bg-gray-50"}`}
                             >
@@ -226,9 +205,6 @@ export default function Index({ rawTableData = [] }) {
                                         {status}
                                     </span>
                                 </div>
-                                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">
-                                    {countStatus(status)}
-                                </span>
                             </div>
                         ))}
                     </div>
@@ -243,9 +219,7 @@ export default function Index({ rawTableData = [] }) {
                             return (
                                 <div
                                     key={area}
-                                    onClick={() =>
-                                        setActiveArea(isActive ? "ALL" : area)
-                                    }
+                                    onClick={() => visitFilters(activeStatus, isActive ? "ALL" : area)}
                                     className={`flex cursor-pointer items-center justify-between rounded-md px-4 py-2 transition-colors ${isActive ? "border border-blue-100 bg-blue-50" : "hover:bg-gray-50"}`}
                                 >
                                     <span
@@ -253,14 +227,35 @@ export default function Index({ rawTableData = [] }) {
                                     >
                                         {area}
                                     </span>
-                                    <span
-                                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${isActive ? "bg-blue-200 text-blue-800" : "bg-gray-100 text-gray-400"}`}
-                                    >
-                                        {countArea(area)}
-                                    </span>
                                 </div>
                             );
                         })}
+                    </div>
+                    <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3">
+                        <p className="text-xs font-medium text-gray-500">
+                            Menampilkan {rawTableData.length} invoice pada halaman ini
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => invoiceData.prev_page_url && visitFilters(activeStatus, activeArea, invoiceData.current_page - 1)}
+                                disabled={!invoiceData.prev_page_url}
+                                className="rounded-md border border-gray-200 p-1.5 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                aria-label="Halaman sebelumnya"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <span className="text-xs font-semibold text-gray-600">Halaman {invoiceData.current_page || 1}</span>
+                            <button
+                                type="button"
+                                onClick={() => invoiceData.next_page_url && visitFilters(activeStatus, activeArea, (invoiceData.current_page || 1) + 1)}
+                                disabled={!invoiceData.next_page_url}
+                                className="rounded-md border border-gray-200 p-1.5 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                aria-label="Halaman berikutnya"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
                     </div>
                 </div>
 

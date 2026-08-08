@@ -3,24 +3,21 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DokumenInvoiceController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Tabel invoice lokal tidak menyimpan EDIT TIME, jadi gunakan catatan admin terbaru pada id_record yang sama.
-        $latestEditorTimes = DB::table('operasional_catatan_update')
-            ->selectRaw('id_record, MAX(tgl_cek_admin) as edit_time')
-            ->groupBy('id_record');
+        $status = strtoupper(trim((string) $request->query('status', 'ALL')));
+        $area = trim((string) $request->query('area', 'ALL'));
+        $allowedStatuses = ['ALL', 'PAID', 'UNPAID', 'PARTIAL PAID', 'REFUND'];
 
-        $latestEditors = DB::table('operasional_catatan_update as update_log')
-            ->joinSub($latestEditorTimes, 'latest_editor_time', function ($join) {
-                $join->on('latest_editor_time.id_record', '=', 'update_log.id_record')
-                    ->on('latest_editor_time.edit_time', '=', 'update_log.tgl_cek_admin');
-            })
-            ->select('update_log.id_record', 'update_log.nama_admin', 'update_log.tgl_cek_admin');
+        if (! in_array($status, $allowedStatuses, true)) {
+            $status = 'ALL';
+        }
 
         $latestApprovals = DB::table('finance_accounting_tax_alur_aproval')
             ->selectRaw('no_invoice, no_payment, MAX(date_time) as last_update')
@@ -42,10 +39,14 @@ class DokumenInvoiceController extends Controller
             ->selectRaw('payment.no_invoice, SUM(COALESCE(payment.payment_amount, 0) + COALESCE(payment.biaya_lainnya, 0)) as total_pembayaran_invoice')
             ->groupBy('payment.no_invoice');
 
-        $invoiceData = DB::table('finance_accounting_tax_input_fat as invoice')
-            ->leftJoinSub($latestEditors, 'editor_update', function ($join) {
-                $join->on('editor_update.id_record', '=', 'invoice.id_key');
-            })
+        $statusExpression = "CASE
+            WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) = 0 THEN 'UNPAID'
+            WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) = COALESCE(invoice.total_payment, 0) THEN 'PAID'
+            WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) < COALESCE(invoice.total_payment, 0) THEN 'PARTIAL PAID'
+            ELSE 'REFUND'
+        END";
+
+        $invoiceQuery = DB::table('finance_accounting_tax_input_fat as invoice')
             ->leftJoinSub($approvedPayments, 'approved_payment', function ($join) {
                 $join->on('approved_payment.no_invoice', '=', 'invoice.no_invoice');
             })
@@ -66,22 +67,67 @@ class DokumenInvoiceController extends Controller
                 'invoice.total_payment',
                 'invoice.pengajuan',
                 'invoice.upload_invoice',
-                'invoice.status_dokumen_asli',
-                'editor_update.nama_admin as editor',
-                'editor_update.tgl_cek_admin as edit_time'
+                'invoice.status_dokumen_asli'
             )
             ->selectRaw('COALESCE(approved_payment.total_pembayaran_invoice, 0) as total_pembayaran_invoice')
-            ->selectRaw("CASE
-                WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) = 0 THEN 'UNPAID'
-                WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) = COALESCE(invoice.total_payment, 0) THEN 'PAID'
-                WHEN COALESCE(approved_payment.total_pembayaran_invoice, 0) < COALESCE(invoice.total_payment, 0) THEN 'PARTIAL PAID'
-                ELSE 'REFUND'
-            END as status_invoice")
+            ->selectRaw("{$statusExpression} as status_invoice");
+
+        if ($status !== 'ALL') {
+            $invoiceQuery->whereRaw("{$statusExpression} = ?", [$status]);
+        }
+
+        if ($area !== '' && strtoupper($area) !== 'ALL') {
+            $invoiceQuery->where('invoice.area', $area);
+        }
+
+        // Gunakan simple pagination supaya klik status tidak didahului COUNT seluruh invoice.
+        $invoiceData = $invoiceQuery
             ->orderByDesc('invoice.invoice_date')
-            ->get();
+            ->orderByDesc('invoice.create_date')
+            ->simplePaginate(100)
+            ->withQueryString();
+
+        $invoiceIds = collect($invoiceData->items())->pluck('id_key')->filter()->values();
+        $editors = collect();
+
+        if ($invoiceIds->isNotEmpty()) {
+            $latestEditorTimes = DB::table('operasional_catatan_update')
+                ->whereIn('id_record', $invoiceIds)
+                ->selectRaw('id_record, MAX(tgl_cek_admin) as edit_time')
+                ->groupBy('id_record');
+
+            $editors = DB::table('operasional_catatan_update as update_log')
+                ->joinSub($latestEditorTimes, 'latest_editor_time', function ($join) {
+                    $join->on('latest_editor_time.id_record', '=', 'update_log.id_record')
+                        ->on('latest_editor_time.edit_time', '=', 'update_log.tgl_cek_admin');
+                })
+                ->get(['update_log.id_record', 'update_log.nama_admin', 'update_log.tgl_cek_admin'])
+                ->keyBy('id_record');
+        }
+
+        $invoiceData->getCollection()->transform(function ($invoice) use ($editors) {
+            $editor = $editors->get($invoice->id_key);
+            $invoice->editor = $editor->nama_admin ?? null;
+            $invoice->edit_time = $editor->tgl_cek_admin ?? null;
+
+            return $invoice;
+        });
+
+        $areas = DB::table('finance_accounting_tax_input_fat')
+            ->whereNotNull('area')
+            ->where('area', '!=', '')
+            ->distinct()
+            ->orderBy('area')
+            ->pluck('area')
+            ->values();
 
         return Inertia::render('Finance/DokumenInvoice/Index', [
-            'rawTableData' => $invoiceData
+            'invoiceData' => $invoiceData,
+            'filters' => [
+                'status' => $status,
+                'area' => $area === '' ? 'ALL' : $area,
+            ],
+            'areas' => $areas,
         ]);
     }
 
