@@ -389,12 +389,17 @@ class DatabaseManagerController extends Controller
     public function export(string $table): StreamedResponse
     {
         $this->guardTable($table);
-        $columns = collect($this->columns($table))->pluck('name')->all();
+        $columnDefinitions = $this->columns($table);
+        $columns = collect($columnDefinitions)->pluck('name')->all();
+        $columnsByName = collect($columnDefinitions)->keyBy('name');
         $rows = DB::table($table)
             ->select($columns)
             ->limit(self::EXPORT_LIMIT)
             ->get()
-            ->map(fn ($row) => array_map(fn ($column) => data_get($row, $column), $columns))
+            ->map(fn ($row) => array_map(
+                fn ($column) => $this->exportValue(data_get($row, $column), $columnsByName->get($column)),
+                $columns,
+            ))
             ->all();
 
         return $this->spreadsheet(
@@ -410,10 +415,11 @@ class DatabaseManagerController extends Controller
         $this->guardTable($table);
         $columnDefinitions = $this->columns($table);
         $columns = collect($columnDefinitions)->pluck('name')->all();
+        $columnsByName = collect($columnDefinitions)->keyBy('name');
         $primaryKey = collect($columnDefinitions)->where('key', 'PRI')->pluck('name');
         $primaryKey = $primaryKey->count() === 1 ? $primaryKey->first() : null;
 
-        return response()->streamDownload(function () use ($table, $columns, $primaryKey) {
+        return response()->streamDownload(function () use ($table, $columns, $columnsByName, $primaryKey) {
             $output = fopen('php://output', 'wb');
             fwrite($output, "\xEF\xBB\xBF");
             fputcsv($output, $columns, ';');
@@ -432,7 +438,10 @@ class DatabaseManagerController extends Controller
             foreach ($rows as $row) {
                 fputcsv(
                     $output,
-                    array_map(fn (string $column) => $this->exportValue(data_get($row, $column)), $columns),
+                    array_map(
+                        fn (string $column) => $this->exportValue(data_get($row, $column), $columnsByName->get($column)),
+                        $columns,
+                    ),
                     ';',
                 );
             }
@@ -527,7 +536,7 @@ class DatabaseManagerController extends Controller
         ]);
     }
 
-    private function exportValue(mixed $value): string
+    private function exportValue(mixed $value, ?array $column = null): string
     {
         if ($value === null) {
             return '';
@@ -537,7 +546,48 @@ class DatabaseManagerController extends Controller
             return $value ? '1' : '0';
         }
 
-        return (string) $value;
+        $value = (string) $value;
+
+        return $this->formatDateForExport($value, $column);
+    }
+
+    private function formatDateForExport(string $value, ?array $column): string
+    {
+        if ($value === '' || $column === null || ! preg_match('/(?:tanggal|date|waktu|time)/i', $column['name'])) {
+            return $value;
+        }
+
+        $value = trim($value);
+        $hasTime = preg_match('/(?:\s|T)\d{1,2}:\d{2}/', $value) === 1;
+
+        foreach (['Y-m-d H:i:s', 'Y-m-d H:i', 'Y-m-d\\TH:i:s', 'Y-m-d'] as $format) {
+            try {
+                $date = Carbon::createFromFormat($format, $value);
+
+                return $date->format($hasTime ? 'd/m/Y H:i' : 'd/m/Y');
+            } catch (\Throwable) {
+                // Try the next supported source format.
+            }
+        }
+
+        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\sT](\d{1,2}):(\d{2})(?::\d{2})?)?$/', $value, $matches) !== 1) {
+            return $value;
+        }
+
+        [$day, $month, $year] = [(int) $matches[1], (int) $matches[2], (int) $matches[3]];
+
+        // Jika nilai hanya mungkin dibaca sebagai MM/DD/YYYY, balikkan ke pola target DD/MM/YYYY.
+        if ($day <= 12 && $month > 12) {
+            [$day, $month] = [$month, $day];
+        }
+
+        if (! checkdate($month, $day, $year)) {
+            return $value;
+        }
+
+        $date = Carbon::create($year, $month, $day, (int) ($matches[4] ?? 0), (int) ($matches[5] ?? 0));
+
+        return $date->format($hasTime ? 'd/m/Y H:i' : 'd/m/Y');
     }
 
     private function importTablePayload(string $table): array
