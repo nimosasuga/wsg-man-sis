@@ -14,6 +14,7 @@ class NeedApprovalController extends Controller
     public function index()
     {
         $outstanding = $this->outstandingRows();
+        $invoiceByDivision = $this->invoiceByDivision();
 
         return Inertia::render('Approval/NeedApproval/Index', [
             'summary' => [
@@ -22,6 +23,13 @@ class NeedApprovalController extends Controller
                 'recheckCount' => $outstanding->where('status_pengajuan', 'RE-CHECK')->count(),
                 'paymentAmount' => (float) $outstanding->sum('payment_amount'),
             ],
+            'invoiceSummary' => [
+                'total' => $invoiceByDivision->sum('total'),
+                'lengkap' => $invoiceByDivision->sum('lengkap'),
+                'perluDicek' => $invoiceByDivision->sum('perlu_dicek'),
+                'nominal' => (float) $invoiceByDivision->sum('nominal'),
+            ],
+            'invoiceByDivision' => $invoiceByDivision->values(),
             'sourceStatus' => [
                 'finance_accounting_tax_mutasi_pembayaran' => DB::table('finance_accounting_tax_mutasi_pembayaran')->count(),
                 'finance_accounting_tax_alur_aproval' => DB::table('finance_accounting_tax_alur_aproval')->count(),
@@ -185,6 +193,26 @@ class NeedApprovalController extends Controller
             ->filter(fn ($row) => in_array($row['status_pengajuan'], ['SUBMIT', 'RE-CHECK'], true))
             ->sortByDesc(fn ($row) => $this->dateScore($row['tanggal_invoice']))
             ->values();
+    }
+
+    private function invoiceByDivision(): Collection
+    {
+        return DB::table('finance_accounting_tax_input_fat')
+            ->selectRaw("COALESCE(NULLIF(TRIM(divisi), ''), 'Tanpa divisi') as divisi")
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("SUM(CASE WHEN UPPER(TRIM(COALESCE(status_dokumen_asli, ''))) = 'LENGKAP' THEN 1 ELSE 0 END) as lengkap")
+            ->selectRaw("SUM(CASE WHEN UPPER(TRIM(COALESCE(status_dokumen_asli, ''))) <> 'LENGKAP' THEN 1 ELSE 0 END) as perlu_dicek")
+            ->selectRaw('SUM(COALESCE(total_payment, 0)) as nominal')
+            ->groupByRaw("COALESCE(NULLIF(TRIM(divisi), ''), 'Tanpa divisi')")
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($row) => [
+                'divisi' => $row->divisi,
+                'total' => (int) $row->total,
+                'lengkap' => (int) $row->lengkap,
+                'perlu_dicek' => (int) $row->perlu_dicek,
+                'nominal' => (float) $row->nominal,
+            ]);
     }
 
     private function approvalKey(?string $invoice, ?string $payment): string

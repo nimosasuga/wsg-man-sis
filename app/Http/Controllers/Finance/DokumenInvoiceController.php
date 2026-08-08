@@ -13,6 +13,7 @@ class DokumenInvoiceController extends Controller
     {
         $status = strtoupper(trim((string) $request->query('status', 'ALL')));
         $area = trim((string) $request->query('area', 'ALL'));
+        $divisi = trim((string) $request->query('divisi', 'ALL'));
         $allowedStatuses = ['ALL', 'PAID', 'UNPAID', 'PARTIAL PAID', 'REFUND'];
 
         if (! in_array($status, $allowedStatuses, true)) {
@@ -80,6 +81,15 @@ class DokumenInvoiceController extends Controller
             $invoiceQuery->where('invoice.area', $area);
         }
 
+        if ($divisi === 'Tanpa divisi') {
+            $invoiceQuery->where(function ($query) {
+                $query->whereNull('invoice.divisi')
+                    ->orWhere('invoice.divisi', '');
+            });
+        } elseif ($divisi !== '' && strtoupper($divisi) !== 'ALL') {
+            $invoiceQuery->where('invoice.divisi', $divisi);
+        }
+
         // Gunakan simple pagination supaya klik status tidak didahului COUNT seluruh invoice.
         $invoiceData = $invoiceQuery
             ->orderByDesc('invoice.invoice_date')
@@ -121,13 +131,23 @@ class DokumenInvoiceController extends Controller
             ->pluck('area')
             ->values();
 
+        $divisions = DB::table('finance_accounting_tax_input_fat')
+            ->whereNotNull('divisi')
+            ->where('divisi', '!=', '')
+            ->distinct()
+            ->orderBy('divisi')
+            ->pluck('divisi')
+            ->values();
+
         return Inertia::render('Finance/DokumenInvoice/Index', [
             'invoiceData' => $invoiceData,
             'filters' => [
                 'status' => $status,
                 'area' => $area === '' ? 'ALL' : $area,
+                'divisi' => $divisi === '' ? 'ALL' : $divisi,
             ],
             'areas' => $areas,
+            'divisions' => $divisions,
         ]);
     }
 

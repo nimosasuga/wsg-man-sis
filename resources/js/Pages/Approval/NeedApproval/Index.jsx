@@ -1,6 +1,6 @@
 import React from "react";
 import { Head, Link } from "@inertiajs/react";
-import { ArrowRight, CheckSquare, Clock, Database, FileText } from "lucide-react";
+import { ArrowRight, Building2, CheckSquare, CircleAlert, Clock, Database, FileText } from "lucide-react";
 import AdminLayout from "../../../Layouts/AdminLayout";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
@@ -44,7 +44,7 @@ function StatCard({ title, value, helper, icon: Icon, href, tone = "violet" }) {
     );
 }
 
-function MenuCard({ title, helper, href, icon: Icon, amount }) {
+function MenuCard({ title, helper, href, icon: Icon, amount, detail }) {
     return (
         <Link href={href} className="group relative block overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#c7c3ff] hover:shadow-lg hover:shadow-[#635bff]/10">
             <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#635bff] to-cyan-400" />
@@ -56,6 +56,7 @@ function MenuCard({ title, helper, href, icon: Icon, amount }) {
                     </div>
                     <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">{formatRp(amount)}</h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{helper}</p>
+                    {detail ? <p className="mt-3 text-xs font-semibold text-slate-400">{detail}</p> : null}
                 </div>
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#f1efff] text-[#635bff] transition group-hover:bg-[#635bff] group-hover:text-white">
                     <ArrowRight size={19} />
@@ -65,7 +66,7 @@ function MenuCard({ title, helper, href, icon: Icon, amount }) {
     );
 }
 
-export default function Index({ summary = {}, sourceStatus = {} }) {
+export default function Index({ summary = {}, invoiceSummary = {}, invoiceByDivision = [], sourceStatus = {} }) {
     return (
         <AdminLayout>
             <Head title="Need Approval" />
@@ -107,6 +108,44 @@ export default function Index({ summary = {}, sourceStatus = {} }) {
                         amount={summary.paymentAmount}
                     />
                 </div>
+
+                <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <div className="inline-flex items-center gap-2 rounded-full bg-cyan-50 px-3 py-1.5 text-xs font-bold text-cyan-700">
+                                <FileText size={14} />
+                                Dokumen Invoice
+                            </div>
+                            <h2 className="mt-3 text-lg font-bold tracking-tight text-slate-950">Pantauan invoice per divisi</h2>
+                            <p className="mt-1 text-sm leading-6 text-slate-500">Lihat dokumen yang sudah lengkap dan yang masih perlu dibereskan sebelum proses berikutnya.</p>
+                        </div>
+                        <Link href="/finance/dokumen-invoice" className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 transition hover:border-[#635bff] hover:text-[#635bff]">
+                            Buka dokumen invoice
+                            <ArrowRight size={16} />
+                        </Link>
+                    </div>
+
+                    <div className="grid gap-4 border-b border-slate-100 p-5 sm:grid-cols-2 xl:grid-cols-4">
+                        <StatCard title="Total invoice" value={formatNumber(invoiceSummary.total)} helper="Seluruh invoice yang tercatat" icon={FileText} href="/finance/dokumen-invoice" tone="violet" />
+                        <StatCard title="Dokumen lengkap" value={formatNumber(invoiceSummary.lengkap)} helper="Status dokumen sudah lengkap" icon={CheckSquare} href="/finance/dokumen-invoice" tone="emerald" />
+                        <StatCard title="Perlu dicek" value={formatNumber(invoiceSummary.perluDicek)} helper="Dokumen belum lengkap atau belum diisi" icon={CircleAlert} href="/finance/dokumen-invoice" tone="amber" />
+                        <StatCard title="Nilai invoice" value={formatRp(invoiceSummary.nominal)} helper="Total nilai pembayaran pada data invoice" icon={Database} href="/finance/dokumen-invoice" tone="cyan" />
+                    </div>
+
+                    <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3">
+                        {invoiceByDivision.map((division) => (
+                            <MenuCard
+                                key={division.divisi}
+                                title={division.divisi}
+                                helper={`${formatNumber(division.lengkap)} dokumen lengkap, ${formatNumber(division.perlu_dicek)} masih perlu dicek.`}
+                                detail={`${formatNumber(division.total)} invoice tercatat`}
+                                href={`/finance/dokumen-invoice?divisi=${encodeURIComponent(division.divisi)}`}
+                                icon={Building2}
+                                amount={division.nominal}
+                            />
+                        ))}
+                    </div>
+                </section>
 
                 <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div>
