@@ -400,6 +400,14 @@ return [
         'import_enabled' => true,
         'import_instruction' => 'Nama dan jenis produk wajib diisi agar kategori dapat dipakai pada proses pengiriman.',
     ],
+    'daftar-ongkir-cargo' => [
+        'label' => 'Daftar Ongkir Cargo',
+        'table' => 'db_chargo_daftar_ongkir',
+        'key' => 'no_id',
+        'permission' => 'system.manage',
+        'back' => '/module-records',
+        'fields' => ['kota_asal', 'kota_tujuan', 'satuan_berat', 'tarif'],
+    ],
     'dropdown-area-fat' => [
         'label' => 'Dropdown Area FAT',
         'table' => 'dropdownlist_area_fat',

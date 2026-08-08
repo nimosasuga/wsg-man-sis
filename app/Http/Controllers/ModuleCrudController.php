@@ -64,7 +64,7 @@ class ModuleCrudController extends Controller
                 'group' => 'Finance',
                 'group_key' => 'finance',
             ],
-            str_starts_with($key, 'dropdown-') => [
+            str_starts_with($key, 'dropdown-') || in_array($key, ['kategori-barang-cargo', 'daftar-ongkir-cargo'], true) => [
                 'group' => 'Master Data',
                 'group_key' => 'master-data',
             ],
