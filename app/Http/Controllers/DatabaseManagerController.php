@@ -187,14 +187,11 @@ class DatabaseManagerController extends Controller
     {
         $this->guardTable($table);
         $this->guardSuperAdmin($request);
-        $validated = $request->validate([
-            'column' => ['required', 'string'],
-            'type' => ['required', 'string'],
-        ]);
+        $validated = $this->validateStructureRequest($request);
 
         $payload = $this->structurePayload($table);
         try {
-            $change = $this->prepareStructureChange($table, $payload['columns'], $validated['column'], $validated['type']);
+            $change = $this->prepareStructureChange($table, $payload['columns'], $validated);
         } catch (\InvalidArgumentException $exception) {
             return Inertia::render('DatabaseManager/Structure', [
                 'table' => $payload,
@@ -205,8 +202,7 @@ class DatabaseManagerController extends Controller
         $token = (string) Str::uuid();
         $request->session()->put("database-manager.structure.{$token}", [
             'table' => $table,
-            'column' => $change['column'],
-            'type' => $change['type'],
+            'change' => $change['request'],
         ]);
 
         return Inertia::render('DatabaseManager/Structure', [
@@ -229,7 +225,7 @@ class DatabaseManagerController extends Controller
         }
 
         try {
-            $change = $this->prepareStructureChange($table, $this->columns($table), $pending['column'], $pending['type']);
+            $change = $this->prepareStructureChange($table, $this->columns($table), $pending['change'] ?? []);
             $createStatement = DB::selectOne("SHOW CREATE TABLE `{$table}`");
             Storage::put(
                 'database-schema-backups/'.now()->format('Ymd-His')."-{$table}.sql",
@@ -568,10 +564,18 @@ class DatabaseManagerController extends Controller
             'name' => $table,
             'columns' => $columns,
             'editableColumns' => collect($columns)
-                ->filter(fn (array $column) => $column['key'] === '' && ! str_contains(strtolower((string) $column['extra']), 'auto_increment') && ! str_contains(strtolower((string) $column['extra']), 'generated'))
+            ->filter(fn (array $column) => $column['key'] === '' && ! str_contains(strtolower((string) $column['extra']), 'auto_increment') && ! str_contains(strtolower((string) $column['extra']), 'generated'))
                 ->map(fn (array $column) => [
                     'name' => $column['name'],
                     'type' => $column['type'],
+                    'nullable' => $column['nullable'],
+                    'default' => $column['default'],
+                    'defaultMode' => $this->structureDefaultMode($column['default']),
+                    'defaultValue' => $this->structureDefaultValue($column['default']),
+                    'comment' => $column['comment'],
+                    'collation' => $column['collation'],
+                    'attribute' => $this->columnAttribute($column['type']),
+                    'extra' => $this->editableExtra($column['extra']),
                     'options' => $this->typeOptions($column['type']),
                 ])
                 ->values()
@@ -580,17 +584,36 @@ class DatabaseManagerController extends Controller
             'previewUrl' => route('database-manager.structure.preview', $table),
             'commitUrl' => route('database-manager.structure.update', $table),
             'typeGroups' => $this->mysqlTypeGroups(),
+            'collations' => $this->collations(),
         ];
     }
 
-    private function prepareStructureChange(string $table, array $columns, string $columnName, string $targetType): array
+    private function validateStructureRequest(Request $request): array
     {
+        return $request->validate([
+            'column' => ['required', 'string', 'regex:/^[A-Za-z_][A-Za-z0-9_]*$/'],
+            'name' => ['required', 'string', 'regex:/^[A-Za-z_][A-Za-z0-9_]*$/'],
+            'type' => ['required', 'string', 'max:500'],
+            'collation' => ['nullable', 'string', 'max:100'],
+            'attribute' => ['nullable', 'in:,unsigned,zerofill,unsigned zerofill'],
+            'nullable' => ['required', 'boolean'],
+            'defaultMode' => ['required', 'in:none,null,value,current_timestamp'],
+            'defaultValue' => ['nullable', 'string', 'max:10000'],
+            'comment' => ['nullable', 'string', 'max:1024'],
+            'extra' => ['nullable', 'in:,on update current_timestamp,on update current_timestamp(6)'],
+        ]);
+    }
+
+    private function prepareStructureChange(string $table, array $columns, array $request): array
+    {
+        $columnName = $request['column'] ?? '';
         $column = collect($columns)->firstWhere('name', $columnName);
         if (! $column || $column['key'] !== '' || str_contains(strtolower((string) $column['extra']), 'auto_increment') || str_contains(strtolower((string) $column['extra']), 'generated')) {
             throw new \InvalidArgumentException('Kolom primary key, index, atau auto increment tidak dapat diubah dari halaman ini.');
         }
 
-        $targetType = strtolower(trim($targetType));
+        $targetName = $request['name'];
+        $targetType = $this->withAttribute($request['type'], $request['attribute'] ?? '');
         if (! $this->isSupportedMySqlColumnType($targetType)) {
             throw new \InvalidArgumentException('Definisi tipe tidak didukung. Pilih dari daftar MySQL atau tulis definisi lengkap seperti varchar(100), decimal(15,2), enum(\'A\',\'B\'), atau geometry.');
         }
@@ -603,27 +626,133 @@ class DatabaseManagerController extends Controller
         }
 
         $baseType = $this->baseType($targetType);
-        if ($column['default'] !== null && in_array($baseType, ['tinyblob', 'blob', 'mediumblob', 'longblob', 'tinytext', 'text', 'mediumtext', 'longtext', 'json', 'geometry', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'], true)) {
-            throw new \InvalidArgumentException("Kolom ini memiliki nilai default. Tipe {$baseType} tidak dapat memakai nilai default yang sama, sehingga perubahan tidak diterapkan.");
+        $defaultMode = $request['defaultMode'];
+        if ($defaultMode !== 'none' && in_array($baseType, ['tinyblob', 'blob', 'mediumblob', 'longblob', 'tinytext', 'text', 'mediumtext', 'longtext', 'json', 'geometry', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'], true)) {
+            throw new \InvalidArgumentException("Tipe {$baseType} tidak mendukung nilai bawaan pada konfigurasi ini.");
         }
 
-        $characterClause = $column['characterSet'] && $this->supportsCharacterSet($baseType)
-            ? " CHARACTER SET `{$column['characterSet']}`".($column['collation'] ? " COLLATE `{$column['collation']}`" : '')
-            : '';
+        if (! $request['nullable'] && $defaultMode === 'null') {
+            throw new \InvalidArgumentException('Kolom NOT NULL tidak dapat menggunakan nilai bawaan NULL.');
+        }
+
+        if (! $request['nullable'] && DB::table($table)->whereNull($columnName)->exists()) {
+            throw new \InvalidArgumentException('Kolom ini masih memiliki data kosong. Isi atau perbaiki data tersebut sebelum memilih Tak Ternilai: TIDAK.');
+        }
+
+        if ($defaultMode === 'current_timestamp' && ! in_array($baseType, ['timestamp', 'datetime'], true)) {
+            throw new \InvalidArgumentException('CURRENT_TIMESTAMP hanya dapat digunakan pada kolom TIMESTAMP atau DATETIME.');
+        }
+
+        $extra = strtolower(trim((string) ($request['extra'] ?? '')));
+        if ($extra !== '' && ! in_array($baseType, ['timestamp', 'datetime'], true)) {
+            throw new \InvalidArgumentException('Extra ON UPDATE hanya dapat digunakan pada kolom TIMESTAMP atau DATETIME.');
+        }
+
+        $collation = $this->validCollation($request['collation'] ?? null, $baseType, $column['collation']);
+        $characterClause = $collation ? " CHARACTER SET `{$collation['charset']}` COLLATE `{$collation['name']}`" : '';
         $sridClause = $column['srsId'] !== null && in_array($baseType, ['geometry', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'], true)
             ? " SRID {$column['srsId']}"
             : '';
-        $nullClause = $column['nullable'] ? 'NULL' : 'NOT NULL';
-        $defaultClause = $this->defaultClause($column['default']);
-        $commentClause = $column['comment'] !== '' ? ' COMMENT '.DB::getPdo()->quote($column['comment']) : '';
-        $sql = "ALTER TABLE `{$table}` MODIFY COLUMN `{$columnName}` {$targetType}{$characterClause}{$sridClause} {$nullClause}{$defaultClause}{$commentClause}";
+        $nullClause = $request['nullable'] ? 'NULL' : 'NOT NULL';
+        $defaultClause = $this->requestedDefaultClause($defaultMode, $request['defaultValue'] ?? '');
+        $comment = (string) ($request['comment'] ?? '');
+        $commentClause = $comment !== '' ? ' COMMENT '.DB::getPdo()->quote($comment) : '';
+        $extraClause = $extra !== '' ? ' '.strtoupper($extra) : '';
+        $renameClause = $targetName === $columnName ? "MODIFY COLUMN `{$columnName}`" : "CHANGE COLUMN `{$columnName}` `{$targetName}`";
+        $sql = "ALTER TABLE `{$table}` {$renameClause} {$targetType}{$characterClause}{$sridClause} {$nullClause}{$defaultClause}{$extraClause}{$commentClause}";
 
         return [
             'column' => $columnName,
+            'name' => $targetName,
             'currentType' => $column['type'],
             'type' => $targetType,
             'sql' => $sql,
+            'request' => [
+                'column' => $columnName,
+                'name' => $targetName,
+                'type' => $request['type'],
+                'collation' => $request['collation'] ?? '',
+                'attribute' => $request['attribute'] ?? '',
+                'nullable' => (bool) $request['nullable'],
+                'defaultMode' => $defaultMode,
+                'defaultValue' => $request['defaultValue'] ?? '',
+                'comment' => $comment,
+                'extra' => $extra,
+            ],
         ];
+    }
+
+    private function columnAttribute(string $type): string
+    {
+        $type = strtolower($type);
+
+        return str_contains($type, 'unsigned') && str_contains($type, 'zerofill') ? 'unsigned zerofill' : (str_contains($type, 'unsigned') ? 'unsigned' : (str_contains($type, 'zerofill') ? 'zerofill' : ''));
+    }
+
+    private function editableExtra(string $extra): string
+    {
+        $extra = strtolower(trim($extra));
+
+        return in_array($extra, ['on update current_timestamp', 'on update current_timestamp(6)'], true) ? $extra : '';
+    }
+
+    private function withAttribute(string $type, string $attribute): string
+    {
+        $type = strtolower(trim(preg_replace('/\s+/', ' ', $type)));
+        $type = trim((string) preg_replace('/\s+(?:unsigned|zerofill)(?:\s+(?:unsigned|zerofill))?$/', '', $type));
+
+        return trim($type.' '.trim($attribute));
+    }
+
+    private function collations(): array
+    {
+        return collect(DB::select('SELECT collation_name AS collationName, character_set_name AS characterSetName FROM information_schema.collations ORDER BY character_set_name, collation_name'))
+            ->map(fn ($collation) => ['name' => $collation->collationName, 'charset' => $collation->characterSetName])
+            ->values()
+            ->all();
+    }
+
+    private function validCollation(?string $collation, string $baseType, ?string $currentCollation): ?array
+    {
+        if (! $this->supportsCharacterSet($baseType)) {
+            return null;
+        }
+
+        $target = trim((string) ($collation ?: $currentCollation));
+        if ($target === '') {
+            return null;
+        }
+
+        $match = collect($this->collations())->firstWhere('name', $target);
+        if (! $match) {
+            throw new \InvalidArgumentException('Penyortiran/collation yang dipilih tidak tersedia di server MySQL.');
+        }
+
+        return $match;
+    }
+
+    private function requestedDefaultClause(string $mode, mixed $value): string
+    {
+        return match ($mode) {
+            'null' => ' DEFAULT NULL',
+            'value' => ' DEFAULT '.DB::getPdo()->quote((string) $value),
+            'current_timestamp' => ' DEFAULT CURRENT_TIMESTAMP',
+            default => '',
+        };
+    }
+
+    private function structureDefaultMode(mixed $default): string
+    {
+        if ($default === null) {
+            return 'none';
+        }
+
+        return in_array(strtoupper((string) $default), ['CURRENT_TIMESTAMP', 'CURRENT_TIMESTAMP()'], true) ? 'current_timestamp' : 'value';
+    }
+
+    private function structureDefaultValue(mixed $default): string
+    {
+        return $default === null || in_array(strtoupper((string) $default), ['CURRENT_TIMESTAMP', 'CURRENT_TIMESTAMP()'], true) ? '' : (string) $default;
     }
 
     private function typeOptions(string $currentType): array
