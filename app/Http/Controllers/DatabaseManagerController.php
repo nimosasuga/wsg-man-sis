@@ -277,13 +277,18 @@ class DatabaseManagerController extends Controller
         }
 
         try {
-            $change = $this->prepareStructureChange($table, $this->columns($table), $pending['change'] ?? []);
+            $columns = $this->columns($table);
+            $change = $this->prepareStructureChange($table, $columns, $pending['change'] ?? []);
             $createStatement = DB::selectOne("SHOW CREATE TABLE `{$table}`");
             Storage::put(
                 'database-schema-backups/'.now()->format('Ymd-His')."-{$table}.sql",
                 (string) ($createStatement->{'Create Table'} ?? ''),
             );
+            $normalizedRows = $this->normalizeExistingValuesBeforeStructureChange($table, $columns, $change);
             DB::statement($change['sql']);
+        } catch (\InvalidArgumentException $exception) {
+            return to_route('database-manager.structure', $table)
+                ->with('error', $exception->getMessage());
         } catch (\Throwable) {
             return to_route('database-manager.structure', $table)
                 ->with('error', 'Tipe kolom belum diubah. Pastikan data yang ada cocok dengan tipe yang dipilih.');
@@ -291,8 +296,10 @@ class DatabaseManagerController extends Controller
 
         $request->session()->forget("database-manager.structure.{$token}");
 
+        $extraMessage = ($normalizedRows ?? 0) > 0 ? " {$normalizedRows} nilai tanggal lama dirapikan dulu." : '';
+
         return to_route('database-manager.show', $table)
-            ->with('success', "Tipe kolom {$change['column']} berhasil diubah menjadi {$change['type']}.");
+            ->with('success', "Tipe kolom {$change['column']} berhasil diubah menjadi {$change['type']}.{$extraMessage}");
     }
 
     public function previewAddColumn(Request $request, string $table): Response
@@ -977,6 +984,77 @@ class DatabaseManagerController extends Controller
                 'extra' => $extra,
             ],
         ];
+    }
+
+    private function normalizeExistingValuesBeforeStructureChange(string $table, array $columns, array $change): int
+    {
+        $baseType = $this->baseType((string) $change['type']);
+        if (! in_array($baseType, ['date', 'datetime', 'timestamp'], true)) {
+            return 0;
+        }
+
+        $columnName = (string) $change['column'];
+        $column = collect($columns)->firstWhere('name', $columnName);
+        if (! $column) {
+            throw new \InvalidArgumentException("Kolom {$columnName} tidak ditemukan saat validasi data lama.");
+        }
+
+        $withTime = in_array($baseType, ['datetime', 'timestamp'], true);
+        $isNullableTarget = (bool) data_get($change, 'request.nullable', $column['nullable']);
+        $targetColumn = [
+            ...$column,
+            'type' => $change['type'],
+        ];
+
+        $normalized = 0;
+        $emptyCount = DB::table($table)
+            ->whereNotNull($columnName)
+            ->whereRaw("TRIM(CAST(`{$columnName}` AS CHAR)) = ''")
+            ->count();
+
+        if ($emptyCount > 0) {
+            if (! $isNullableTarget) {
+                throw new \InvalidArgumentException("Kolom {$columnName} masih memiliki {$emptyCount} nilai kosong. Jadikan kolom boleh NULL dulu, atau isi tanggalnya sebelum mengubah tipe.");
+            }
+
+            $normalized += DB::table($table)
+                ->whereNotNull($columnName)
+                ->whereRaw("TRIM(CAST(`{$columnName}` AS CHAR)) = ''")
+                ->update([$columnName => null]);
+        }
+
+        $values = DB::table($table)
+            ->select($columnName)
+            ->whereNotNull($columnName)
+            ->distinct()
+            ->orderBy($columnName)
+            ->lazy(500);
+
+        foreach ($values as $row) {
+            $currentValue = trim((string) ($row->{$columnName} ?? ''));
+            if ($currentValue === '') {
+                continue;
+            }
+
+            try {
+                $nextValue = $this->normalizeImportDate($currentValue, $targetColumn, $withTime);
+            } catch (\InvalidArgumentException $exception) {
+                throw new \InvalidArgumentException(
+                    "Tipe kolom belum diubah. Kolom {$columnName} masih punya nilai \"{$currentValue}\" yang belum terbaca sebagai tanggal. Pakai format DD/MM/YYYY".($withTime ? ' atau DD/MM/YYYY HH:mm' : '').'.',
+                    previous: $exception,
+                );
+            }
+
+            if ($nextValue === $currentValue) {
+                continue;
+            }
+
+            $normalized += DB::table($table)
+                ->where($columnName, $currentValue)
+                ->update([$columnName => $nextValue]);
+        }
+
+        return $normalized;
     }
 
     private function prepareAddColumnChange(string $table, array $columns, array $request): array
