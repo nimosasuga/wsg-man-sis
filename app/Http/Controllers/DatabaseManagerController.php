@@ -284,7 +284,7 @@ class DatabaseManagerController extends Controller
                 'database-schema-backups/'.now()->format('Ymd-His')."-{$table}.sql",
                 (string) ($createStatement->{'Create Table'} ?? ''),
             );
-            $normalizedRows = $this->normalizeExistingValuesBeforeStructureChange($table, $columns, $change);
+            $normalization = $this->normalizeExistingValuesBeforeStructureChange($table, $columns, $change);
             DB::statement($change['sql']);
         } catch (\InvalidArgumentException $exception) {
             return to_route('database-manager.structure', $table)
@@ -296,7 +296,9 @@ class DatabaseManagerController extends Controller
 
         $request->session()->forget("database-manager.structure.{$token}");
 
-        $extraMessage = ($normalizedRows ?? 0) > 0 ? " {$normalizedRows} nilai tanggal lama dirapikan dulu." : '';
+        $extraMessage = ($normalization['count'] ?? 0) > 0
+            ? " {$normalization['count']} nilai {$normalization['label']} lama dirapikan dulu."
+            : '';
 
         return to_route('database-manager.show', $table)
             ->with('success', "Tipe kolom {$change['column']} berhasil diubah menjadi {$change['type']}.{$extraMessage}");
@@ -986,11 +988,11 @@ class DatabaseManagerController extends Controller
         ];
     }
 
-    private function normalizeExistingValuesBeforeStructureChange(string $table, array $columns, array $change): int
+    private function normalizeExistingValuesBeforeStructureChange(string $table, array $columns, array $change): array
     {
         $baseType = $this->baseType((string) $change['type']);
-        if (! in_array($baseType, ['date', 'datetime', 'timestamp'], true)) {
-            return 0;
+        if (! $this->shouldNormalizeBeforeStructureChange($baseType)) {
+            return ['count' => 0, 'label' => 'data'];
         }
 
         $columnName = (string) $change['column'];
@@ -1005,6 +1007,7 @@ class DatabaseManagerController extends Controller
             ...$column,
             'type' => $change['type'],
         ];
+        $label = $this->normalizationLabel($baseType);
 
         $normalized = 0;
         $emptyCount = DB::table($table)
@@ -1014,7 +1017,7 @@ class DatabaseManagerController extends Controller
 
         if ($emptyCount > 0) {
             if (! $isNullableTarget) {
-                throw new \InvalidArgumentException("Kolom {$columnName} masih memiliki {$emptyCount} nilai kosong. Jadikan kolom boleh NULL dulu, atau isi tanggalnya sebelum mengubah tipe.");
+                throw new \InvalidArgumentException("Kolom {$columnName} masih memiliki {$emptyCount} nilai kosong. Jadikan kolom boleh NULL dulu, atau isi datanya sebelum mengubah tipe.");
             }
 
             $normalized += DB::table($table)
@@ -1037,10 +1040,10 @@ class DatabaseManagerController extends Controller
             }
 
             try {
-                $nextValue = $this->normalizeImportDate($currentValue, $targetColumn, $withTime);
+                $nextValue = $this->normalizeStructureValue($currentValue, $targetColumn, $baseType, $withTime);
             } catch (\InvalidArgumentException $exception) {
                 throw new \InvalidArgumentException(
-                    "Tipe kolom belum diubah. Kolom {$columnName} masih punya nilai \"{$currentValue}\" yang belum terbaca sebagai tanggal. Pakai format DD/MM/YYYY".($withTime ? ' atau DD/MM/YYYY HH:mm' : '').'.',
+                    "Tipe kolom belum diubah. Kolom {$columnName} masih punya nilai \"{$currentValue}\" yang belum cocok untuk tipe {$change['type']}. ".$this->normalizationHint($baseType, $withTime),
                     previous: $exception,
                 );
             }
@@ -1054,7 +1057,82 @@ class DatabaseManagerController extends Controller
                 ->update([$columnName => $nextValue]);
         }
 
-        return $normalized;
+        return ['count' => $normalized, 'label' => $label];
+    }
+
+    private function shouldNormalizeBeforeStructureChange(string $baseType): bool
+    {
+        return in_array($baseType, [
+            'bit',
+            'bool',
+            'boolean',
+            'date',
+            'datetime',
+            'timestamp',
+            'time',
+            'year',
+            'tinyint',
+            'smallint',
+            'mediumint',
+            'int',
+            'integer',
+            'bigint',
+            'decimal',
+            'numeric',
+            'fixed',
+            'float',
+            'double',
+            'double precision',
+            'real',
+        ], true);
+    }
+
+    private function normalizationLabel(string $baseType): string
+    {
+        if (in_array($baseType, ['date', 'datetime', 'timestamp', 'time', 'year'], true)) {
+            return 'tanggal/waktu';
+        }
+
+        if (in_array($baseType, ['bool', 'boolean', 'bit'], true)) {
+            return 'ya/tidak';
+        }
+
+        return 'angka';
+    }
+
+    private function normalizationHint(string $baseType, bool $withTime): string
+    {
+        if (in_array($baseType, ['date', 'datetime', 'timestamp'], true)) {
+            return 'Pakai format DD/MM/YYYY'.($withTime ? ' atau DD/MM/YYYY HH:mm' : '').'.';
+        }
+
+        if ($baseType === 'time') {
+            return 'Pakai format HH:mm atau HH:mm:ss.';
+        }
+
+        if ($baseType === 'year') {
+            return 'Pakai tahun 4 digit, misalnya 2026.';
+        }
+
+        if (in_array($baseType, ['bool', 'boolean', 'bit'], true)) {
+            return 'Pakai nilai Ya/Tidak, TRUE/FALSE, atau 1/0.';
+        }
+
+        return 'Untuk angka, gunakan digit biasa; Rp, titik ribuan, koma desimal, dan persen akan dirapikan otomatis.';
+    }
+
+    private function normalizeStructureValue(string $value, array $column, string $baseType, bool $withTime): string
+    {
+        return match ($baseType) {
+            'date' => $this->normalizeImportDate($value, $column, false),
+            'datetime', 'timestamp' => $this->normalizeImportDate($value, $column, $withTime),
+            'time' => $this->normalizeTimeValue($value, $column),
+            'year' => $this->normalizeYearValue($value, $column),
+            'bool', 'boolean', 'bit' => $this->normalizeBooleanValue($value, $column),
+            'tinyint', 'smallint', 'mediumint', 'int', 'integer', 'bigint' => $this->normalizeIntegerValue($value, $column),
+            'decimal', 'numeric', 'fixed', 'float', 'double', 'double precision', 'real' => $this->normalizeDecimalValue($value, $column),
+            default => $value,
+        };
     }
 
     private function prepareAddColumnChange(string $table, array $columns, array $request): array
@@ -1475,8 +1553,153 @@ class DatabaseManagerController extends Controller
         return match ($baseType) {
             'date' => $this->normalizeImportDate($value, $column, false),
             'datetime', 'timestamp' => $this->normalizeImportDate($value, $column, true),
+            'time' => $this->normalizeTimeValue($value, $column),
+            'year' => $this->normalizeYearValue($value, $column),
+            'bool', 'boolean', 'bit' => $this->normalizeBooleanValue($value, $column),
+            'tinyint', 'smallint', 'mediumint', 'int', 'integer', 'bigint' => $this->normalizeIntegerValue($value, $column),
+            'decimal', 'numeric', 'fixed', 'float', 'double', 'double precision', 'real' => $this->normalizeDecimalValue($value, $column),
             default => $value,
         };
+    }
+
+    private function normalizeIntegerValue(string $value, array $column): string
+    {
+        $number = $this->normalizeLocalizedNumber($value, $column);
+        if (fmod((float) $number, 1.0) !== 0.0) {
+            throw new \InvalidArgumentException('kolom '.$column['name'].' berisi "'.$value.'", tetapi kolom ini membutuhkan angka bulat.');
+        }
+
+        if ($this->isUnsignedType((string) $column['type']) && (float) $number < 0) {
+            throw new \InvalidArgumentException('kolom '.$column['name'].' tidak menerima angka negatif.');
+        }
+
+        return (string) (int) $number;
+    }
+
+    private function normalizeDecimalValue(string $value, array $column): string
+    {
+        $number = $this->normalizeLocalizedNumber($value, $column);
+        if ($this->isUnsignedType((string) $column['type']) && (float) $number < 0) {
+            throw new \InvalidArgumentException('kolom '.$column['name'].' tidak menerima angka negatif.');
+        }
+
+        return $number;
+    }
+
+    private function normalizeLocalizedNumber(string $value, array $column): string
+    {
+        $original = $value;
+        $value = trim(str_ireplace(['rp', 'idr', '%'], '', $value));
+        $value = str_replace(["\xc2\xa0", ' '], '', $value);
+
+        $negative = false;
+        if (preg_match('/^\((.*)\)$/', $value, $matches) === 1) {
+            $negative = true;
+            $value = $matches[1];
+        }
+
+        $value = preg_replace('/[^\d,.\-]/', '', $value) ?? '';
+        if (str_starts_with($value, '-')) {
+            $negative = true;
+            $value = substr($value, 1);
+        }
+        $value = str_replace('-', '', $value);
+
+        $lastComma = strrpos($value, ',');
+        $lastDot = strrpos($value, '.');
+        if ($lastComma !== false && $lastDot !== false) {
+            if ($lastComma > $lastDot) {
+                $value = str_replace('.', '', $value);
+                $value = str_replace(',', '.', $value);
+            } else {
+                $value = str_replace(',', '', $value);
+            }
+        } elseif ($lastComma !== false) {
+            $commaCount = substr_count($value, ',');
+            $digitsAfter = strlen($value) - $lastComma - 1;
+            $value = $commaCount === 1 && $digitsAfter > 0 && $digitsAfter <= 2
+                ? str_replace(',', '.', $value)
+                : str_replace(',', '', $value);
+        } elseif ($lastDot !== false) {
+            $dotCount = substr_count($value, '.');
+            $digitsAfter = strlen($value) - $lastDot - 1;
+            if ($dotCount > 1 || $digitsAfter === 3) {
+                $value = str_replace('.', '', $value);
+            }
+        }
+
+        $value = ($negative ? '-' : '').$value;
+        if ($value === '' || $value === '-' || ! is_numeric($value)) {
+            throw new \InvalidArgumentException('kolom '.$column['name'].' berisi "'.$original.'", tetapi belum terbaca sebagai angka.');
+        }
+
+        return rtrim(rtrim(number_format((float) $value, 10, '.', ''), '0'), '.');
+    }
+
+    private function normalizeBooleanValue(string $value, array $column): string
+    {
+        $normalized = strtolower(trim($value));
+        $normalized = str_replace([' ', '-', '_'], '', $normalized);
+
+        $truthy = ['1', 'true', 'yes', 'ya', 'y', 'aktif', 'active', 'paid', 'lunas', 'lengkap'];
+        $falsy = ['0', 'false', 'no', 'tidak', 'n', 'nonaktif', 'inactive', 'unpaid', 'belum', 'kosong'];
+
+        if (in_array($normalized, $truthy, true)) {
+            return '1';
+        }
+
+        if (in_array($normalized, $falsy, true)) {
+            return '0';
+        }
+
+        throw new \InvalidArgumentException('kolom '.$column['name'].' berisi "'.$value.'", tetapi belum terbaca sebagai nilai Ya/Tidak.');
+    }
+
+    private function normalizeTimeValue(string $value, array $column): string
+    {
+        $value = trim($value);
+        if (is_numeric($value) && (float) $value >= 0 && (float) $value < 1) {
+            $seconds = (int) round((float) $value * 86400);
+
+            return gmdate('H:i:s', $seconds);
+        }
+
+        foreach (['H:i:s', 'H:i', 'G:i:s', 'G:i'] as $format) {
+            try {
+                $time = Carbon::createFromFormat($format, $value);
+                $errors = Carbon::getLastErrors();
+                if (is_array($errors) && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0)) {
+                    continue;
+                }
+
+                return $time->format('H:i:s');
+            } catch (\Throwable) {
+                // Coba format berikutnya.
+            }
+        }
+
+        throw new \InvalidArgumentException('kolom '.$column['name'].' berisi "'.$value.'", tetapi belum terbaca sebagai jam. Pakai HH:mm atau HH:mm:ss.');
+    }
+
+    private function normalizeYearValue(string $value, array $column): string
+    {
+        $value = trim($value);
+        if (preg_match('/^\d{4}$/', $value) === 1) {
+            return $value;
+        }
+
+        try {
+            return $this->normalizeImportDate($value, $column, false)
+                ? Carbon::parse($this->normalizeImportDate($value, $column, false))->format('Y')
+                : $value;
+        } catch (\Throwable) {
+            throw new \InvalidArgumentException('kolom '.$column['name'].' berisi "'.$value.'", tetapi belum terbaca sebagai tahun. Pakai format 2026.');
+        }
+    }
+
+    private function isUnsignedType(string $type): bool
+    {
+        return str_contains(strtolower($type), 'unsigned');
     }
 
     private function normalizeImportDate(string $value, array $column, bool $withTime): string
