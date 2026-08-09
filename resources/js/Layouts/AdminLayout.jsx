@@ -349,7 +349,7 @@ export default function AdminLayout({ children }) {
             />
 
             <aside
-                className={`${sidebarWidthClass} font-[Manrope] fixed inset-y-0 left-0 z-40 flex flex-col overflow-hidden border-r border-[#e7e3eb] bg-white text-slate-700 shadow-[8px_0_24px_rgba(75,70,92,0.08)] transition-[width,transform] duration-300 ease-out ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:relative lg:inset-auto lg:z-auto lg:h-full lg:shrink-0 lg:translate-x-0`}
+                className={`${sidebarWidthClass} font-[Manrope] fixed inset-y-0 left-0 z-40 flex flex-col overflow-hidden border-r border-orange-100 bg-[#fffdfb] text-slate-700 shadow-[8px_0_24px_rgba(154,52,18,0.08)] transition-[width,transform] duration-300 ease-out ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:relative lg:inset-auto lg:z-auto lg:h-full lg:shrink-0 lg:translate-x-0`}
                 onMouseEnter={() => {
                     if (isDesktop && !isSidebarPinned) setDesktopSidebarOpen(true);
                 }}
@@ -357,6 +357,7 @@ export default function AdminLayout({ children }) {
                     if (isDesktop && !isSidebarPinned) setDesktopSidebarOpen(false);
                 }}
             >
+                <div className="absolute inset-x-0 top-0 h-1 bg-orange-500" aria-hidden="true" />
                 <div className={`h-[74px] shrink-0 ${isExpanded ? "px-5" : "px-0"} flex items-center ${isExpanded ? "justify-between" : "justify-center"}`}>
                     <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5">
                         <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-transparent">
@@ -380,7 +381,7 @@ export default function AdminLayout({ children }) {
                             <button
                                 type="button"
                                 onClick={toggleSidebarPin}
-                                className={`grid h-8 w-8 place-items-center rounded-lg transition-colors duration-200 ${isSidebarPinned ? "bg-[#f5f3ff] text-[#7367f0]" : "text-slate-400 hover:bg-[#f5f3ff] hover:text-[#7367f0]"}`}
+                                className={`grid h-8 w-8 place-items-center rounded-lg transition-colors duration-200 ${isSidebarPinned ? "bg-orange-100 text-orange-700" : "text-slate-400 hover:bg-orange-50 hover:text-orange-700"}`}
                                 title={isSidebarPinned ? "Sidebar terkunci" : "Sidebar mengikuti kursor"}
                             >
                                 {isSidebarPinned ? <Pin size={15} /> : <PinOff size={15} />}
@@ -389,7 +390,7 @@ export default function AdminLayout({ children }) {
                         <button
                             type="button"
                             onClick={() => isDesktop ? setDesktopSidebarOpen(false) : setIsMobileSidebarOpen(false)}
-                            className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition-colors duration-200 hover:bg-[#f5f3ff] hover:text-[#7367f0]"
+                            className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition-colors duration-200 hover:bg-orange-50 hover:text-orange-700"
                             title={isDesktop ? "Sembunyikan label menu" : "Tutup Sidebar"}
                         >
                             {isDesktop ? <PanelLeftClose size={17} /> : <X size={17} />}
@@ -399,7 +400,7 @@ export default function AdminLayout({ children }) {
 
                 <button
                     onClick={() => setDesktopSidebarOpen(true)}
-                    className={`${isDesktop && !isSidebarOpen ? "grid" : "hidden"} mx-auto mt-3 h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#f5f3ff] text-[#7367f0] transition-colors duration-150 hover:bg-[#7367f0] hover:text-white`}
+                    className={`${isDesktop && !isSidebarOpen ? "grid" : "hidden"} mx-auto mt-3 h-9 w-9 shrink-0 place-items-center rounded-lg bg-orange-100 text-orange-700 transition-colors duration-150 hover:bg-orange-600 hover:text-white`}
                     title="Buka Menu"
                 >
                     <PanelLeftOpen size={17} />
@@ -407,7 +408,7 @@ export default function AdminLayout({ children }) {
 
                 <div className="flex-1 overflow-y-auto px-3 pb-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     <nav className="space-y-0.5" role="navigation">
-                        <p className={`${isExpanded ? "block" : "hidden"} mb-2 px-2.5 text-[10px] font-semibold tracking-[0.04em] text-slate-400`}>Menu utama</p>
+                        <p className={`${isExpanded ? "block" : "hidden"} mb-2 px-2.5 text-[10px] font-bold tracking-[0.04em] text-orange-700`}>Menu utama</p>
                         {mainMenus.map((menu) => {
                             if (menu.children) {
                                 const isAnyChildActive = menu.children.some((child) =>
@@ -428,10 +429,10 @@ export default function AdminLayout({ children }) {
                                             }}
                                             className={`group relative flex min-h-[40px] w-full items-center overflow-hidden rounded-lg text-[12px] font-semibold tracking-normal transition-colors duration-150 ${
                                                 isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"
-                                            } ${isAnyChildActive ? "bg-[#f5f3ff] text-[#7367f0]" : "mt-2 text-slate-500 hover:bg-[#f5f3ff] hover:text-[#7367f0]"}`}
+                                            } ${isAnyChildActive ? "bg-orange-50 text-orange-800 ring-1 ring-inset ring-orange-200" : "mt-2 text-slate-600 hover:bg-orange-50 hover:text-orange-800"}`}
                                         >
                                             <span
-                                                className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 transition group-hover:bg-white group-hover:text-[#7367f0]`}
+                                                className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${isAnyChildActive ? "bg-orange-600 text-white shadow-sm shadow-orange-200" : "text-slate-500 group-hover:bg-orange-100 group-hover:text-orange-700"}`}
                                             >
                                                 <menu.icon size={18} strokeWidth={1.5} className="shrink-0" />
                                             </span>
@@ -456,8 +457,8 @@ export default function AdminLayout({ children }) {
                                                     onClick={() => { if (!isDesktop) setIsMobileSidebarOpen(false); }}
                                                     className={`group relative flex min-h-[30px] items-center overflow-hidden rounded-md text-[11px] font-medium transition-colors duration-150 gap-2 pl-10 pr-3 border-l-2 ${
                                                         isChildActive
-                                                            ? "bg-[#f5f3ff] text-[#7367f0] font-bold border-[#7367f0]"
-                                                            : "text-slate-500 hover:bg-[#f5f3ff] hover:text-[#7367f0] border-transparent"
+                                                            ? "border-orange-500 bg-orange-50 font-bold text-orange-800"
+                                                            : "border-transparent text-slate-500 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-800"
                                                     }`}
                                                 >
                                                     <span className="block truncate">{child.name}</span>
@@ -486,10 +487,10 @@ export default function AdminLayout({ children }) {
                                             setIsMobileSidebarOpen(false);
                                         }
                                     }}
-                                    className={`group relative flex min-h-[40px] items-center overflow-visible rounded-lg text-[12px] font-semibold transition-colors duration-150 ${isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"} ${isActive ? "bg-[#f5f3ff] text-[#7367f0]" : "text-slate-600 hover:bg-[#f5f3ff] hover:text-[#7367f0]"}`}
+                                    className={`group relative flex min-h-[40px] items-center overflow-visible rounded-lg text-[12px] font-semibold transition-colors duration-150 ${isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"} ${isActive ? "bg-orange-50 text-orange-800 ring-1 ring-inset ring-orange-200" : "text-slate-600 hover:bg-orange-50 hover:text-orange-800"}`}
                                 >
                                     <span
-                                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${isActive ? "bg-white text-[#7367f0] shadow-sm" : "text-slate-500 group-hover:bg-white group-hover:text-[#7367f0]"}`}
+                                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${isActive ? "bg-orange-600 text-white shadow-sm shadow-orange-200" : "text-slate-500 group-hover:bg-orange-100 group-hover:text-orange-700"}`}
                                     >
                                     <menu.icon
                                         size={18}
@@ -510,7 +511,7 @@ export default function AdminLayout({ children }) {
                         })}
                         {administrationMenus.length > 0 && (
                             <>
-                                <p className={`${isExpanded ? "block" : "hidden"} mb-2 mt-4 px-2.5 text-[10px] font-semibold tracking-[0.04em] text-slate-400`}>Administrasi</p>
+                                <p className={`${isExpanded ? "block" : "hidden"} mb-2 mt-4 px-2.5 text-[10px] font-bold tracking-[0.04em] text-orange-700`}>Administrasi</p>
                                 {administrationMenus.map((menu) => {
                                     const activePaths = menu.activePaths || [menu.path];
                                     const isActive = activePaths.some((path) => activePath.startsWith(path));
@@ -521,9 +522,9 @@ export default function AdminLayout({ children }) {
                                             title={!isExpanded ? menu.name : ""}
                                             aria-current={isActive ? "page" : undefined}
                                             onClick={() => { if (!isDesktop) setIsMobileSidebarOpen(false); }}
-                                            className={`group relative flex min-h-[40px] items-center overflow-visible rounded-lg text-[12px] font-semibold transition-colors duration-150 ${isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"} ${isActive ? "bg-[#f5f3ff] text-[#7367f0]" : "text-slate-600 hover:bg-[#f5f3ff] hover:text-[#7367f0]"}`}
+                                            className={`group relative flex min-h-[40px] items-center overflow-visible rounded-lg text-[12px] font-semibold transition-colors duration-150 ${isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"} ${isActive ? "bg-orange-50 text-orange-800 ring-1 ring-inset ring-orange-200" : "text-slate-600 hover:bg-orange-50 hover:text-orange-800"}`}
                                         >
-                                            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${isActive ? "bg-white text-[#7367f0] shadow-sm" : "text-slate-500 group-hover:bg-white group-hover:text-[#7367f0]"}`}>
+                                            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${isActive ? "bg-orange-600 text-white shadow-sm shadow-orange-200" : "text-slate-500 group-hover:bg-orange-100 group-hover:text-orange-700"}`}>
                                                 <menu.icon size={18} strokeWidth={1.5} />
                                             </span>
                                             <span className={`${isExpanded ? "block" : "hidden"} truncate`}>{menu.name}</span>
