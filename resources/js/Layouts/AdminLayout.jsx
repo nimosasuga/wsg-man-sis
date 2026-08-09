@@ -72,7 +72,7 @@ const menus = [
     { name: "Need Approval", icon: CheckSquare, path: "/need-approval", permission: "approval.view" },
     { name: "Daftar Karyawan", icon: Users, path: "/daftar-karyawan", permission: "employees.view" },
     { name: "Riwayat Service Unit", icon: PenTool, path: "/riwayat-service-unit", permission: "service.view" },
-    { name: "System Activity Log", icon: Activity, path: "/system/data-health", permission: "system.view" },
+    { name: "System Activity Log", icon: Activity, path: "/system/activity-log", permission: "system.view" },
     {
         name: "CRUD Data",
         icon: Database,
@@ -89,6 +89,7 @@ const menus = [
             "system.manage",
         ],
     },
+    { name: "Data Health", icon: Activity, path: "/system/data-health", activePaths: ["/system/data-health"], superAdminOnly: true },
     { name: "Database", icon: Database, path: "/database-manager", activePaths: ["/database-manager"], permission: "database.manage", superAdminOnly: true },
     { name: "Role & Akses", icon: ShieldCheck, path: "/system/access-control", superAdminOnly: true },
 ];
@@ -281,8 +282,9 @@ export default function AdminLayout({ children }) {
 
     const isExpanded = isDesktop ? isSidebarOpen : true;
     const sidebarWidthClass = isExpanded ? "w-72" : "w-[88px]";
-    const mainMenus = visibleMenus.filter((menu) => !["CRUD Data", "Database", "Role & Akses"].includes(menu.name));
-    const administrationMenus = visibleMenus.filter((menu) => ["CRUD Data", "Database", "Role & Akses"].includes(menu.name));
+    const administrationMenuNames = ["CRUD Data", "Data Health", "Database", "Role & Akses"];
+    const mainMenus = visibleMenus.filter((menu) => !administrationMenuNames.includes(menu.name));
+    const administrationMenus = visibleMenus.filter((menu) => administrationMenuNames.includes(menu.name));
     const handleLogout = () => {
         if (isLoggingOut) return;
 
