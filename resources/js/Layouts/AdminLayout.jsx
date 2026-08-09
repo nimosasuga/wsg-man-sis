@@ -78,6 +78,7 @@ const menus = [
         icon: Database,
         path: "/module-records",
         activePaths: ["/module-records"],
+        superAdminOnly: true,
         anyPermissions: [
             "biaya.manage",
             "profit-unit.manage",
@@ -88,8 +89,8 @@ const menus = [
             "system.manage",
         ],
     },
-    { name: "Database", icon: Database, path: "/database-manager", activePaths: ["/database-manager"], permission: "database.manage" },
-    { name: "Role & Akses", icon: ShieldCheck, path: "/system/access-control", permission: "access-control.manage" },
+    { name: "Database", icon: Database, path: "/database-manager", activePaths: ["/database-manager"], permission: "database.manage", superAdminOnly: true },
+    { name: "Role & Akses", icon: ShieldCheck, path: "/system/access-control", superAdminOnly: true },
 ];
 
 function notificationTime(value) {
@@ -145,13 +146,22 @@ export default function AdminLayout({ children }) {
     const [dismissedFlash, setDismissedFlash] = useState(null);
     const permissions = auth.permissions || [];
     const roles = auth.roles || [];
+    const isSuperAdmin = roles.includes("super-admin");
     const visibleMenus = useMemo(() => menus.filter((menu) => {
+        if (menu.superAdminOnly && !isSuperAdmin) {
+            return false;
+        }
+
+        if (menu.superAdminOnly && !menu.permission && !menu.anyPermissions) {
+            return true;
+        }
+
         if (menu.permission) {
             return permissions.includes(menu.permission);
         }
 
         return (menu.anyPermissions || []).some((permission) => permissions.includes(permission));
-    }), [permissions]);
+    }), [isSuperAdmin, permissions]);
     const activePath = useMemo(() => url?.split("?")[0] || "/dashboard", [url]);
     const appShortcuts = useMemo(() => visibleMenus.flatMap((menu) => menu.children
         ? menu.children.map((child) => ({ ...child, icon: menu.icon }))

@@ -12,6 +12,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -446,7 +447,14 @@ class DatabaseManagerController extends Controller
                         continue;
                     }
 
-                    $prepared = $this->prepareImportRow($rowNumber, $row, $definition);
+                    try {
+                        $prepared = $this->prepareImportRow($rowNumber, $row, $definition);
+                    } catch (\InvalidArgumentException $exception) {
+                        throw new \RuntimeException(
+                            "IMPORT_ROW_ERROR:{$rowNumber}:".$exception->getMessage(),
+                            previous: $exception,
+                        );
+                    }
                     if ($prepared === null) {
                         continue;
                     }
@@ -1208,7 +1216,12 @@ class DatabaseManagerController extends Controller
                 $this->appendImportError($errors, $rowNumber, 'Jumlah kolom pada baris ini tidak sama dengan template.');
                 continue;
             }
-            $prepared = $this->prepareImportRow($rowNumber, $row, $definition);
+            try {
+                $prepared = $this->prepareImportRow($rowNumber, $row, $definition);
+            } catch (\InvalidArgumentException $exception) {
+                $this->appendImportError($errors, $rowNumber, $exception->getMessage());
+                continue;
+            }
             if ($prepared === null) {
                 $this->appendImportError($errors, $rowNumber, 'Primary key wajib diisi untuk tabel ini.');
                 continue;
@@ -1362,10 +1375,84 @@ class DatabaseManagerController extends Controller
                 }
             }
 
-            $prepared[$name] = $value;
+            $prepared[$name] = $this->normalizeImportValue($value, $column);
         }
 
         return $prepared;
+    }
+
+    private function normalizeImportValue(string $value, array $column): string
+    {
+        $type = strtolower((string) $column['type']);
+        $baseType = preg_replace('/\(.*/', '', $type);
+
+        return match ($baseType) {
+            'date' => $this->normalizeImportDate($value, $column, false),
+            'datetime', 'timestamp' => $this->normalizeImportDate($value, $column, true),
+            default => $value,
+        };
+    }
+
+    private function normalizeImportDate(string $value, array $column, bool $withTime): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return $value;
+        }
+
+        if (is_numeric($value) && (float) $value > 0) {
+            try {
+                $date = Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
+
+                return $date->format($withTime ? 'Y-m-d H:i:s' : 'Y-m-d');
+            } catch (\Throwable) {
+                // Lanjut cek format teks.
+            }
+        }
+
+        $formats = $withTime
+            ? [
+                'd/m/Y H:i:s',
+                'd/m/Y H:i',
+                'd-m-Y H:i:s',
+                'd-m-Y H:i',
+                'Y-m-d H:i:s',
+                'Y-m-d H:i',
+                'Y-m-d\TH:i:s',
+                'd/m/Y',
+                'd-m-Y',
+                'Y-m-d',
+            ]
+            : [
+                'd/m/Y',
+                'd-m-Y',
+                'Y-m-d',
+                'd/m/Y H:i:s',
+                'd/m/Y H:i',
+                'd-m-Y H:i:s',
+                'd-m-Y H:i',
+                'Y-m-d H:i:s',
+                'Y-m-d H:i',
+                'Y-m-d\TH:i:s',
+            ];
+
+        foreach ($formats as $format) {
+            try {
+                $date = Carbon::createFromFormat($format, $value);
+                $errors = Carbon::getLastErrors();
+                if (is_array($errors) && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0)) {
+                    continue;
+                }
+
+                return $date->format($withTime ? 'Y-m-d H:i:s' : 'Y-m-d');
+            } catch (\Throwable) {
+                // Coba format berikutnya.
+            }
+        }
+
+        throw new \InvalidArgumentException(
+            'kolom '.$column['name'].' berisi "'.$value.'", tetapi belum terbaca sebagai tanggal. Pakai format DD/MM/YYYY'.($withTime ? ' atau DD/MM/YYYY HH:mm' : '').'.',
+        );
     }
 
     private function importRows(string $path): \Generator

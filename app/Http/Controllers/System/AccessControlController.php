@@ -17,6 +17,11 @@ use Spatie\Permission\PermissionRegistrar;
 
 class AccessControlController extends Controller
 {
+    private const SUPER_ADMIN_ONLY_PERMISSIONS = [
+        'access-control.manage',
+        'database.manage',
+    ];
+
     public function index(): Response
     {
         $roleLabels = collect(config('rbac.roles', []))->map(fn ($role) => $role['label']);
@@ -146,7 +151,7 @@ class AccessControlController extends Controller
 
         DB::transaction(function () use ($validated, $user) {
             $user->syncRoles([$validated['role']]);
-            $user->syncPermissions($validated['role'] === 'super-admin' ? [] : ($validated['permissions'] ?? []));
+            $user->syncPermissions($this->directPermissionsForRole($validated['role'], $validated['permissions'] ?? []));
         });
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
@@ -175,7 +180,7 @@ class AccessControlController extends Controller
             'permissions.*' => ['string', 'in:'.implode(',', array_keys(config('rbac.permissions', [])))],
         ]);
 
-        $role->syncPermissions($validated['permissions'] ?? []);
+        $role->syncPermissions($this->rolePermissionsForRole($role->name, $validated['permissions'] ?? []));
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return back()->with('success', "Hak akses {$role->name} berhasil diperbarui.");
@@ -206,7 +211,7 @@ class AccessControlController extends Controller
             ->map(fn (Role $role) => [
                 'name' => $role->name,
                 'label' => $labels[$role->name] ?? $role->name,
-                'permissions' => $role->permissions->pluck('name')->values()->all(),
+                'permissions' => $this->rolePermissionsForRole($role->name, $role->permissions->pluck('name')->all()),
             ])
             ->all();
     }
@@ -214,7 +219,37 @@ class AccessControlController extends Controller
     private function permissionOptions(): array
     {
         return collect(config('rbac.permissions', []))
-            ->map(fn ($label, $name) => ['name' => $name, 'label' => $label])
+            ->map(fn ($label, $name) => [
+                'name' => $name,
+                'label' => $label,
+                'superAdminOnly' => in_array($name, self::SUPER_ADMIN_ONLY_PERMISSIONS, true),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function directPermissionsForRole(string $role, array $permissions): array
+    {
+        if ($role === 'super-admin') {
+            return [];
+        }
+
+        return $this->withoutSuperAdminOnlyPermissions($permissions);
+    }
+
+    private function rolePermissionsForRole(string $role, array $permissions): array
+    {
+        if ($role === 'super-admin') {
+            return array_values($permissions);
+        }
+
+        return $this->withoutSuperAdminOnlyPermissions($permissions);
+    }
+
+    private function withoutSuperAdminOnlyPermissions(array $permissions): array
+    {
+        return collect($permissions)
+            ->reject(fn ($permission) => in_array($permission, self::SUPER_ADMIN_ONLY_PERMISSIONS, true))
             ->values()
             ->all();
     }

@@ -35,7 +35,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/import-export/{module}/export', [ImportExportController::class, 'export'])->name('import-export.export');
     Route::post('/import-export/{module}/preview', [ImportExportController::class, 'preview'])->name('import-export.preview');
     Route::post('/import-export/{module}/commit', [ImportExportController::class, 'commit'])->name('import-export.commit');
-    Route::middleware('permission:database.manage')->prefix('database-manager')->name('database-manager.')->group(function () {
+    Route::middleware('role:super-admin')->prefix('database-manager')->name('database-manager.')->group(function () {
         Route::get('/', [DatabaseManagerController::class, 'index'])->name('index');
         Route::get('/create', [DatabaseManagerController::class, 'create'])->name('create');
         Route::post('/', [DatabaseManagerController::class, 'store'])->name('store');
@@ -57,7 +57,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/notifications', [HeaderNotificationController::class, 'index'])->name('notifications.index');
     Route::put('/notifications/read-all', [HeaderNotificationController::class, 'markAllRead'])->name('notifications.read-all');
     Route::put('/notifications/{notification}/read', [HeaderNotificationController::class, 'markRead'])->name('notifications.read');
-    Route::prefix('module-records')->name('module-records.')->group(function () {
+    Route::middleware('role:super-admin')->prefix('module-records')->name('module-records.')->group(function () {
         Route::get('/', [ModuleCrudController::class, 'modules'])->name('modules');
         Route::get('/{module}', [ModuleCrudController::class, 'index'])->name('index');
         Route::get('/{module}/create', [ModuleCrudController::class, 'create'])->name('create');
@@ -143,7 +143,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/system/activity-log/user/{id}', [SystemActivityLogController::class, 'userActivityDetail'])->name('system.activity-log.user.detail');
     Route::get('/system/data-health', [DataHealthController::class, 'index'])->name('system.data-health');
     });
-    Route::middleware('permission:access-control.manage')->group(function () {
+    Route::middleware('role:super-admin')->group(function () {
         Route::get('/system/access-control', [AccessControlController::class, 'index'])->name('system.access-control.index');
         Route::get('/system/access-control/users/create', [AccessControlController::class, 'create'])->name('system.access-control.users.create');
         Route::post('/system/access-control/users', [AccessControlController::class, 'store'])->name('system.access-control.users.store');
