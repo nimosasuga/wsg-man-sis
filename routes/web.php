@@ -139,12 +139,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/riwayat-service-unit/service-umum/{id}', [RiwayatServiceController::class, 'serviceUmumDetail'])->name('riwayat-service-unit.service-umum.detail');
         Route::get('/riwayat-service-unit/service-ban/{id}', [RiwayatServiceController::class, 'serviceBanDetail'])->name('riwayat-service-unit.service-ban.detail');
     });
-    Route::middleware('permission:system.view')->group(function () {
-    Route::get('/system/activity-log', [SystemActivityLogController::class, 'index'])->name('system.activity-log.index');
-    Route::get('/system/activity-log/user', [SystemActivityLogController::class, 'userActivity'])->name('system.activity-log.user');
-    Route::get('/system/activity-log/user/{id}', [SystemActivityLogController::class, 'userActivityDetail'])->name('system.activity-log.user.detail');
-    });
     Route::middleware('role:super-admin')->group(function () {
+        Route::get('/system/activity-log', [SystemActivityLogController::class, 'index'])->name('system.activity-log.index');
+        Route::get('/system/activity-log/user', [SystemActivityLogController::class, 'userActivity'])->name('system.activity-log.user');
+        Route::get('/system/activity-log/user/{id}', [SystemActivityLogController::class, 'userActivityDetail'])->name('system.activity-log.user.detail');
         Route::get('/system/data-health', [DataHealthController::class, 'index'])->name('system.data-health');
         Route::get('/system/access-control', [AccessControlController::class, 'index'])->name('system.access-control.index');
         Route::get('/system/access-control/users/create', [AccessControlController::class, 'create'])->name('system.access-control.users.create');

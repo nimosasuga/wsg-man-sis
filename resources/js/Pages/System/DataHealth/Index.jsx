@@ -102,13 +102,13 @@ export default function Index({ summary = {}, modules = [], tables = [], relatio
 
     return (
         <AdminLayout>
-            <Head title="Data Health" />
+            <Head title="Mapping Database" />
 
             <div className="space-y-5">
                 <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-400">
                     <Link href="/dashboard" className="transition hover:text-[#635bff]">Dashboard</Link>
                     <ArrowRight size={15} className="rotate-0" />
-                    <span className="text-slate-700">Data Health</span>
+                    <span className="text-slate-700">Mapping Database</span>
                 </div>
 
                 <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
@@ -119,7 +119,7 @@ export default function Index({ summary = {}, modules = [], tables = [], relatio
                                 Mapping Database
                             </div>
                             <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
-                                Data Health / Mapping Database
+                                Mapping Database
                             </h1>
                             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                                 Tempat mengecek tabel AppSheet, relasi yang kelihatan, dan modul mana yang sudah cukup siap dipakai di Laravel.
