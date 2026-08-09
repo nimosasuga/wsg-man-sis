@@ -227,6 +227,14 @@ class DatabaseManagerController extends Controller
         ]);
     }
 
+    public function redirectStructurePreview(Request $request, string $table): \Illuminate\Http\RedirectResponse
+    {
+        $this->guardTable($table);
+        $this->guardSuperAdmin($request);
+
+        return to_route('database-manager.structure', $table);
+    }
+
     public function previewStructure(Request $request, string $table): Response
     {
         $this->guardTable($table);

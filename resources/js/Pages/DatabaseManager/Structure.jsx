@@ -31,7 +31,7 @@ export default function Structure({ table, preview = null, addPreview = null }) 
         event.preventDefault();
         router.post(table.addPreviewUrl, { ...addForm, type: addEffectiveType, nullable: addForm.nullable === "yes" });
     };
-    const commit = () => router.put(table.commitUrl, { token: preview.token });
+    const commit = () => router.post(table.commitUrl, { token: preview.token, _method: "put" });
     const commitAdd = () => router.post(table.addCommitUrl, { token: addPreview.token });
     const collationDisabled = !supportsCollation(effectiveType);
     const addCollationDisabled = !supportsCollation(addEffectiveType);

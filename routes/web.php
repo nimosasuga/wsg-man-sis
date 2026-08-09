@@ -48,6 +48,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{table}/import/preview', [DatabaseManagerController::class, 'previewImport'])->name('import.preview');
         Route::post('/{table}/import/commit', [DatabaseManagerController::class, 'commitImport'])->name('import.commit');
         Route::get('/{table}/structure', [DatabaseManagerController::class, 'structure'])->name('structure');
+        Route::get('/{table}/structure/preview', [DatabaseManagerController::class, 'redirectStructurePreview'])->name('structure.preview.redirect');
+        Route::get('/{table}/structure/add/preview', [DatabaseManagerController::class, 'redirectStructurePreview'])->name('structure.add.preview.redirect');
         Route::post('/{table}/structure/preview', [DatabaseManagerController::class, 'previewStructure'])->name('structure.preview');
         Route::post('/{table}/structure/add/preview', [DatabaseManagerController::class, 'previewAddColumn'])->name('structure.add.preview');
         Route::post('/{table}/structure/add', [DatabaseManagerController::class, 'storeAddColumn'])->name('structure.add.store');
