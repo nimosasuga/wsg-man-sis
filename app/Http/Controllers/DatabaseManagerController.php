@@ -286,6 +286,68 @@ class DatabaseManagerController extends Controller
             ->with('success', "Tipe kolom {$change['column']} berhasil diubah menjadi {$change['type']}.");
     }
 
+    public function previewAddColumn(Request $request, string $table): Response
+    {
+        $this->guardTable($table);
+        $this->guardSuperAdmin($request);
+        $validated = $this->validateAddColumnRequest($request);
+
+        $payload = $this->structurePayload($table);
+        try {
+            $change = $this->prepareAddColumnChange($table, $payload['columns'], $validated);
+        } catch (\InvalidArgumentException $exception) {
+            return Inertia::render('DatabaseManager/Structure', [
+                'table' => $payload,
+                'preview' => null,
+                'addPreview' => ['error' => $exception->getMessage()],
+            ]);
+        }
+
+        $token = (string) Str::uuid();
+        $request->session()->put("database-manager.structure.add.{$token}", [
+            'table' => $table,
+            'change' => $change['request'],
+        ]);
+
+        return Inertia::render('DatabaseManager/Structure', [
+            'table' => $payload,
+            'preview' => null,
+            'addPreview' => [...$change, 'token' => $token],
+        ]);
+    }
+
+    public function storeAddColumn(Request $request, string $table): \Illuminate\Http\RedirectResponse
+    {
+        $this->guardTable($table);
+        $this->guardSuperAdmin($request);
+        $request->validate(['token' => ['required', 'uuid']]);
+
+        $token = $request->string('token')->value();
+        $pending = $request->session()->get("database-manager.structure.add.{$token}");
+        if (! $pending || ($pending['table'] ?? null) !== $table) {
+            return to_route('database-manager.structure', $table)
+                ->with('error', 'Preview kolom baru sudah tidak tersedia. Periksa kembali sebelum menyimpan.');
+        }
+
+        try {
+            $change = $this->prepareAddColumnChange($table, $this->columns($table), $pending['change'] ?? []);
+            $createStatement = DB::selectOne("SHOW CREATE TABLE `{$table}`");
+            Storage::put(
+                'database-schema-backups/'.now()->format('Ymd-His')."-{$table}.sql",
+                (string) ($createStatement->{'Create Table'} ?? ''),
+            );
+            DB::statement($change['sql']);
+        } catch (\Throwable) {
+            return to_route('database-manager.structure', $table)
+                ->with('error', 'Kolom baru belum ditambahkan. Pastikan nama, tipe, bawaan, dan posisi kolom masih valid.');
+        }
+
+        $request->session()->forget("database-manager.structure.add.{$token}");
+
+        return to_route('database-manager.structure', $table)
+            ->with('success', "Kolom {$change['name']} berhasil ditambahkan ke tabel {$table}.");
+    }
+
     public function import(string $table): Response
     {
         $this->guardTable($table);
@@ -676,6 +738,8 @@ class DatabaseManagerController extends Controller
             'detailUrl' => route('database-manager.show', $table),
             'previewUrl' => route('database-manager.structure.preview', $table),
             'commitUrl' => route('database-manager.structure.update', $table),
+            'addPreviewUrl' => route('database-manager.structure.add.preview', $table),
+            'addCommitUrl' => route('database-manager.structure.add.store', $table),
             'typeGroups' => $this->mysqlTypeGroups(),
             'collations' => $this->collations(),
         ];
@@ -694,6 +758,23 @@ class DatabaseManagerController extends Controller
             'defaultValue' => ['nullable', 'string', 'max:10000'],
             'comment' => ['nullable', 'string', 'max:1024'],
             'extra' => ['nullable', 'in:,on update current_timestamp,on update current_timestamp(6)'],
+        ]);
+    }
+
+    private function validateAddColumnRequest(Request $request): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'regex:/^[A-Za-z_][A-Za-z0-9_]*$/', 'max:64'],
+            'type' => ['required', 'string', 'max:500'],
+            'collation' => ['nullable', 'string', 'max:100'],
+            'attribute' => ['nullable', 'in:,unsigned,zerofill,unsigned zerofill'],
+            'nullable' => ['required', 'boolean'],
+            'defaultMode' => ['required', 'in:none,null,value,current_timestamp'],
+            'defaultValue' => ['nullable', 'string', 'max:10000'],
+            'comment' => ['nullable', 'string', 'max:1024'],
+            'extra' => ['nullable', 'in:,on update current_timestamp,on update current_timestamp(6)'],
+            'positionMode' => ['required', 'in:last,first,after'],
+            'positionColumn' => ['nullable', 'string', 'regex:/^[A-Za-z_][A-Za-z0-9_]*$/'],
         ]);
     }
 
@@ -878,6 +959,68 @@ class DatabaseManagerController extends Controller
                 'defaultValue' => $request['defaultValue'] ?? '',
                 'comment' => $comment,
                 'extra' => $extra,
+            ],
+        ];
+    }
+
+    private function prepareAddColumnChange(string $table, array $columns, array $request): array
+    {
+        $name = trim((string) ($request['name'] ?? ''));
+        $existingNames = collect($columns)->pluck('name')->map(fn (string $column) => strtolower($column));
+        if ($existingNames->contains(strtolower($name))) {
+            throw new \InvalidArgumentException("Kolom {$name} sudah ada di tabel ini.");
+        }
+
+        $positionMode = (string) ($request['positionMode'] ?? 'last');
+        $positionColumn = trim((string) ($request['positionColumn'] ?? ''));
+        if ($positionMode === 'after' && ! collect($columns)->contains(fn (array $column) => $column['name'] === $positionColumn)) {
+            throw new \InvalidArgumentException('Kolom tujuan posisi belum valid. Pilih kolom yang masih ada di tabel.');
+        }
+
+        $column = [
+            'name' => $name,
+            'type' => trim((string) ($request['type'] ?? '')),
+            'collation' => trim((string) ($request['collation'] ?? '')),
+            'attribute' => trim((string) ($request['attribute'] ?? '')),
+            'nullable' => (bool) ($request['nullable'] ?? false),
+            'defaultMode' => (string) ($request['defaultMode'] ?? 'none'),
+            'defaultValue' => (string) ($request['defaultValue'] ?? ''),
+            'comment' => trim((string) ($request['comment'] ?? '')),
+            'extra' => strtolower(trim((string) ($request['extra'] ?? ''))),
+            'autoIncrement' => false,
+        ];
+
+        if (! $column['nullable'] && $column['defaultMode'] === 'none' && DB::table($table)->exists()) {
+            throw new \InvalidArgumentException('Tabel sudah berisi data. Untuk kolom wajib isi, pilih nilai bawaan dulu agar data lama tetap aman.');
+        }
+
+        $definition = $this->createColumnDefinition($column);
+        $positionClause = match ($positionMode) {
+            'first' => ' FIRST',
+            'after' => " AFTER `{$positionColumn}`",
+            default => '',
+        };
+        $sql = "ALTER TABLE `{$table}` ADD COLUMN {$definition}{$positionClause}";
+
+        return [
+            'mode' => 'add',
+            'name' => $name,
+            'type' => $this->withAttribute($column['type'], $column['attribute']),
+            'positionMode' => $positionMode,
+            'positionColumn' => $positionColumn,
+            'sql' => $sql,
+            'request' => [
+                'name' => $name,
+                'type' => $column['type'],
+                'collation' => $column['collation'],
+                'attribute' => $column['attribute'],
+                'nullable' => $column['nullable'],
+                'defaultMode' => $column['defaultMode'],
+                'defaultValue' => $column['defaultValue'],
+                'comment' => $column['comment'],
+                'extra' => $column['extra'],
+                'positionMode' => $positionMode,
+                'positionColumn' => $positionColumn,
             ],
         ];
     }

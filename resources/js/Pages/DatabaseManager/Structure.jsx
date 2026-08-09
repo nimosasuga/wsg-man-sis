@@ -1,20 +1,24 @@
 import React, { useMemo, useState } from "react";
 import { Head, Link, router } from "@inertiajs/react";
-import { AlertTriangle, ArrowLeft, CheckCircle2, Code2, Database, LockKeyhole, Settings2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, Code2, Database, LockKeyhole, PlusCircle, Settings2 } from "lucide-react";
 import AdminLayout from "../../Layouts/AdminLayout";
 
 const attributes = ["", "unsigned", "zerofill", "unsigned zerofill"];
 const extras = ["", "on update current_timestamp", "on update current_timestamp(6)"];
 
-export default function Structure({ table, preview = null }) {
+export default function Structure({ table, preview = null, addPreview = null }) {
     const firstColumn = table.editableColumns[0]?.name || "";
+    const firstType = table.typeGroups?.flatMap((group) => group.types)?.find((option) => option.value === "varchar(100)")?.value || table.typeGroups?.[0]?.types?.find((option) => !option.disabled)?.value || "varchar(100)";
     const [column, setColumn] = useState(firstColumn);
     const selected = useMemo(() => table.editableColumns.find((item) => item.name === column), [table.editableColumns, column]);
     const selectableTypes = useMemo(() => (table.typeGroups || []).flatMap((group) => group.types.map((option) => option.value)), [table.typeGroups]);
     const [form, setForm] = useState(() => makeForm(table.editableColumns[0]));
+    const [addForm, setAddForm] = useState(() => makeAddForm(firstType));
     const effectiveType = form.customType.trim() || form.type;
+    const addEffectiveType = addForm.customType.trim() || addForm.type;
 
     const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+    const updateAdd = (key, value) => setAddForm((current) => ({ ...current, [key]: value }));
     const changeColumn = (value) => {
         setColumn(value);
         setForm(makeForm(table.editableColumns.find((item) => item.name === value)));
@@ -23,8 +27,14 @@ export default function Structure({ table, preview = null }) {
         event.preventDefault();
         router.post(table.previewUrl, { ...form, column, type: effectiveType, nullable: form.nullable === "yes" });
     };
+    const previewAdd = (event) => {
+        event.preventDefault();
+        router.post(table.addPreviewUrl, { ...addForm, type: addEffectiveType, nullable: addForm.nullable === "yes" });
+    };
     const commit = () => router.put(table.commitUrl, { token: preview.token });
+    const commitAdd = () => router.post(table.addCommitUrl, { token: addPreview.token });
     const collationDisabled = !supportsCollation(effectiveType);
+    const addCollationDisabled = !supportsCollation(addEffectiveType);
 
     return <AdminLayout>
         <Head title={`Struktur: ${table.name}`} />
@@ -32,6 +42,35 @@ export default function Structure({ table, preview = null }) {
             <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-500"><Link href={table.detailUrl} className="inline-flex items-center gap-1 transition hover:text-violet-600"><ArrowLeft size={15} /> {table.name}</Link><span className="text-slate-300">/</span><span className="text-slate-900">Edit struktur kolom</span></div>
 
             <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/70 sm:p-7"><div className="pointer-events-none absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-amber-400 via-violet-500 to-cyan-400" /><span className="inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800"><Settings2 size={15} /> Pengaturan Super Admin</span><h1 className="mt-4 break-all font-mono text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl">Edit struktur kolom</h1><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Ubah properti kolom sesuai struktur MySQL. Periksa preview SQL sebelum menyimpan karena perubahan ini langsung berlaku pada tabel yang dipakai aplikasi.</p></section>
+
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/70 sm:p-6">
+                <div className="mb-5 flex items-start gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-700"><PlusCircle size={19} /></span>
+                    <div>
+                        <h2 className="font-extrabold text-slate-950">Tambah kolom baru</h2>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">Tambahkan kolom ke tabel yang sudah ada. Sistem akan menampilkan SQL-nya dulu sebelum benar-benar disimpan.</p>
+                    </div>
+                </div>
+                <form onSubmit={previewAdd} className="space-y-5">
+                    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                        <Field label="Nama"><input value={addForm.name} onChange={(event) => updateAdd("name", event.target.value)} placeholder="contoh: status_invoice" className={`${inputClass} font-mono`} /></Field>
+                        <Field label="Jenis"><select value={addForm.type} onChange={(event) => { updateAdd("type", event.target.value); updateAdd("customType", ""); }} className={inputClass}>{(table.typeGroups || []).map((group) => <optgroup key={group.label} label={group.label}>{group.types.map((option) => <option key={option.value} value={option.value} disabled={option.disabled}>{option.label}</option>)}</optgroup>)}</select></Field>
+                        <Field label="Jenis sendiri (opsional)"><input value={addForm.customType} onChange={(event) => updateAdd("customType", event.target.value)} placeholder="contoh: decimal(15,2)" className={`${inputClass} font-mono`} /></Field>
+                        <Field label="Penyortiran"><select value={addForm.collation} disabled={addCollationDisabled} onChange={(event) => updateAdd("collation", event.target.value)} className={inputClass}><option value="">Default server</option>{(table.collations || []).map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}</select></Field>
+                        <Field label="Atribut"><select value={addForm.attribute} onChange={(event) => updateAdd("attribute", event.target.value)} className={inputClass}>{attributes.map((item) => <option key={item} value={item}>{item || "Tidak ada"}</option>)}</select></Field>
+                        <Field label="Tak ternilai"><select value={addForm.nullable} onChange={(event) => updateAdd("nullable", event.target.value)} className={inputClass}><option value="yes">YA - boleh kosong</option><option value="no">TIDAK - wajib diisi</option></select></Field>
+                        <Field label="Bawaan"><select value={addForm.defaultMode} onChange={(event) => updateAdd("defaultMode", event.target.value)} className={inputClass}><option value="none">Tidak ada</option><option value="null">NULL</option><option value="value">Nilai sendiri</option><option value="current_timestamp">CURRENT_TIMESTAMP</option></select></Field>
+                        {addForm.defaultMode === "value" && <Field label="Nilai bawaan"><input value={addForm.defaultValue} onChange={(event) => updateAdd("defaultValue", event.target.value)} className={inputClass} /></Field>}
+                        <Field label="Ekstra"><select value={addForm.extra} onChange={(event) => updateAdd("extra", event.target.value)} className={inputClass}>{extras.map((item) => <option key={item} value={item}>{item || "Tidak ada"}</option>)}</select></Field>
+                        <Field label="Posisi"><select value={addForm.positionMode} onChange={(event) => updateAdd("positionMode", event.target.value)} className={inputClass}><option value="last">Di akhir tabel</option><option value="first">Paling awal</option><option value="after">Setelah kolom tertentu</option></select></Field>
+                        {addForm.positionMode === "after" && <Field label="Setelah kolom"><select value={addForm.positionColumn} onChange={(event) => updateAdd("positionColumn", event.target.value)} className={inputClass}>{table.columns.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}</select></Field>}
+                    </div>
+                    <Field label="Komentar"><textarea value={addForm.comment} onChange={(event) => updateAdd("comment", event.target.value)} rows="3" className={`${inputClass} h-auto py-3`} /></Field>
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5"><p className="max-w-3xl text-xs leading-5 text-slate-500">Untuk tabel yang sudah punya data, kolom baru yang wajib diisi harus punya nilai bawaan. Ini menjaga data lama tetap aman saat struktur berubah.</p><button disabled={!addForm.name || !addEffectiveType || (addForm.positionMode === "after" && !addForm.positionColumn)} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-40"><Code2 size={16} />Preview tambah kolom</button></div>
+                </form>
+            </section>
+
+            {addPreview && <section className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${addPreview.error ? "border-rose-200" : "border-slate-200"}`}><div className="p-5 sm:p-6">{addPreview.error ? <div className="flex gap-3 text-rose-800"><AlertTriangle className="mt-0.5 shrink-0" size={20} /><div><h2 className="font-extrabold">Kolom belum dapat ditambahkan</h2><p className="mt-1 text-sm leading-6">{addPreview.error}</p></div></div> : <><div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><span className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700"><CheckCircle2 size={15} /> Siap ditinjau</span><h2 className="mt-3 font-extrabold text-slate-950">Preview tambah kolom</h2><p className="mt-1 text-sm text-slate-600">Kolom baru <span className="font-mono font-bold">{addPreview.name}</span> akan ditambahkan dengan tipe <span className="font-mono font-bold">{addPreview.type}</span>.</p></div><button type="button" onClick={commitAdd} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white transition hover:bg-emerald-700"><CheckCircle2 size={16} />Simpan kolom</button></div><div className="mt-5 overflow-x-auto rounded-xl border border-slate-200 bg-slate-950 p-4"><code className="whitespace-pre font-mono text-sm text-emerald-300">{addPreview.sql}</code></div></>}</div></section>}
 
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/70 sm:p-6">
                 <form onSubmit={previewChange} className="space-y-5">
@@ -68,3 +107,4 @@ const supportsCollation = (type) => /^(?:char|varchar|tinytext|text|mediumtext|l
 const isLocked = (item) => item.key || item.extra?.toLowerCase().includes("auto_increment") || item.extra?.toLowerCase().includes("generated");
 const lockedReason = (item) => item.key ? "Key / index" : item.extra?.toLowerCase().includes("auto_increment") ? "Auto increment" : "Generated column";
 const makeForm = (column) => ({ name: column?.name || "", type: column?.options?.includes(column?.type) ? column.type : column?.options?.[0] || "", customType: "", collation: column?.collation || "", attribute: column?.attribute || "", nullable: column?.nullable ? "yes" : "no", defaultMode: column?.defaultMode || "none", defaultValue: column?.defaultValue || "", comment: column?.comment || "", extra: column?.extra || "" });
+const makeAddForm = (type) => ({ name: "", type, customType: "", collation: "", attribute: "", nullable: "yes", defaultMode: "none", defaultValue: "", comment: "", extra: "", positionMode: "last", positionColumn: "" });
