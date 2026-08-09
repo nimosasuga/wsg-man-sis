@@ -8,7 +8,7 @@ import { Truck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'Washeng GO';
 
 function isChunkLoadError(error) {
     const message = String(error?.message || error || '');

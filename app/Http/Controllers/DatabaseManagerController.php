@@ -71,7 +71,50 @@ class DatabaseManagerController extends Controller
             'database' => $database,
             'tables' => $tables,
             'filters' => ['search' => $query],
+            'canCreateTables' => $request->user()?->hasRole('super-admin') ?? false,
+            'createUrl' => route('database-manager.create'),
         ]);
+    }
+
+    public function create(Request $request): Response
+    {
+        $this->guardSuperAdmin($request);
+
+        return Inertia::render('DatabaseManager/Create', [
+            'database' => DB::getDatabaseName(),
+            'typeGroups' => $this->mysqlTypeGroups(),
+            'collations' => $this->collations(),
+            'storeUrl' => route('database-manager.store'),
+            'indexUrl' => route('database-manager.index'),
+        ]);
+    }
+
+    public function store(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $this->guardSuperAdmin($request);
+        $validated = $this->validateCreateTableRequest($request);
+
+        if (Schema::hasTable($validated['name'])) {
+            return back()
+                ->withInput()
+                ->with('error', "Tabel {$validated['name']} sudah ada.");
+        }
+
+        try {
+            $sql = $this->prepareCreateTableStatement($validated);
+            DB::statement($sql);
+        } catch (\InvalidArgumentException $exception) {
+            return back()
+                ->withInput()
+                ->with('error', $exception->getMessage());
+        } catch (\Throwable) {
+            return back()
+                ->withInput()
+                ->with('error', 'Tabel belum dibuat. Periksa nama tabel, nama kolom, tipe data, dan pilihan primary key.');
+        }
+
+        return to_route('database-manager.show', $validated['name'])
+            ->with('success', "Tabel {$validated['name']} berhasil dibuat.");
     }
 
     public function show(Request $request, string $table): Response
@@ -654,6 +697,113 @@ class DatabaseManagerController extends Controller
         ]);
     }
 
+    private function validateCreateTableRequest(Request $request): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'regex:/^[A-Za-z_][A-Za-z0-9_]*$/', 'max:64'],
+            'columns' => ['required', 'array', 'min:1', 'max:80'],
+            'columns.*.name' => ['required', 'string', 'regex:/^[A-Za-z_][A-Za-z0-9_]*$/', 'max:64'],
+            'columns.*.type' => ['required', 'string', 'max:500'],
+            'columns.*.collation' => ['nullable', 'string', 'max:100'],
+            'columns.*.attribute' => ['nullable', 'in:,unsigned,zerofill,unsigned zerofill'],
+            'columns.*.nullable' => ['required', 'boolean'],
+            'columns.*.defaultMode' => ['required', 'in:none,null,value,current_timestamp'],
+            'columns.*.defaultValue' => ['nullable', 'string', 'max:10000'],
+            'columns.*.comment' => ['nullable', 'string', 'max:1024'],
+            'columns.*.extra' => ['nullable', 'in:,on update current_timestamp,on update current_timestamp(6)'],
+            'columns.*.primary' => ['required', 'boolean'],
+            'columns.*.autoIncrement' => ['required', 'boolean'],
+        ]);
+    }
+
+    private function prepareCreateTableStatement(array $request): string
+    {
+        $tableName = $request['name'];
+        $columns = collect($request['columns'])
+            ->map(fn (array $column) => [
+                ...$column,
+                'name' => trim((string) $column['name']),
+                'type' => trim((string) $column['type']),
+                'attribute' => trim((string) ($column['attribute'] ?? '')),
+                'collation' => trim((string) ($column['collation'] ?? '')),
+                'comment' => trim((string) ($column['comment'] ?? '')),
+                'extra' => strtolower(trim((string) ($column['extra'] ?? ''))),
+                'primary' => (bool) ($column['primary'] ?? false),
+                'autoIncrement' => (bool) ($column['autoIncrement'] ?? false),
+            ])
+            ->values();
+
+        $duplicates = $columns->pluck('name')->map(fn (string $name) => strtolower($name))->duplicates();
+        if ($duplicates->isNotEmpty()) {
+            throw new \InvalidArgumentException('Nama kolom tidak boleh sama dalam satu tabel.');
+        }
+
+        $primaryColumns = $columns->filter(fn (array $column) => $column['primary'])->pluck('name')->values();
+        $autoIncrementColumns = $columns->filter(fn (array $column) => $column['autoIncrement'])->values();
+
+        if ($autoIncrementColumns->count() > 1) {
+            throw new \InvalidArgumentException('Auto increment hanya boleh dipakai pada satu kolom.');
+        }
+
+        if ($autoIncrementColumns->isNotEmpty()) {
+            $autoColumn = $autoIncrementColumns->first();
+            if (! $autoColumn['primary'] || $primaryColumns->count() !== 1) {
+                throw new \InvalidArgumentException('Kolom auto increment harus menjadi satu-satunya primary key.');
+            }
+
+            if (! in_array($this->baseType($this->withAttribute($autoColumn['type'], $autoColumn['attribute'])), ['tinyint', 'smallint', 'mediumint', 'int', 'integer', 'bigint'], true)) {
+                throw new \InvalidArgumentException('Auto increment hanya dapat dipakai pada tipe integer.');
+            }
+        }
+
+        $definitions = $columns
+            ->map(fn (array $column) => $this->createColumnDefinition($column))
+            ->all();
+
+        if ($primaryColumns->isNotEmpty()) {
+            $definitions[] = 'PRIMARY KEY ('.$primaryColumns->map(fn (string $name) => "`{$name}`")->implode(', ').')';
+        }
+
+        $body = implode(",\n  ", $definitions);
+
+        return "CREATE TABLE `{$tableName}` (\n  {$body}\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+    }
+
+    private function createColumnDefinition(array $column): string
+    {
+        $type = $this->withAttribute($column['type'], $column['attribute'] ?? '');
+        if (! $this->isSupportedMySqlColumnType($type)) {
+            throw new \InvalidArgumentException("Tipe kolom {$column['name']} belum valid. Gunakan tipe MySQL seperti varchar(100), int, decimal(15,2), date, datetime, text, atau enum('A','B').");
+        }
+
+        $baseType = $this->baseType($type);
+        $defaultMode = $column['defaultMode'];
+        if ($defaultMode !== 'none' && in_array($baseType, ['tinyblob', 'blob', 'mediumblob', 'longblob', 'tinytext', 'text', 'mediumtext', 'longtext', 'json', 'geometry', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'], true)) {
+            throw new \InvalidArgumentException("Kolom {$column['name']} memakai tipe {$baseType} yang tidak mendukung nilai bawaan.");
+        }
+
+        if (! $column['nullable'] && $defaultMode === 'null') {
+            throw new \InvalidArgumentException("Kolom {$column['name']} wajib diisi, jadi tidak bisa memakai bawaan NULL.");
+        }
+
+        if ($defaultMode === 'current_timestamp' && ! in_array($baseType, ['timestamp', 'datetime'], true)) {
+            throw new \InvalidArgumentException("Kolom {$column['name']} hanya bisa memakai CURRENT_TIMESTAMP untuk tipe TIMESTAMP atau DATETIME.");
+        }
+
+        if (($column['extra'] ?? '') !== '' && ! in_array($baseType, ['timestamp', 'datetime'], true)) {
+            throw new \InvalidArgumentException("Kolom {$column['name']} hanya bisa memakai ON UPDATE untuk tipe TIMESTAMP atau DATETIME.");
+        }
+
+        $collation = $this->validCollation($column['collation'] ?? null, $baseType, null);
+        $characterClause = $collation ? " CHARACTER SET `{$collation['charset']}` COLLATE `{$collation['name']}`" : '';
+        $nullClause = $column['nullable'] && ! $column['autoIncrement'] ? 'NULL' : 'NOT NULL';
+        $defaultClause = $column['autoIncrement'] ? '' : $this->requestedDefaultClause($defaultMode, $column['defaultValue'] ?? '');
+        $extraClause = $column['autoIncrement'] ? ' AUTO_INCREMENT' : (($column['extra'] ?? '') !== '' ? ' '.strtoupper((string) $column['extra']) : '');
+        $commentClause = ($column['comment'] ?? '') !== '' ? ' COMMENT '.DB::getPdo()->quote((string) $column['comment']) : '';
+
+        return "`{$column['name']}` {$type}{$characterClause} {$nullClause}{$defaultClause}{$extraClause}{$commentClause}";
+    }
+
     private function prepareStructureChange(string $table, array $columns, array $request): array
     {
         $columnName = $request['column'] ?? '';
@@ -837,7 +987,7 @@ class DatabaseManagerController extends Controller
 
     private function baseType(string $type): string
     {
-        return strtolower((string) preg_replace('/\(.+$/', '', preg_replace('/\s+(unsigned|zerofill)$/', '', $type)));
+        return strtolower((string) preg_replace('/\(.+$/', '', preg_replace('/\s+(?:unsigned|zerofill)(?:\s+(?:unsigned|zerofill))*$/', '', trim($type))));
     }
 
     private function supportsCharacterSet(string $baseType): bool

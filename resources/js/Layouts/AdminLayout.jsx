@@ -369,10 +369,10 @@ export default function AdminLayout({ children }) {
                         </div>
                         <div className={`${isExpanded ? "block" : "hidden"} min-w-0`}>
                             <p className="truncate text-sm font-extrabold tracking-[0.08em] text-slate-800">
-                                Washeng
+                                Washeng GO
                             </p>
                             <p className="truncate text-[11px] font-semibold text-slate-400">
-                                Manajemen Sistem
+                                Operasional & Cargo
                             </p>
                         </div>
                     </Link>

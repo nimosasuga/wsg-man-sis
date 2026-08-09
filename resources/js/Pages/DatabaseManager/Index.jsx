@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { Head, Link, router } from "@inertiajs/react";
-import { ArrowRight, Database, Search, Table2, X } from "lucide-react";
+import { ArrowRight, Database, Plus, Search, X } from "lucide-react";
 import AdminLayout from "../../Layouts/AdminLayout";
 
 const number = new Intl.NumberFormat("id-ID");
 
-export default function Index({ database, tables = [], filters = {} }) {
+export default function Index({ database, tables = [], filters = {}, canCreateTables = false, createUrl = "/database-manager/create" }) {
     const [search, setSearch] = useState(filters.search || "");
     const [query, setQuery] = useState(filters.search || "");
 
@@ -41,10 +41,18 @@ export default function Index({ database, tables = [], filters = {} }) {
                             <h1 className="mt-4 text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">Manajemen database</h1>
                             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Daftar tabel yang tersedia di database ini. Buka detail tabel untuk melihat kolom dan menyiapkan file kerja.</p>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
+                        <div className="flex flex-col gap-3 sm:min-w-[220px]">
+                            {canCreateTables && (
+                                <Link href={createUrl} className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3 text-sm font-extrabold text-white shadow-sm shadow-violet-200 transition hover:bg-violet-700">
+                                    <Plus size={16} />
+                                    Tambah tabel
+                                </Link>
+                            )}
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
                             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tabel tersedia</p>
                             <p className="mt-1 text-3xl font-extrabold tabular-nums text-slate-950">{number.format(tables.length)}</p>
                             <p className="mt-1 max-w-[220px] truncate text-xs font-medium text-slate-500" title={database}>{database}</p>
+                            </div>
                         </div>
                     </div>
                 </section>

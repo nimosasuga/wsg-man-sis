@@ -37,6 +37,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/import-export/{module}/commit', [ImportExportController::class, 'commit'])->name('import-export.commit');
     Route::middleware('permission:database.manage')->prefix('database-manager')->name('database-manager.')->group(function () {
         Route::get('/', [DatabaseManagerController::class, 'index'])->name('index');
+        Route::get('/create', [DatabaseManagerController::class, 'create'])->name('create');
+        Route::post('/', [DatabaseManagerController::class, 'store'])->name('store');
         Route::get('/{table}/template', [DatabaseManagerController::class, 'template'])->name('template');
         Route::get('/{table}/export', [DatabaseManagerController::class, 'export'])->name('export');
         Route::get('/{table}/export-csv', [DatabaseManagerController::class, 'exportCsv'])->name('export-csv');

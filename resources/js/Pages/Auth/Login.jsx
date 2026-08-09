@@ -44,7 +44,7 @@ export default function Login({ status }) {
 
     return (
         <div className="min-h-[100dvh] bg-[#fffaf7] font-sans text-slate-950 lg:grid lg:grid-cols-[minmax(320px,0.82fr)_minmax(480px,1.18fr)]">
-            <Head title="Masuk - Washeng Manajemen Sistem" />
+            <Head title="Masuk - Washeng GO" />
 
             <aside className="login-brand-panel relative hidden h-[100dvh] overflow-hidden bg-orange-600 p-6 text-white lg:flex lg:flex-col lg:justify-between xl:p-8">
                 <div className="pointer-events-none absolute -right-20 top-20 h-40 w-40 rounded-[36px] border border-white/20" />
@@ -59,9 +59,9 @@ export default function Login({ status }) {
                         />
                     </div>
                     <div>
-                        <p className="text-base font-extrabold leading-tight">Washeng</p>
+                        <p className="text-base font-extrabold leading-tight">Washeng GO</p>
                         <p className="mt-0.5 text-[11px] font-medium text-orange-100">
-                            Manajemen Sistem
+                            Operasional & Cargo
                         </p>
                     </div>
                 </div>
@@ -113,9 +113,9 @@ export default function Login({ status }) {
                         />
                     </div>
                     <div>
-                        <p className="font-extrabold text-slate-950">Washeng</p>
+                        <p className="font-extrabold text-slate-950">Washeng GO</p>
                         <p className="text-xs font-medium text-slate-500">
-                            Manajemen Sistem
+                            Operasional & Cargo
                         </p>
                     </div>
                 </header>
@@ -258,7 +258,7 @@ export default function Login({ status }) {
                         </div>
 
                         <p className="mt-4 text-center text-xs leading-5 text-slate-400">
-                            &copy; {new Date().getFullYear()} Washeng Manajemen Sistem
+                            &copy; {new Date().getFullYear()} Washeng GO
                         </p>
                     </div>
                 </div>
