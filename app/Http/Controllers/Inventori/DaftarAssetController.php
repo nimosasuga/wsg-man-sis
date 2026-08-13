@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Inventori;
 
 use App\Http\Controllers\Controller;
+use App\Support\LegacyDate;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -145,7 +146,7 @@ class DaftarAssetController extends Controller
                 'status_checklist',
                 'keluhan'
             )
-            ->orderByDesc('tanggal')
+            ->orderByRaw(LegacyDate::sql('tanggal').' desc')
             ->get();
 
         return Inertia::render('Inventori/DaftarAsset/Toolkit', [

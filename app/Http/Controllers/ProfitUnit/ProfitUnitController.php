@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\ProfitUnit;
 
 use App\Http\Controllers\Controller;
+use App\Support\LegacyDate;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Request;
@@ -48,19 +49,7 @@ class ProfitUnitController extends Controller
 
     private function yearOptionsFromDate(string $table, string $column, string $format = '%Y-%m-%d'): array
     {
-        return array_values(array_unique(array_merge(
-            ['ALL'],
-            DB::table($table)
-                ->whereNotNull($column)
-                ->where($column, '!=', '')
-                ->selectRaw("YEAR(STR_TO_DATE($column, ?)) as tahun", [$format])
-                ->distinct()
-                ->orderBy('tahun')
-                ->pluck('tahun')
-                ->filter()
-                ->map(fn ($value) => (string) $value)
-                ->all()
-        )));
+        return LegacyDate::yearOptions($table, $column);
     }
 
     private function rentalDoughnutData($rows, string $valueKey): array
@@ -110,14 +99,7 @@ class ProfitUnitController extends Controller
             return null;
         }
 
-        foreach (['d/m/Y', 'm/d/Y', 'm-d-Y', 'Y-m-d', 'Y-m-d H:i:s'] as $format) {
-            $date = \DateTimeImmutable::createFromFormat('!'.$format, $value);
-            if ($date && $date->format($format) === $value) {
-                return $date->format('Y-m-d');
-            }
-        }
-
-        return null;
+        return LegacyDate::iso($value);
     }
 
     private function secondaryMetrics(object $row, array $ovtLookup): array
@@ -201,7 +183,7 @@ class ProfitUnitController extends Controller
                         'profit' => $metrics['profit'],
                     ];
                 })
-                ->sortByDesc(fn ($row) => $this->normalizeDate($row['tanggal']) ?? '0000-00-00')
+            ->sortByDesc(fn ($row) => $this->normalizeDate($row['tanggal']) ?? '0000-00-00')
                 ->values()
                 ->all();
         }));
@@ -426,10 +408,10 @@ class ProfitUnitController extends Controller
             $query->where('area', $area);
         }
         if ($hari) {
-            $query->where('tanggal', date('m-d-Y', strtotime($hari)));
+            LegacyDate::whereDate($query, 'tanggal', $hari);
         }
         if ($tahun !== 'ALL') {
-            $query->whereRaw("YEAR(STR_TO_DATE(tanggal, '%m-%d-%Y')) = ?", [$tahun]);
+            LegacyDate::whereYear($query, 'tanggal', $tahun);
         }
 
         $revenue = (float) (clone $query)->sum('tarif_sewa_unit_bln');
@@ -462,7 +444,7 @@ class ProfitUnitController extends Controller
             ]);
 
         $byYear = (clone $query)
-            ->selectRaw("YEAR(STR_TO_DATE(tanggal, '%m-%d-%Y')) as tahun, SUM(tarif_sewa_unit_bln) as revenue, COUNT(*) as total")
+            ->selectRaw('YEAR('.LegacyDate::sql('tanggal').') as tahun, SUM(tarif_sewa_unit_bln) as revenue, COUNT(*) as total')
             ->groupBy('tahun')
             ->orderBy('tahun')
             ->get()
@@ -503,7 +485,7 @@ class ProfitUnitController extends Controller
             ]);
 
         $rows = DB::table('operasional_rental_unit_input')
-            ->orderByRaw("STR_TO_DATE(tanggal, '%m-%d-%Y') desc")
+            ->orderByRaw(LegacyDate::sql('tanggal').' desc')
             ->get([
                 'id_key',
                 'tanggal',
@@ -515,7 +497,7 @@ class ProfitUnitController extends Controller
                 'biaya_legalitas',
             ])
             ->map(function ($row) {
-                $date = \DateTimeImmutable::createFromFormat('m-d-Y', trim((string) $row->tanggal));
+                $date = LegacyDate::parse($row->tanggal);
                 $cost = (float) ($row->biaya_legalitas ?? 0);
 
                 return [
@@ -581,7 +563,7 @@ class ProfitUnitController extends Controller
             $query->where('nopol', $nopol);
         }
         if ($tahun !== 'ALL') {
-            $query->whereRaw("YEAR(STR_TO_DATE(tanggal, '%m-%d-%Y')) = ?", [$tahun]);
+            LegacyDate::whereYear($query, 'tanggal', $tahun);
         }
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -596,7 +578,7 @@ class ProfitUnitController extends Controller
         }
 
         $rows = $query
-            ->orderByRaw("STR_TO_DATE(tanggal, '%m-%d-%Y') desc")
+            ->orderByRaw(LegacyDate::sql('tanggal').' desc')
             ->orderBy('area')
             ->limit(300)
             ->get()
@@ -608,7 +590,7 @@ class ProfitUnitController extends Controller
                 'tipe' => $row->tipe,
                 'tarif_sewa_unit_bln' => (float) $row->tarif_sewa_unit_bln,
                 'biaya_legalitas' => (float) ($row->biaya_legalitas ?? 0),
-                'week' => $row->tanggal ? 'W'.date('W', strtotime($row->tanggal)) : '-',
+                'week' => LegacyDate::parse($row->tanggal) ? 'W'.LegacyDate::parse($row->tanggal)->format('W') : '-',
             ]);
 
         $totalCost = $rows->sum('biaya_legalitas');
@@ -638,7 +620,7 @@ class ProfitUnitController extends Controller
 
         abort_if(! $row, 404);
 
-        $rentalDate = \DateTimeImmutable::createFromFormat('m-d-Y', (string) $row->tanggal);
+        $rentalDate = LegacyDate::parse($row->tanggal);
 
         $detail = [
             'id_key' => $row->id_key,
@@ -782,7 +764,7 @@ class ProfitUnitController extends Controller
             ->whereNotNull('d.tgl_kapal_berangkat')
             ->where('d.tgl_kapal_berangkat', '!=', '')
             ->groupBy('d.tgl_kapal_berangkat')
-            ->orderByRaw("STR_TO_DATE(d.tgl_kapal_berangkat, '%c/%e/%Y')")
+            ->orderByRaw(LegacyDate::sql('d.tgl_kapal_berangkat'))
             ->get()
             ->map(fn ($row) => [
                 'name' => $row->tgl_kapal_berangkat,
@@ -881,7 +863,7 @@ class ProfitUnitController extends Controller
         ];
 
         $rows = DB::table('db_chargo_data_paket_masuk')
-            ->orderByRaw("STR_TO_DATE(tanggal, '%m-%d-%Y') desc")
+            ->orderByRaw(LegacyDate::sql('tanggal').' desc')
             ->get([
                 'id_key',
                 'tanggal',
@@ -978,7 +960,7 @@ class ProfitUnitController extends Controller
         }
 
         $rows = $query
-            ->orderByRaw("STR_TO_DATE(tanggal, '%m-%d-%Y') desc")
+            ->orderByRaw(LegacyDate::sql('tanggal').' desc')
             ->limit(300)
             ->get()
             ->map(fn ($row) => [
@@ -1067,8 +1049,8 @@ class ProfitUnitController extends Controller
         }
         if ($hari) {
             $query->where(function ($q) use ($hari) {
-                $q->where('tanggal_muat', $hari)
-                    ->orWhere('tanggal_terima', $hari);
+                LegacyDate::whereDate($q, 'tanggal_muat', $hari)
+                    ->orWhere(fn ($inner) => LegacyDate::whereDate($inner, 'tanggal_terima', $hari));
             });
         }
         if ($week !== 'ALL') {
@@ -1076,8 +1058,8 @@ class ProfitUnitController extends Controller
         }
         if ($tahun !== 'ALL') {
             $query->where(function ($q) use ($tahun) {
-                $q->whereYear('tanggal_muat', $tahun)
-                    ->orWhereYear('tanggal_terima', $tahun);
+                LegacyDate::whereYear($q, 'tanggal_muat', $tahun)
+                    ->orWhere(fn ($inner) => LegacyDate::whereYear($inner, 'tanggal_terima', $tahun));
             });
         }
 
@@ -1113,7 +1095,7 @@ class ProfitUnitController extends Controller
             ]);
 
         $byYear = (clone $query)
-            ->selectRaw('YEAR(tanggal_muat) as tahun, SUM(total_tarif) as revenue, SUM(total_biaya) as cost, SUM(total_tarif - total_biaya) as profit, COUNT(*) as total')
+            ->selectRaw('YEAR('.LegacyDate::sql('tanggal_muat').') as tahun, SUM(total_tarif) as revenue, SUM(total_biaya) as cost, SUM(total_tarif - total_biaya) as profit, COUNT(*) as total')
             ->whereNotNull('tanggal_muat')
             ->groupBy('tahun')
             ->orderBy('tahun')
@@ -1155,8 +1137,7 @@ class ProfitUnitController extends Controller
                 'total' => (int) $row->total,
             ]);
 
-        $rows = DB::table('operasional_primary_input')
-            ->orderByDesc('tanggal_muat')
+        $rows = LegacyDate::orderBy(DB::table('operasional_primary_input'), 'tanggal_muat', 'desc')
             ->get([
                 'id_key',
                 'tanggal_muat',
@@ -1272,10 +1253,10 @@ class ProfitUnitController extends Controller
             });
         }
         if ($bulan !== '') {
-            $query->whereRaw("SUBSTRING(tanggal_muat, 4, 2) = ?", [str_pad($bulan, 2, '0', STR_PAD_LEFT)]);
+            $query->whereRaw('MONTH('.LegacyDate::sql('tanggal_muat').') = ?', [(int) $bulan]);
         }
         if ($tahun !== '') {
-            $query->whereRaw("SUBSTRING(tanggal_muat, 7, 4) = ?", [$tahun]);
+            LegacyDate::whereYear($query, 'tanggal_muat', $tahun);
         }
 
         $pageSize = (int) request()->query('per_page', 50);
@@ -1288,9 +1269,14 @@ class ProfitUnitController extends Controller
             $direction = 'desc';
         }
 
-        $paginator = $query
-            ->orderBy($sort, $direction === 'asc' ? 'asc' : 'desc')
-            ->paginate($pageSize);
+        $direction = $direction === 'asc' ? 'asc' : 'desc';
+        if (in_array($sort, ['tanggal_muat', 'create_data'], true)) {
+            LegacyDate::orderBy($query, $sort, $direction);
+        } else {
+            $query->orderBy($sort, $direction);
+        }
+
+        $paginator = $query->paginate($pageSize);
 
         $idKeys = $paginator->pluck('id_key');
 
@@ -1301,7 +1287,7 @@ class ProfitUnitController extends Controller
         if ($idKeys->isNotEmpty()) {
             $latestUpdates = DB::table('operasional_catatan_update')
                 ->whereIn('id_record', $idKeys)
-                ->orderBy('tgl_cek_admin', 'desc')
+                ->orderByRaw(LegacyDate::sql('tgl_cek_admin').' desc')
                 ->get()
                 ->groupBy('id_record')
                 ->map(fn ($items) => $items->first());
@@ -1359,7 +1345,7 @@ class ProfitUnitController extends Controller
 
         $editor = DB::table('operasional_catatan_update')
             ->where('id_record', $id)
-            ->orderBy('tgl_cek_admin', 'desc')
+            ->orderByRaw(LegacyDate::sql('tgl_cek_admin').' desc')
             ->first();
 
         return Inertia::render('ProfitUnit/OperationDetail', [

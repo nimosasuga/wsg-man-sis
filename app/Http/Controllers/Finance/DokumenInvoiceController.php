@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Finance;
 
 use App\Http\Controllers\Controller;
+use App\Support\LegacyDate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -21,7 +22,7 @@ class DokumenInvoiceController extends Controller
         }
 
         $latestApprovals = DB::table('finance_accounting_tax_alur_aproval')
-            ->selectRaw('no_invoice, no_payment, MAX(date_time) as last_update')
+            ->selectRaw('no_invoice, no_payment, MAX('.LegacyDate::sql('date_time').') as last_update')
             ->groupBy('no_invoice', 'no_payment');
 
         $approvedPayments = DB::table('finance_accounting_tax_mutasi_pembayaran as payment')
@@ -32,7 +33,7 @@ class DokumenInvoiceController extends Controller
             ->join('finance_accounting_tax_alur_aproval as approval', function ($join) {
                 $join->on('approval.no_invoice', '=', 'latest_approval.no_invoice')
                     ->on('approval.no_payment', '=', 'latest_approval.no_payment')
-                    ->on('approval.date_time', '=', 'latest_approval.last_update');
+                    ->whereRaw(LegacyDate::sql('approval.date_time').' = latest_approval.last_update');
             })
             ->whereRaw("UPPER(TRIM(COALESCE(approval.status_doc, ''))) = 'APPROVED'")
             ->whereNotNull('payment.bukti_tf')
@@ -92,8 +93,8 @@ class DokumenInvoiceController extends Controller
 
         // Gunakan simple pagination supaya klik status tidak didahului COUNT seluruh invoice.
         $invoiceData = $invoiceQuery
-            ->orderByDesc('invoice.invoice_date')
-            ->orderByDesc('invoice.create_date')
+            ->orderByRaw(LegacyDate::sql('invoice.invoice_date').' desc')
+            ->orderByRaw(LegacyDate::sql('invoice.create_date').' desc')
             ->simplePaginate(100)
             ->withQueryString();
 
@@ -103,13 +104,13 @@ class DokumenInvoiceController extends Controller
         if ($invoiceIds->isNotEmpty()) {
             $latestEditorTimes = DB::table('operasional_catatan_update')
                 ->whereIn('id_record', $invoiceIds)
-                ->selectRaw('id_record, MAX(tgl_cek_admin) as edit_time')
+                ->selectRaw('id_record, MAX('.LegacyDate::sql('tgl_cek_admin').') as edit_time')
                 ->groupBy('id_record');
 
             $editors = DB::table('operasional_catatan_update as update_log')
                 ->joinSub($latestEditorTimes, 'latest_editor_time', function ($join) {
                     $join->on('latest_editor_time.id_record', '=', 'update_log.id_record')
-                        ->on('latest_editor_time.edit_time', '=', 'update_log.tgl_cek_admin');
+                        ->whereRaw('latest_editor_time.edit_time = '.LegacyDate::sql('update_log.tgl_cek_admin'));
                 })
                 ->get(['update_log.id_record', 'update_log.nama_admin', 'update_log.tgl_cek_admin'])
                 ->keyBy('id_record');
@@ -161,7 +162,7 @@ class DokumenInvoiceController extends Controller
 
         $editor = DB::table('operasional_catatan_update')
             ->where('id_record', $invoice->id_key)
-            ->orderByDesc('tgl_cek_admin')
+            ->orderByRaw(LegacyDate::sql('tgl_cek_admin').' desc')
             ->first(['nama_admin', 'tgl_cek_admin']);
 
         $invoice->editor = $editor->nama_admin ?? null;

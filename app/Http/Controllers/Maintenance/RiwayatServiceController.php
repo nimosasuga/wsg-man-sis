@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Maintenance;
 
 use App\Http\Controllers\Controller;
+use App\Support\LegacyDate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -175,7 +176,7 @@ class RiwayatServiceController extends Controller
 
         $relatedServices = DB::table('maintenance_input_maintenance')
             ->where('nopol', $record->nopol)
-            ->orderByDesc('tanggal_services')
+            ->orderByRaw(LegacyDate::sql('tanggal_services').' desc')
             ->limit(12)
             ->get([
                 'id_key',
@@ -188,7 +189,7 @@ class RiwayatServiceController extends Controller
 
         $relatedBan = DB::table('maintenance_monitoring_ban')
             ->where('nopol', $record->nopol)
-            ->orderByDesc('tanggal_ganti_ban')
+            ->orderByRaw(LegacyDate::sql('tanggal_ganti_ban').' desc')
             ->limit(8)
             ->get([
                 'id_key',
@@ -225,7 +226,7 @@ class RiwayatServiceController extends Controller
 
         $relatedServices = DB::table('maintenance_input_maintenance')
             ->where('nopol', $record->nopol)
-            ->orderByDesc('tanggal_services')
+            ->orderByRaw(LegacyDate::sql('tanggal_services').' desc')
             ->limit(8)
             ->get([
                 'id_key',
@@ -238,7 +239,7 @@ class RiwayatServiceController extends Controller
 
         $relatedBan = DB::table('maintenance_monitoring_ban')
             ->where('nopol', $record->nopol)
-            ->orderByDesc('tanggal_ganti_ban')
+            ->orderByRaw(LegacyDate::sql('tanggal_ganti_ban').' desc')
             ->limit(12)
             ->get([
                 'id_key',
@@ -298,7 +299,7 @@ class RiwayatServiceController extends Controller
                 'status_penbayaran',
                 'keterangan',
             ])
-            ->orderByDesc('tanggal_services')
+            ->orderByRaw(LegacyDate::sql('tanggal_services').' desc')
             ->get()
             ->map(fn ($row) => $this->withDateMeta($row, 'tanggal_services'));
 
@@ -322,7 +323,7 @@ class RiwayatServiceController extends Controller
                 'nama_toko',
                 'keterangan',
             ])
-            ->orderByDesc('tanggal_ganti_ban')
+            ->orderByRaw(LegacyDate::sql('tanggal_ganti_ban').' desc')
             ->get()
             ->map(fn ($row) => $this->withDateMeta($row, 'tanggal_ganti_ban'));
 

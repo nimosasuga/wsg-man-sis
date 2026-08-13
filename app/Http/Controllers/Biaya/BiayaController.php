@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Biaya;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inventori;
+use App\Support\LegacyDate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
@@ -140,28 +141,28 @@ class BiayaController extends Controller
                 DB::raw("$date as tanggal"),
                 DB::raw("$amount as nominal")
             )
-                ->orderByRaw("STR_TO_DATE(NULLIF($date, ''), '%d/%m/%Y') asc")
+                ->orderByRaw(LegacyDate::sql($date).' asc')
                 ->orderBy('area')
                 ->get()
                 ->map(fn ($row) => $this->withDateGroups($row)),
             'service' => DB::table('maintenance_input_maintenance')
                 ->select('id_key', 'nopol', 'area', 'driver', 'tipe_service as keterangan', DB::raw("$date as tanggal"), DB::raw("$amount as nominal"))
-                ->orderByDesc($date)
+                ->orderByRaw(LegacyDate::sql($date).' desc')
                 ->get()
                 ->map(fn ($row) => $this->withDateGroups($row)),
             'ban' => DB::table('maintenance_monitoring_ban')
                 ->select('id_key', 'nopol', 'area', 'driver', 'jenis_pengerjaan as keterangan', DB::raw("$date as tanggal"), DB::raw("$amount as nominal"))
-                ->orderByDesc($date)
+                ->orderByRaw(LegacyDate::sql($date).' desc')
                 ->get()
                 ->map(fn ($row) => $this->withDateGroups($row)),
             'primary' => DB::table('operasional_primary_input')
                 ->select('id_key', 'nopol_driver as nopol', 'area', 'vendor as driver', 'rute_tujuan as keterangan', DB::raw("$date as tanggal"), DB::raw("$amount as nominal"))
-                ->orderByDesc('create_data')
+                ->orderByRaw(LegacyDate::sql($date).' desc')
                 ->get()
                 ->map(fn ($row) => $this->withDateGroups($row)),
             'secondary' => DB::table('operasional_secondary_input')
                 ->select('id_key', 'nopol', 'area', 'driver', 'order_type as keterangan', DB::raw("$date as tanggal"), DB::raw("$amount as nominal"))
-                ->orderByDesc('crosscek_date')
+                ->orderByRaw(LegacyDate::sql($date).' desc')
                 ->get()
                 ->map(fn ($row) => $this->withDateGroups($row)),
             default => collect(),
@@ -187,17 +188,9 @@ class BiayaController extends Controller
             return ['0', '0', '0'];
         }
 
-        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date, $matches)) {
-            $parsed = \DateTimeImmutable::createFromFormat('!d/m/Y', $date)
-                ?: \DateTimeImmutable::createFromFormat('!m/d/Y', $date);
-
-            return [$matches[3], $this->monthLabel((int) $matches[2]), $this->weekLabel($parsed)];
-        }
-
-        if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $date, $matches)) {
-            $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
-
-            return [$matches[1], $this->monthLabel((int) $matches[2]), $this->weekLabel($parsed)];
+        $parsed = LegacyDate::parse($date);
+        if ($parsed) {
+            return [$parsed->format('Y'), $this->monthLabel((int) $parsed->format('n')), $this->weekLabel($parsed)];
         }
 
         if (preg_match('/(\d{4})/', $date, $matches)) {

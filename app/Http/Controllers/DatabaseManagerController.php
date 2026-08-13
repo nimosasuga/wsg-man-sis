@@ -683,41 +683,11 @@ class DatabaseManagerController extends Controller
 
     private function formatDateForExport(string $value, ?array $column): string
     {
-        if ($value === '' || $column === null || ! preg_match('/(?:tanggal|date|waktu|time)/i', $column['name'])) {
+        if ($value === '' || $column === null || ! $this->isAppsheetTemporalTextColumn($column)) {
             return $value;
         }
 
-        $value = trim($value);
-        $hasTime = preg_match('/(?:\s|T)\d{1,2}:\d{2}/', $value) === 1;
-
-        foreach (['Y-m-d H:i:s', 'Y-m-d H:i', 'Y-m-d\\TH:i:s', 'Y-m-d'] as $format) {
-            try {
-                $date = Carbon::createFromFormat($format, $value);
-
-                return $date->format($hasTime ? 'd/m/Y H:i' : 'd/m/Y');
-            } catch (\Throwable) {
-                // Try the next supported source format.
-            }
-        }
-
-        if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[\sT](\d{1,2}):(\d{2})(?::\d{2})?)?$/', $value, $matches) !== 1) {
-            return $value;
-        }
-
-        [$day, $month, $year] = [(int) $matches[1], (int) $matches[2], (int) $matches[3]];
-
-        // Jika nilai hanya mungkin dibaca sebagai MM/DD/YYYY, balikkan ke pola target DD/MM/YYYY.
-        if ($day <= 12 && $month > 12) {
-            [$day, $month] = [$month, $day];
-        }
-
-        if (! checkdate($month, $day, $year)) {
-            return $value;
-        }
-
-        $date = Carbon::create($year, $month, $day, (int) ($matches[4] ?? 0), (int) ($matches[5] ?? 0));
-
-        return $date->format($hasTime ? 'd/m/Y H:i' : 'd/m/Y');
+        return $this->normalizeTemporalTextForAppsheet($value, $column, false);
     }
 
     private function importTablePayload(string $table): array
@@ -1550,6 +1520,12 @@ class DatabaseManagerController extends Controller
         $type = strtolower((string) $column['type']);
         $baseType = preg_replace('/\(.*/', '', $type);
 
+        if (in_array($baseType, ['char', 'varchar', 'text', 'tinytext', 'mediumtext', 'longtext'], true)
+            && $this->isAppsheetTemporalTextColumn($column)
+        ) {
+            return $this->normalizeTemporalTextForAppsheet($value, $column, true);
+        }
+
         return match ($baseType) {
             'date' => $this->normalizeImportDate($value, $column, false),
             'datetime', 'timestamp' => $this->normalizeImportDate($value, $column, true),
@@ -1560,6 +1536,91 @@ class DatabaseManagerController extends Controller
             'decimal', 'numeric', 'fixed', 'float', 'double', 'double precision', 'real' => $this->normalizeDecimalValue($value, $column),
             default => $value,
         };
+    }
+
+    private function isAppsheetTemporalTextColumn(array $column): bool
+    {
+        $name = strtolower((string) ($column['name'] ?? ''));
+
+        if (preg_match('/(?:selisih|total)_?(?:jam|waktu)|jam_overtime|approval_ovt/', $name) === 1) {
+            return false;
+        }
+
+        return preg_match('/(?:tanggal|tgl|datetime|waktu|tempo|(?:^|_)date(?:_|$))/', $name) === 1
+            || preg_match('/^jam_(?:mulai|selesai|request|proses|isi_bbm_\d+)$/', $name) === 1
+            || $name === 'jam';
+    }
+
+    private function normalizeTemporalTextForAppsheet(string $value, array $column, bool $strict): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return $value;
+        }
+
+        if (preg_match('/^(?:0|0000-00-00|00\/00\/0000|00-00-0000)$/', $value) === 1) {
+            return $strict ? '' : $value;
+        }
+
+        $name = strtolower((string) ($column['name'] ?? ''));
+        $expectsTimeOnly = preg_match('/^jam_(?:request|proses|isi_bbm_\d+)$/', $name) === 1 || $name === 'jam';
+        if ($expectsTimeOnly && preg_match('/^\d{1,2}[:.]\d{2}(?::\d{2}|\.\d{2})?$/', $value) === 1) {
+            return str_replace('.', ':', strlen($value) <= 5 ? $value.':00' : $value);
+        }
+
+        $withTime = preg_match('/(?:\s|T)\d{1,2}[:.]\d{2}/', $value) === 1;
+        $normalizedValue = preg_replace('/(\d{1,2})\.(\d{2})(?:\.(\d{2}))?$/', '$1:$2:$3', $value) ?? $value;
+        $normalizedValue = rtrim($normalizedValue, ':');
+
+        $date = $this->parseTemporalTextValue($normalizedValue, $withTime);
+        if ($date === null && is_numeric($value) && (float) $value > 0) {
+            try {
+                $date = Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
+                $withTime = $withTime || ((float) $value !== floor((float) $value));
+            } catch (\Throwable) {
+                $date = null;
+            }
+        }
+
+        if ($date === null) {
+            if ($strict) {
+                throw new \InvalidArgumentException('kolom '.$column['name'].' berisi "'.$value.'", tetapi belum terbaca sebagai tanggal/jam AppSheet.');
+            }
+
+            return $value;
+        }
+
+        return $date->format($withTime ? 'd/m/Y H:i:s' : 'd/m/Y');
+    }
+
+    private function parseTemporalTextValue(string $value, bool $withTime): ?Carbon
+    {
+        $formats = $withTime
+            ? ['d/m/Y H:i:s', 'd/m/Y H:i', 'm/d/Y H:i:s', 'm/d/Y H:i', 'd-m-Y H:i:s', 'd-m-Y H:i', 'm-d-Y H:i:s', 'm-d-Y H:i', 'Y-m-d H:i:s', 'Y-m-d H:i', 'Y-m-d\TH:i:s', 'Y-m-d\TH:i']
+            : ['d/m/Y', 'm/d/Y', 'd-m-Y', 'm-d-Y', 'Y-m-d', 'Y/m/d'];
+
+        foreach ($formats as $format) {
+            try {
+                $date = Carbon::createFromFormat($format, $value);
+                $errors = Carbon::getLastErrors();
+                if (is_array($errors) && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0)) {
+                    continue;
+                }
+
+                if (str_starts_with($format, 'm/') || str_starts_with($format, 'm-')) {
+                    [$first, $second] = array_map('intval', preg_split('/[\/-]/', $value, 3));
+                    if ($first <= 12 && $second <= 12) {
+                        continue;
+                    }
+                }
+
+                return $date;
+            } catch (\Throwable) {
+                // Coba format berikutnya.
+            }
+        }
+
+        return null;
     }
 
     private function normalizeIntegerValue(string $value, array $column): string

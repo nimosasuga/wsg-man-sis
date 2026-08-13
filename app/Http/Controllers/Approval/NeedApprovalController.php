@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Approval;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Carbon;
+use App\Support\LegacyDate;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -92,7 +92,7 @@ class NeedApprovalController extends Controller
         $approvalHistory = DB::table('finance_accounting_tax_alur_aproval')
             ->where('no_invoice', $row['no_invoice'])
             ->where('no_payment', $row['no_payment'])
-            ->orderByDesc('date_time')
+            ->orderByRaw(LegacyDate::sql('date_time').' desc')
             ->limit(20)
             ->get();
 
@@ -112,7 +112,7 @@ class NeedApprovalController extends Controller
             'id_key' => 'APR-' . Str::uuid(),
             'no_invoice' => $row->no_invoice,
             'no_payment' => $row->no_payment,
-            'date_time' => now()->format('Y-m-d H:i:s'),
+            'date_time' => now()->format('d/m/Y H:i:s'),
             'email' => auth()->user()->email,
             'status_doc' => 'APPROVED',
             'diajukan' => auth()->user()->name,
@@ -131,7 +131,7 @@ class NeedApprovalController extends Controller
             'id_key' => 'APR-' . Str::uuid(),
             'no_invoice' => $row->no_invoice,
             'no_payment' => $row->no_payment,
-            'date_time' => now()->format('Y-m-d H:i:s'),
+            'date_time' => now()->format('d/m/Y H:i:s'),
             'email' => auth()->user()->email,
             'status_doc' => 'REJECTED',
             'diajukan' => auth()->user()->name,
@@ -226,11 +226,7 @@ class NeedApprovalController extends Controller
             return 0;
         }
 
-        try {
-            return Carbon::parse(str_replace('.', ':', $value))->timestamp;
-        } catch (\Throwable) {
-            return strtotime(str_replace('/', '-', $value)) ?: 0;
-        }
+        return LegacyDate::parse(str_replace('.', ':', $value))?->getTimestamp() ?? 0;
     }
 
     private function optionList(Collection $values): array

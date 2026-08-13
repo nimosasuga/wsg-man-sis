@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\System;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Carbon;
+use App\Support\LegacyDate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
@@ -15,7 +15,7 @@ class SystemActivityLogController extends Controller
         $hasTable = Schema::hasTable('operasional_catatan_update');
         $totalRows = $hasTable ? DB::table('operasional_catatan_update')->count() : 0;
         $latest = $hasTable
-            ? DB::table('operasional_catatan_update')->orderByDesc('tgl_cek_admin')->value('tgl_cek_admin')
+            ? DB::table('operasional_catatan_update')->orderByRaw(LegacyDate::sql('tgl_cek_admin').' desc')->value('tgl_cek_admin')
             : null;
 
         return Inertia::render('System/ActivityLog/Index', [
@@ -41,7 +41,7 @@ class SystemActivityLogController extends Controller
         if ($hasTable) {
             $query = DB::table('operasional_catatan_update')
                 ->select('id_key', 'nama_admin', 'tgl_cek_admin', 'id_record')
-                ->orderByDesc('tgl_cek_admin');
+                ->orderByRaw(LegacyDate::sql('tgl_cek_admin').' desc');
 
             if ($filters['search'] !== '') {
                 $keyword = '%'.$filters['search'].'%';
@@ -54,7 +54,7 @@ class SystemActivityLogController extends Controller
             }
 
             if ($filters['tanggal'] !== '') {
-                $query->where('tgl_cek_admin', 'like', $filters['tanggal'].'%');
+                LegacyDate::whereDate($query, 'tgl_cek_admin', $filters['tanggal']);
             }
 
             $logs = $query
@@ -129,10 +129,6 @@ class SystemActivityLogController extends Controller
             return null;
         }
 
-        try {
-            return Carbon::parse($value)->toDateString();
-        } catch (\Throwable) {
-            return substr($value, 0, 10);
-        }
+        return LegacyDate::iso($value) ?? substr($value, 0, 10);
     }
 }

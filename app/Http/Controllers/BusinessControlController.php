@@ -6,16 +6,17 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use App\Support\LegacyDate;
 
 class BusinessControlController extends Controller
 {
     public function performance()
     {
-        $dbChartData = Cache::get('dashboard.db_chart_data.v3', []);
+        $dbChartData = Cache::get('dashboard.db_chart_data.v4', []);
 
         if ($dbChartData === [] || !array_key_exists('primaryActivityByYear', $dbChartData)) {
             app(DashboardController::class)->index();
-            $dbChartData = Cache::get('dashboard.db_chart_data.v3', []);
+            $dbChartData = Cache::get('dashboard.db_chart_data.v4', []);
         }
 
         return Inertia::render('BusinessControl/Performance', [
@@ -25,11 +26,11 @@ class BusinessControlController extends Controller
 
     public function health()
     {
-        $dbChartData = Cache::get('dashboard.db_chart_data.v3', []);
+        $dbChartData = Cache::get('dashboard.db_chart_data.v4', []);
 
         if ($dbChartData === [] || !array_key_exists('primaryActivityByYear', $dbChartData)) {
             app(DashboardController::class)->index();
-            $dbChartData = Cache::get('dashboard.db_chart_data.v3', []);
+            $dbChartData = Cache::get('dashboard.db_chart_data.v4', []);
         }
 
         return Inertia::render('BusinessControl/Health', [
@@ -103,14 +104,14 @@ class BusinessControlController extends Controller
         }
 
         if ($tanggal_mulai) {
-            $query->whereDate('tanggal_muat', '>=', $tanggal_mulai);
+            LegacyDate::whereFrom($query, 'tanggal_muat', $tanggal_mulai);
         }
 
         if ($tanggal_selesai) {
-            $query->whereDate('tanggal_muat', '<=', $tanggal_selesai);
+            LegacyDate::whereTo($query, 'tanggal_muat', $tanggal_selesai);
         }
 
-        $records = $query->orderByDesc('tanggal_muat')->paginate(25);
+        $records = LegacyDate::orderBy($query, 'tanggal_muat', 'desc')->paginate(25);
 
         $kategoriList = DB::table('dropdownlist_area_primary')
             ->select('katagori')
@@ -249,14 +250,14 @@ class BusinessControlController extends Controller
         }
 
         if ($tanggal_mulai) {
-            $query->whereDate('tanggal', '>=', $tanggal_mulai);
+            LegacyDate::whereFrom($query, 'tanggal', $tanggal_mulai);
         }
 
         if ($tanggal_selesai) {
-            $query->whereDate('tanggal', '<=', $tanggal_selesai);
+            LegacyDate::whereTo($query, 'tanggal', $tanggal_selesai);
         }
 
-        $records = $query->orderByDesc('tanggal')->paginate(25);
+        $records = LegacyDate::orderBy($query, 'tanggal', 'desc')->paginate(25);
 
         $weekList = DB::table('operasional_secondary_input')
             ->whereIn('project', ['ON DEMAND - FULL SERVICE', 'RENTAL'])

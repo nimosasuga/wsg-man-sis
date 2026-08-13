@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Operations;
 
 use App\Http\Controllers\Controller;
+use App\Support\LegacyDate;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -66,7 +67,7 @@ class OnTheRoadController extends Controller
         return DB::table('operasional_update_posisi_unit')
             ->whereNotNull('nopol')
             ->where('nopol', '!=', '')
-            ->orderByDesc('tanggal_jam')
+            ->orderByRaw(LegacyDate::sql('tanggal_jam').' desc')
             ->get(['id', 'tanggal_jam', 'nopol', 'nama_driver', 'location', 'keterangan'])
             ->unique(fn ($row) => mb_strtoupper(trim((string) $row->nopol)))
             ->map(fn ($row) => $this->positionPayload($row))

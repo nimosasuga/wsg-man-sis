@@ -50,28 +50,28 @@ class VehicleCostSummary
                 'label' => 'Service umum',
                 'amount' => $serviceUmum,
                 'count' => (clone $serviceQuery)->count(),
-                'date' => (clone $serviceQuery)->max('tanggal_services'),
+                'date' => LegacyDate::latestValue(clone $serviceQuery, 'tanggal_services'),
             ],
             [
                 'key' => 'service_ban',
                 'label' => 'Service ban',
                 'amount' => $serviceBan,
                 'count' => (clone $banQuery)->count(),
-                'date' => (clone $banQuery)->max('tanggal_ganti_ban'),
+                'date' => LegacyDate::latestValue(clone $banQuery, 'tanggal_ganti_ban'),
             ],
             [
                 'key' => 'operasional_primary',
                 'label' => 'Operasional Primary',
                 'amount' => $primary,
                 'count' => (clone $primaryQuery)->count(),
-                'date' => (clone $primaryQuery)->max('tanggal_muat'),
+                'date' => LegacyDate::latestValue(clone $primaryQuery, 'tanggal_muat'),
             ],
             [
                 'key' => 'operasional_secondary',
                 'label' => 'Operasional Secondary',
                 'amount' => $secondary,
                 'count' => (clone $secondaryQuery)->count(),
-                'date' => (clone $secondaryQuery)->max('tanggal'),
+                'date' => LegacyDate::latestValue(clone $secondaryQuery, 'tanggal'),
             ],
         ];
 

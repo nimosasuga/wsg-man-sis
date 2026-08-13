@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\Inventori;
+use App\Support\LegacyDate;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -12,7 +13,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $dbChartData = Cache::remember('dashboard.db_chart_data.v3', now()->addMinutes(5), function () {
+        $dbChartData = Cache::remember('dashboard.db_chart_data.v4', now()->addMinutes(5), function () {
         // 1. Tarik hanya kolom yang dibutuhkan untuk efisiensi memori
         $inventori = Inventori::select('status_pajak', 'status_stnk', 'status_kir')->get();
         $inventoriByArea = Inventori::select('area', 'status_pajak', 'status_stnk', 'status_kir')->get()->groupBy('area');
@@ -49,7 +50,7 @@ class DashboardController extends Controller
 
         // 5. Status invoice mengikuti formula virtual AppSheet dari pembayaran yang telah disetujui.
         $latestApprovals = DB::table('finance_accounting_tax_alur_aproval')
-            ->selectRaw('no_invoice, no_payment, MAX(date_time) as last_update')
+            ->selectRaw('no_invoice, no_payment, MAX('.LegacyDate::sql('date_time').') as last_update')
             ->groupBy('no_invoice', 'no_payment');
 
         $approvedPayments = DB::table('finance_accounting_tax_mutasi_pembayaran as payment')
@@ -60,7 +61,7 @@ class DashboardController extends Controller
             ->join('finance_accounting_tax_alur_aproval as approval', function ($join) {
                 $join->on('approval.no_invoice', '=', 'latest_approval.no_invoice')
                     ->on('approval.no_payment', '=', 'latest_approval.no_payment')
-                    ->on('approval.date_time', '=', 'latest_approval.last_update');
+                    ->whereRaw(LegacyDate::sql('approval.date_time').' = latest_approval.last_update');
             })
             ->whereRaw("UPPER(TRIM(COALESCE(approval.status_doc, ''))) = 'APPROVED'")
             ->whereNotNull('payment.bukti_tf')
@@ -214,14 +215,7 @@ class DashboardController extends Controller
         $secondaryActivityByYear = $rawSecondary
             ->map(function ($items, $tahun) {
                 $byMonth = $items->groupBy(function ($row) {
-                    $date = \DateTimeImmutable::createFromFormat('!m-d-Y', trim((string) $row->tanggal));
-                    if ($date === false) {
-                        $date = \DateTimeImmutable::createFromFormat('!m/d/Y', trim((string) $row->tanggal));
-                    }
-                    if ($date === false) {
-                        $date = \DateTimeImmutable::createFromFormat('!d-m-Y', trim((string) $row->tanggal));
-                    }
-                    return $date !== false ? (int) $date->format('n') : null;
+                    return LegacyDate::parse($row->tanggal)?->format('n');
                 })->filter(fn ($items, $bulan) => $bulan !== null);
 
                 $months = collect();
@@ -243,7 +237,7 @@ class DashboardController extends Controller
             ->select('id_key', 'tanggal_muat', 'area', 'nopol_driver')
             ->whereNotNull('tanggal_muat')
             ->where('tanggal_muat', '!=', '')
-            ->orderByDesc('tanggal_muat')
+            ->orderByRaw(LegacyDate::sql('tanggal_muat').' desc')
             ->limit(5)
             ->get()
             ->map(fn ($row) => [
@@ -253,7 +247,7 @@ class DashboardController extends Controller
                 'nopol' => $row->nopol_driver,
             ]);
 
-        Cache::put('dashboard.db_chart_data.v3', $dbChartData, now()->addMinutes(5));
+        Cache::put('dashboard.db_chart_data.v4', $dbChartData, now()->addMinutes(5));
 
         return Inertia::render('Dashboard', [
             'dbChartData' => $dbChartData,
@@ -354,14 +348,7 @@ class DashboardController extends Controller
             return null;
         }
 
-        foreach (['m-d-Y', 'm/d/Y', 'Y-m-d', 'Y-m-d H:i:s'] as $format) {
-            $date = \DateTimeImmutable::createFromFormat('!'.$format, $value);
-            if ($date !== false && $date->format($format) === $value) {
-                return $date->format('Y-m-d');
-            }
-        }
-
-        return null;
+        return LegacyDate::iso($value);
     }
 
     private function fatPrimaryStatusCounts(): array
