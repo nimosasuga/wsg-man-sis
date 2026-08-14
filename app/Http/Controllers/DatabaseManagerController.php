@@ -642,10 +642,14 @@ class DatabaseManagerController extends Controller
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle(substr($sheetTitle, 0, 31));
 
+            $columnDefinitionsByIndex = collect($columns)
+                ->mapWithKeys(fn (string $column, int $index) => [$index => ['name' => $column]])
+                ->all();
+
             foreach ($rows as $rowNumber => $row) {
                 foreach ($row as $columnNumber => $value) {
                     $coordinate = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columnNumber + 1).($rowNumber + 1);
-                    $sheet->setCellValueExplicit($coordinate, $this->exportValue($value), DataType::TYPE_STRING);
+                    $sheet->setCellValueExplicit($coordinate, $this->exportValue($value, $columnDefinitionsByIndex[$columnNumber] ?? null), DataType::TYPE_STRING);
                 }
             }
 
@@ -1568,7 +1572,8 @@ class DatabaseManagerController extends Controller
             return str_replace('.', ':', strlen($value) <= 5 ? $value.':00' : $value);
         }
 
-        $withTime = preg_match('/(?:\s|T)\d{1,2}[:.]\d{2}/', $value) === 1;
+        $withTime = $this->temporalColumnExpectsDateTime($column)
+            || preg_match('/(?:\s|T)\d{1,2}[:.]\d{2}/', $value) === 1;
         $normalizedValue = preg_replace('/(\d{1,2})\.(\d{2})(?:\.(\d{2}))?$/', '$1:$2:$3', $value) ?? $value;
         $normalizedValue = rtrim($normalizedValue, ':');
 
@@ -1576,7 +1581,7 @@ class DatabaseManagerController extends Controller
         if ($date === null && is_numeric($value) && (float) $value > 0) {
             try {
                 $date = Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
-                $withTime = $withTime || ((float) $value !== floor((float) $value));
+                $withTime = $withTime || $this->temporalColumnExpectsDateTime($column) || ((float) $value !== floor((float) $value));
             } catch (\Throwable) {
                 $date = null;
             }
@@ -1593,10 +1598,21 @@ class DatabaseManagerController extends Controller
         return $date->format($withTime ? 'd/m/Y H:i:s' : 'd/m/Y');
     }
 
+    private function temporalColumnExpectsDateTime(array $column): bool
+    {
+        $name = strtolower((string) ($column['name'] ?? ''));
+
+        if (preg_match('/^jam_(?:request|proses|isi_bbm_\d+)$/', $name) === 1 || $name === 'jam') {
+            return false;
+        }
+
+        return preg_match('/(?:datetime|date_time|timestamp|waktu_(?:masuk|pulang|mulai|selesai)|created_at|updated_at)/', $name) === 1;
+    }
+
     private function parseTemporalTextValue(string $value, bool $withTime): ?Carbon
     {
         $formats = $withTime
-            ? ['d/m/Y H:i:s', 'd/m/Y H:i', 'd-m-Y H:i:s', 'd-m-Y H:i', 'd.m.Y H:i:s', 'd.m.Y H:i', 'm/d/Y H:i:s', 'm/d/Y H:i', 'm-d-Y H:i:s', 'm-d-Y H:i', 'Y-m-d H:i:s', 'Y-m-d H:i', 'Y/m/d H:i:s', 'Y/m/d H:i', 'Y-m-d\TH:i:s', 'Y-m-d\TH:i']
+            ? ['d/m/Y H:i:s', 'd/m/Y H:i', 'd-m-Y H:i:s', 'd-m-Y H:i', 'd.m.Y H:i:s', 'd.m.Y H:i', 'm/d/Y H:i:s', 'm/d/Y H:i', 'm-d-Y H:i:s', 'm-d-Y H:i', 'Y-m-d H:i:s', 'Y-m-d H:i', 'Y/m/d H:i:s', 'Y/m/d H:i', 'Y-m-d\TH:i:s', 'Y-m-d\TH:i', 'd/m/Y', 'd-m-Y', 'd.m.Y', 'm/d/Y', 'm-d-Y', 'Y-m-d', 'Y/m/d']
             : ['d/m/Y', 'd-m-Y', 'd.m.Y', 'm/d/Y', 'm-d-Y', 'Y-m-d', 'Y/m/d'];
 
         foreach ($formats as $format) {
@@ -1612,6 +1628,10 @@ class DatabaseManagerController extends Controller
                     if ($first <= 12 && $second <= 12) {
                         continue;
                     }
+                }
+
+                if ($withTime && ! str_contains($format, 'H')) {
+                    $date->startOfDay();
                 }
 
                 return $date;
@@ -1869,7 +1889,7 @@ class DatabaseManagerController extends Controller
             if (is_numeric($rawValue) && ExcelDate::isDateTime($cell)) {
                 try {
                     $date = Carbon::instance(ExcelDate::excelToDateTimeObject((float) $rawValue));
-                    $withTime = (float) $rawValue !== floor((float) $rawValue);
+                    $withTime = $this->temporalColumnExpectsDateTime($column) || (float) $rawValue !== floor((float) $rawValue);
 
                     return $date->format($withTime ? 'd/m/Y H:i:s' : 'd/m/Y');
                 } catch (\Throwable) {
