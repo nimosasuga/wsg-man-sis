@@ -958,7 +958,8 @@ class DatabaseManagerController extends Controller
     private function normalizeExistingValuesBeforeStructureChange(string $table, array $columns, array $change): array
     {
         $baseType = $this->baseType((string) $change['type']);
-        if (! $this->shouldNormalizeBeforeStructureChange($baseType)) {
+        $targetLength = $this->characterLengthLimit((string) $change['type']);
+        if (! $this->shouldNormalizeBeforeStructureChange($baseType) && $targetLength === null) {
             return ['count' => 0, 'label' => 'data'];
         }
 
@@ -974,7 +975,10 @@ class DatabaseManagerController extends Controller
             ...$column,
             'type' => $change['type'],
         ];
-        $label = $this->normalizationLabel($baseType);
+        $isTemporalTextTarget = $targetLength !== null
+            && in_array($baseType, ['char', 'varchar'], true)
+            && $this->isAppsheetTemporalTextColumn($targetColumn);
+        $label = $isTemporalTextTarget ? 'tanggal/waktu' : $this->normalizationLabel($baseType);
 
         $normalized = 0;
         $emptyCount = DB::table($table)
@@ -1007,11 +1011,19 @@ class DatabaseManagerController extends Controller
             }
 
             try {
-                $nextValue = $this->normalizeStructureValue($currentValue, $targetColumn, $baseType, $withTime);
+                $nextValue = $isTemporalTextTarget
+                    ? $this->normalizeTemporalTextForAppsheet($currentValue, $targetColumn, true)
+                    : $this->normalizeStructureValue($currentValue, $targetColumn, $baseType, $withTime);
             } catch (\InvalidArgumentException $exception) {
                 throw new \InvalidArgumentException(
-                    "Tipe kolom belum diubah. Kolom {$columnName} masih punya nilai \"{$currentValue}\" yang belum cocok untuk tipe {$change['type']}. ".$this->normalizationHint($baseType, $withTime),
+                    "Tipe kolom belum diubah. Kolom {$columnName} masih punya nilai \"{$currentValue}\" yang belum cocok untuk tipe {$change['type']}. ".$this->normalizationHint($isTemporalTextTarget ? 'date' : $baseType, $withTime),
                     previous: $exception,
+                );
+            }
+
+            if ($targetLength !== null && Str::length($nextValue) > $targetLength) {
+                throw new \InvalidArgumentException(
+                    "Tipe kolom belum diubah. Kolom {$columnName} masih punya nilai \"{$currentValue}\" sepanjang ".Str::length($nextValue)." karakter, sedangkan target {$change['type']} hanya {$targetLength} karakter.",
                 );
             }
 
@@ -1086,6 +1098,15 @@ class DatabaseManagerController extends Controller
         }
 
         return 'Untuk angka, gunakan digit biasa; Rp, titik ribuan, koma desimal, dan persen akan dirapikan otomatis.';
+    }
+
+    private function characterLengthLimit(string $type): ?int
+    {
+        if (preg_match('/^(?:char|varchar)\((\d+)\)$/i', trim($type), $matches) !== 1) {
+            return null;
+        }
+
+        return (int) $matches[1];
     }
 
     private function normalizeStructureValue(string $value, array $column, string $baseType, bool $withTime): string
@@ -1568,6 +1589,7 @@ class DatabaseManagerController extends Controller
             || preg_match('/(?:\s|T)\d{1,2}[:.]\d{2}/', $value) === 1;
         $normalizedValue = preg_replace('/(\d{1,2})\.(\d{2})(?:\.(\d{2}))?$/', '$1:$2:$3', $value) ?? $value;
         $normalizedValue = rtrim($normalizedValue, ':');
+        $normalizedValue = $this->normalizeIndonesianMonthName($normalizedValue);
 
         $date = $this->parseTemporalTextValue($normalizedValue, $withTime);
         if ($date === null && is_numeric($value) && (float) $value > 0) {
@@ -1588,6 +1610,53 @@ class DatabaseManagerController extends Controller
         }
 
         return $date->format($withTime ? 'd/m/Y H:i:s' : 'd/m/Y');
+    }
+
+    private function normalizeIndonesianMonthName(string $value): string
+    {
+        $months = [
+            'januari' => '01',
+            'jan' => '01',
+            'februari' => '02',
+            'feb' => '02',
+            'maret' => '03',
+            'mar' => '03',
+            'april' => '04',
+            'apr' => '04',
+            'mei' => '05',
+            'juni' => '06',
+            'jun' => '06',
+            'juli' => '07',
+            'jul' => '07',
+            'agustus' => '08',
+            'agu' => '08',
+            'aug' => '08',
+            'september' => '09',
+            'sep' => '09',
+            'oktober' => '10',
+            'okt' => '10',
+            'oct' => '10',
+            'november' => '11',
+            'nov' => '11',
+            'desember' => '12',
+            'des' => '12',
+            'dec' => '12',
+        ];
+
+        return preg_replace_callback(
+            '/\b(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(\b(?:\s+\d{1,2}[:.]\d{2}(?::\d{2})?)?)/',
+            function (array $matches) use ($months): string {
+                $month = $months[strtolower($matches[2])] ?? null;
+                if ($month === null) {
+                    return $matches[0];
+                }
+
+                $time = trim((string) ($matches[4] ?? ''));
+
+                return str_pad($matches[1], 2, '0', STR_PAD_LEFT).'/'.$month.'/'.$matches[3].($time !== '' ? ' '.$time : '');
+            },
+            $value,
+        ) ?? $value;
     }
 
     private function temporalColumnExpectsDateTime(array $column): bool
@@ -1791,6 +1860,8 @@ class DatabaseManagerController extends Controller
                 // Lanjut cek format teks.
             }
         }
+
+        $value = $this->normalizeIndonesianMonthName($value);
 
         $formats = $withTime
             ? [
