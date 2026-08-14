@@ -459,7 +459,7 @@ class DatabaseManagerController extends Controller
         try {
             DB::transaction(function () use ($table, $definition, $import, &$created, &$updated) {
                 $buffer = [];
-                foreach ($this->importRows(Storage::path($import['path'])) as [$rowNumber, $row]) {
+                foreach ($this->importRows(Storage::path($import['path']), $definition['columns']) as [$rowNumber, $row]) {
                     if ($rowNumber === 1) {
                         continue;
                     }
@@ -1325,7 +1325,7 @@ class DatabaseManagerController extends Controller
         $validRows = 0;
         $buffer = [];
 
-        foreach ($this->importRows($path) as [$rowNumber, $row]) {
+        foreach ($this->importRows($path, $definition['columns']) as [$rowNumber, $row]) {
             if ($rowNumber === 1) {
                 if ($row !== $expectedColumns) {
                     return [
@@ -1584,7 +1584,7 @@ class DatabaseManagerController extends Controller
 
         if ($date === null) {
             if ($strict) {
-                throw new \InvalidArgumentException('kolom '.$column['name'].' berisi "'.$value.'", tetapi belum terbaca sebagai tanggal/jam AppSheet.');
+                throw new \InvalidArgumentException('kolom '.$column['name'].' berisi "'.$value.'", tetapi belum terbaca sebagai tanggal AppSheet. Pakai DD/MM/YYYY atau DD/MM/YYYY HH:mm:ss.');
             }
 
             return $value;
@@ -1596,8 +1596,8 @@ class DatabaseManagerController extends Controller
     private function parseTemporalTextValue(string $value, bool $withTime): ?Carbon
     {
         $formats = $withTime
-            ? ['d/m/Y H:i:s', 'd/m/Y H:i', 'm/d/Y H:i:s', 'm/d/Y H:i', 'd-m-Y H:i:s', 'd-m-Y H:i', 'm-d-Y H:i:s', 'm-d-Y H:i', 'Y-m-d H:i:s', 'Y-m-d H:i', 'Y-m-d\TH:i:s', 'Y-m-d\TH:i']
-            : ['d/m/Y', 'm/d/Y', 'd-m-Y', 'm-d-Y', 'Y-m-d', 'Y/m/d'];
+            ? ['d/m/Y H:i:s', 'd/m/Y H:i', 'd-m-Y H:i:s', 'd-m-Y H:i', 'd.m.Y H:i:s', 'd.m.Y H:i', 'm/d/Y H:i:s', 'm/d/Y H:i', 'm-d-Y H:i:s', 'm-d-Y H:i', 'Y-m-d H:i:s', 'Y-m-d H:i', 'Y/m/d H:i:s', 'Y/m/d H:i', 'Y-m-d\TH:i:s', 'Y-m-d\TH:i']
+            : ['d/m/Y', 'd-m-Y', 'd.m.Y', 'm/d/Y', 'm-d-Y', 'Y-m-d', 'Y/m/d'];
 
         foreach ($formats as $format) {
             try {
@@ -1825,7 +1825,7 @@ class DatabaseManagerController extends Controller
         );
     }
 
-    private function importRows(string $path): \Generator
+    private function importRows(string $path, array $columns = []): \Generator
     {
         $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
         if (in_array($extension, ['csv', 'txt'], true)) {
@@ -1848,9 +1848,37 @@ class DatabaseManagerController extends Controller
         }
 
         $sheet = IOFactory::load($path)->getActiveSheet();
-        foreach ($sheet->toArray('', true, true, false) as $index => $row) {
-            yield [$index + 1, array_map(fn ($value) => trim((string) $value), $row)];
+        foreach ($sheet->getRowIterator() as $row) {
+            $rowNumber = $row->getRowIndex();
+            $values = [];
+            $highestColumnIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($sheet->getHighestDataColumn($rowNumber));
+            foreach (range(1, max(1, count($columns), $highestColumnIndex)) as $columnIndex) {
+                $coordinate = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columnIndex).$rowNumber;
+                $cell = $sheet->getCell($coordinate);
+                $values[] = $this->spreadsheetCellValueForImport($cell, $columns[$columnIndex - 1] ?? null);
+            }
+
+            yield [$rowNumber, $values];
         }
+    }
+
+    private function spreadsheetCellValueForImport(\PhpOffice\PhpSpreadsheet\Cell\Cell $cell, ?array $column): string
+    {
+        if ($column !== null && $this->isAppsheetTemporalTextColumn($column)) {
+            $rawValue = $cell->getCalculatedValue();
+            if (is_numeric($rawValue) && ExcelDate::isDateTime($cell)) {
+                try {
+                    $date = Carbon::instance(ExcelDate::excelToDateTimeObject((float) $rawValue));
+                    $withTime = (float) $rawValue !== floor((float) $rawValue);
+
+                    return $date->format($withTime ? 'd/m/Y H:i:s' : 'd/m/Y');
+                } catch (\Throwable) {
+                    // Kalau metadata Excel tidak lengkap, lanjut pakai nilai tampilan.
+                }
+            }
+        }
+
+        return trim((string) $cell->getFormattedValue());
     }
 
     private function isEmptyRow(array $row): bool
