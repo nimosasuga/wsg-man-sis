@@ -898,13 +898,6 @@ class DatabaseManagerController extends Controller
             throw new \InvalidArgumentException('Definisi tipe tidak didukung. Pilih dari daftar MySQL atau tulis definisi lengkap seperti varchar(100), decimal(15,2), enum(\'A\',\'B\'), atau geometry.');
         }
 
-        if (preg_match('/^(?:var)?char\((\d+)\)$/', $targetType, $matches)) {
-            $maxLength = (int) DB::table($table)->selectRaw("MAX(CHAR_LENGTH(`{$columnName}`)) AS max_length")->value('max_length');
-            if ($maxLength > (int) $matches[1]) {
-                throw new \InvalidArgumentException("Data terpanjang saat ini memiliki {$maxLength} karakter. Pilih kapasitas yang lebih besar agar data tidak terpotong.");
-            }
-        }
-
         $baseType = $this->baseType($targetType);
         $defaultMode = $request['defaultMode'];
         if ($defaultMode !== 'none' && in_array($baseType, ['tinyblob', 'blob', 'mediumblob', 'longblob', 'tinytext', 'text', 'mediumtext', 'longtext', 'json', 'geometry', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'], true)) {
