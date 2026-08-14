@@ -1251,11 +1251,10 @@ class DatabaseManagerController extends Controller
     private function mysqlTypeGroups(): array
     {
         return [
-            ['label' => 'Numerik', 'types' => $this->typeChoices(['bit(1)', 'tinyint', 'tinyint unsigned', 'smallint', 'smallint unsigned', 'mediumint', 'mediumint unsigned', 'int', 'int unsigned', 'integer', 'integer unsigned', 'bigint', 'bigint unsigned', 'decimal(10,2)', 'decimal(15,2)', 'decimal(20,2)', 'numeric(10,2)', 'fixed(10,2)', 'float', 'double', 'double precision', 'real', 'bool', 'boolean'], [['label' => 'SERIAL (dikunci: membuat auto increment)', 'value' => '__serial__']])],
-            ['label' => 'Tanggal dan waktu', 'types' => $this->typeChoices(['date', 'time', 'time(6)', 'datetime', 'datetime(6)', 'timestamp', 'timestamp(6)', 'year'])],
-            ['label' => 'Teks dan biner', 'types' => $this->typeChoices(['char(1)', 'char(255)', 'varchar(50)', 'varchar(100)', 'varchar(255)', 'varchar(500)', 'varchar(1000)', 'binary(1)', 'binary(255)', 'varbinary(255)', 'tinytext', 'text', 'mediumtext', 'longtext', 'tinyblob', 'blob', 'mediumblob', 'longblob'])],
-            ['label' => 'Pilihan dan dokumen', 'types' => $this->typeChoices(['json'], [['label' => "ENUM (tulis sendiri, contoh: enum('A','B'))", 'value' => '__enum__'], ['label' => "SET (tulis sendiri, contoh: set('A','B'))", 'value' => '__set__']])],
-            ['label' => 'Spasial', 'types' => $this->typeChoices(['geometry', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'])],
+            ['label' => 'Teks umum', 'types' => $this->typeChoices(['varchar(10)', 'varchar(19)', 'varchar(50)', 'varchar(100)', 'varchar(255)', 'varchar(500)', 'varchar(1000)', 'text', 'mediumtext', 'longtext'])],
+            ['label' => 'Angka', 'types' => $this->typeChoices(['tinyint', 'smallint', 'int', 'bigint', 'decimal(10,2)', 'decimal(15,2)', 'decimal(20,2)', 'float', 'double'])],
+            ['label' => 'Tanggal native MySQL', 'types' => $this->typeChoices(['date', 'time', 'datetime', 'timestamp', 'year'])],
+            ['label' => 'Format khusus', 'types' => $this->typeChoices(['json'], [['label' => "ENUM (pakai kolom jenis sendiri)", 'value' => '__enum__'], ['label' => "SET (pakai kolom jenis sendiri)", 'value' => '__set__'], ['label' => 'Tipe SQL lain: isi lewat Jenis sendiri', 'value' => '__custom__']])],
         ];
     }
 
