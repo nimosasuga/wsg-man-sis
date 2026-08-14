@@ -244,6 +244,7 @@ class DatabaseManagerController extends Controller
         $payload = $this->structurePayload($table);
         try {
             $change = $this->prepareStructureChange($table, $payload['columns'], $validated);
+            $change['analysis'] = $this->analyzeExistingValuesBeforeStructureChange($table, $payload['columns'], $change);
         } catch (\InvalidArgumentException $exception) {
             return Inertia::render('DatabaseManager/Structure', [
                 'table' => $payload,
@@ -279,6 +280,7 @@ class DatabaseManagerController extends Controller
         try {
             $columns = $this->columns($table);
             $change = $this->prepareStructureChange($table, $columns, $pending['change'] ?? []);
+            $this->analyzeExistingValuesBeforeStructureChange($table, $columns, $change);
             $createStatement = DB::selectOne("SHOW CREATE TABLE `{$table}`");
             Storage::put(
                 'database-schema-backups/'.now()->format('Ymd-His')."-{$table}.sql",
@@ -958,8 +960,7 @@ class DatabaseManagerController extends Controller
     private function normalizeExistingValuesBeforeStructureChange(string $table, array $columns, array $change): array
     {
         $baseType = $this->baseType((string) $change['type']);
-        $targetLength = $this->characterLengthLimit((string) $change['type']);
-        if (! $this->shouldNormalizeBeforeStructureChange($baseType) && $targetLength === null) {
+        if (! $this->shouldNormalizeBeforeStructureChange($baseType)) {
             return ['count' => 0, 'label' => 'data'];
         }
 
@@ -975,13 +976,7 @@ class DatabaseManagerController extends Controller
             ...$column,
             'type' => $change['type'],
         ];
-        $isTemporalTextTarget = $targetLength !== null
-            && in_array($baseType, ['char', 'varchar'], true)
-            && $this->isAppsheetTemporalTextColumn($targetColumn);
-        $forceDateOnly = $isTemporalTextTarget
-            && $targetLength === 10
-            && $this->isAppsheetDateOnlyTextColumn($targetColumn);
-        $label = $isTemporalTextTarget ? 'tanggal/waktu' : $this->normalizationLabel($baseType);
+        $label = $this->normalizationLabel($baseType);
 
         $normalized = 0;
         $emptyCount = DB::table($table)
@@ -1014,19 +1009,11 @@ class DatabaseManagerController extends Controller
             }
 
             try {
-                $nextValue = $isTemporalTextTarget
-                    ? $this->normalizeTemporalTextForAppsheet($currentValue, $targetColumn, true, $forceDateOnly)
-                    : $this->normalizeStructureValue($currentValue, $targetColumn, $baseType, $withTime);
+                $nextValue = $this->normalizeStructureValue($currentValue, $targetColumn, $baseType, $withTime);
             } catch (\InvalidArgumentException $exception) {
                 throw new \InvalidArgumentException(
-                    "Tipe kolom belum diubah. Kolom {$columnName} masih punya nilai \"{$currentValue}\" yang belum cocok untuk tipe {$change['type']}. ".$this->normalizationHint($isTemporalTextTarget ? 'date' : $baseType, $withTime),
+                    "Tipe kolom belum diubah. Kolom {$columnName} masih punya nilai \"{$currentValue}\" yang belum cocok untuk tipe {$change['type']}. ".$this->normalizationHint($baseType, $withTime),
                     previous: $exception,
-                );
-            }
-
-            if ($targetLength !== null && Str::length($nextValue) > $targetLength) {
-                throw new \InvalidArgumentException(
-                    "Tipe kolom belum diubah. Kolom {$columnName} masih punya nilai \"{$currentValue}\" sepanjang ".Str::length($nextValue)." karakter, sedangkan target {$change['type']} hanya {$targetLength} karakter.",
                 );
             }
 
@@ -1040,6 +1027,87 @@ class DatabaseManagerController extends Controller
         }
 
         return ['count' => $normalized, 'label' => $label];
+    }
+
+    /**
+     * Read-only validation before a column is changed. Text columns are never
+     * reformatted here: only native SQL targets may require value conversion.
+     */
+    private function analyzeExistingValuesBeforeStructureChange(string $table, array $columns, array $change): array
+    {
+        $columnName = (string) $change['column'];
+        $column = collect($columns)->firstWhere('name', $columnName);
+        if (! $column) {
+            throw new \InvalidArgumentException("Kolom {$columnName} tidak ditemukan saat memeriksa data lama.");
+        }
+
+        $baseType = $this->baseType((string) $change['type']);
+        $targetLength = $this->characterLengthLimit((string) $change['type']);
+        $withTime = in_array($baseType, ['datetime', 'timestamp'], true);
+        $nullable = (bool) data_get($change, 'request.nullable', $column['nullable']);
+        $requiresConversion = $this->shouldNormalizeBeforeStructureChange($baseType);
+        $emptyCount = DB::table($table)
+            ->whereNotNull($columnName)
+            ->whereRaw("TRIM(CAST(`{$columnName}` AS CHAR)) = ''")
+            ->count();
+
+        if ($emptyCount > 0 && ! $nullable) {
+            throw new \InvalidArgumentException("Kolom {$columnName} masih memiliki {$emptyCount} nilai kosong. Jadikan kolom boleh NULL dulu, atau isi datanya sebelum mengubah tipe.");
+        }
+
+        $checked = 0;
+        $willNormalize = 0;
+        $samples = [];
+        $targetColumn = [...$column, 'type' => $change['type']];
+        $values = DB::table($table)
+            ->select($columnName)
+            ->whereNotNull($columnName)
+            ->distinct()
+            ->orderBy($columnName)
+            ->lazy(500);
+
+        foreach ($values as $row) {
+            $currentValue = trim((string) ($row->{$columnName} ?? ''));
+            if ($currentValue === '') {
+                continue;
+            }
+
+            $checked++;
+            try {
+                $nextValue = $requiresConversion
+                    ? $this->normalizeStructureValue($currentValue, $targetColumn, $baseType, $withTime)
+                    : $currentValue;
+            } catch (\InvalidArgumentException $exception) {
+                throw new \InvalidArgumentException(
+                    "Kolom {$columnName} masih punya nilai \"{$currentValue}\" yang belum cocok untuk tipe {$change['type']}. ".$this->normalizationHint($baseType, $withTime),
+                    previous: $exception,
+                );
+            }
+
+            if ($targetLength !== null && Str::length($nextValue) > $targetLength) {
+                throw new \InvalidArgumentException(
+                    "Kolom {$columnName} masih punya nilai \"{$currentValue}\" sepanjang ".Str::length($nextValue)." karakter, sedangkan target {$change['type']} hanya {$targetLength} karakter.",
+                );
+            }
+
+            if ($nextValue !== $currentValue) {
+                $willNormalize++;
+                if (count($samples) < 5) {
+                    $samples[] = ['from' => $currentValue, 'to' => $nextValue];
+                }
+            }
+        }
+
+        return [
+            'mode' => $requiresConversion ? 'native' : 'direct',
+            'checked' => $checked,
+            'empty' => $emptyCount,
+            'willNormalize' => $willNormalize,
+            'samples' => $samples,
+            'message' => $requiresConversion
+                ? 'Nilai lama akan dibaca dulu lalu disimpan dalam format internal MySQL.'
+                : 'Tidak ada penulisan ulang nilai data. Perubahan hanya diterapkan pada struktur kolom.',
+        ];
     }
 
     private function shouldNormalizeBeforeStructureChange(string $baseType): bool
