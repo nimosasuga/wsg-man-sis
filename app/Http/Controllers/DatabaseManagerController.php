@@ -978,6 +978,9 @@ class DatabaseManagerController extends Controller
         $isTemporalTextTarget = $targetLength !== null
             && in_array($baseType, ['char', 'varchar'], true)
             && $this->isAppsheetTemporalTextColumn($targetColumn);
+        $forceDateOnly = $isTemporalTextTarget
+            && $targetLength === 10
+            && $this->isAppsheetDateOnlyTextColumn($targetColumn);
         $label = $isTemporalTextTarget ? 'tanggal/waktu' : $this->normalizationLabel($baseType);
 
         $normalized = 0;
@@ -1012,7 +1015,7 @@ class DatabaseManagerController extends Controller
 
             try {
                 $nextValue = $isTemporalTextTarget
-                    ? $this->normalizeTemporalTextForAppsheet($currentValue, $targetColumn, true)
+                    ? $this->normalizeTemporalTextForAppsheet($currentValue, $targetColumn, true, $forceDateOnly)
                     : $this->normalizeStructureValue($currentValue, $targetColumn, $baseType, $withTime);
             } catch (\InvalidArgumentException $exception) {
                 throw new \InvalidArgumentException(
@@ -1568,7 +1571,18 @@ class DatabaseManagerController extends Controller
             || $name === 'jam';
     }
 
-    private function normalizeTemporalTextForAppsheet(string $value, array $column, bool $strict): string
+    private function isAppsheetDateOnlyTextColumn(array $column): bool
+    {
+        $name = strtolower((string) ($column['name'] ?? ''));
+
+        if ($this->temporalColumnExpectsDateTime($column)) {
+            return false;
+        }
+
+        return preg_match('/(?:tanggal|tgl|tempo|(?:^|_)date(?:_|$))/', $name) === 1;
+    }
+
+    private function normalizeTemporalTextForAppsheet(string $value, array $column, bool $strict, bool $forceDateOnly = false): string
     {
         $value = trim($value);
         if ($value === '') {
@@ -1585,17 +1599,19 @@ class DatabaseManagerController extends Controller
             return str_replace('.', ':', strlen($value) <= 5 ? $value.':00' : $value);
         }
 
-        $withTime = $this->temporalColumnExpectsDateTime($column)
-            || preg_match('/(?:\s|T)\d{1,2}[:.]\d{2}/', $value) === 1;
+        $inputContainsTime = preg_match('/(?:\s|T)\d{1,2}[:.]\d{2}/', $value) === 1;
+        $parseWithTime = $this->temporalColumnExpectsDateTime($column)
+            || $inputContainsTime;
+        $withTime = ! $forceDateOnly && $parseWithTime;
         $normalizedValue = preg_replace('/(\d{1,2})\.(\d{2})(?:\.(\d{2}))?$/', '$1:$2:$3', $value) ?? $value;
         $normalizedValue = rtrim($normalizedValue, ':');
         $normalizedValue = $this->normalizeIndonesianMonthName($normalizedValue);
 
-        $date = $this->parseTemporalTextValue($normalizedValue, $withTime);
+        $date = $this->parseTemporalTextValue($normalizedValue, $parseWithTime);
         if ($date === null && is_numeric($value) && (float) $value > 0) {
             try {
                 $date = Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
-                $withTime = $withTime || $this->temporalColumnExpectsDateTime($column) || ((float) $value !== floor((float) $value));
+                $withTime = ! $forceDateOnly && ($withTime || $this->temporalColumnExpectsDateTime($column) || ((float) $value !== floor((float) $value)));
             } catch (\Throwable) {
                 $date = null;
             }
