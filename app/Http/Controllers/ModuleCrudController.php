@@ -56,7 +56,7 @@ class ModuleCrudController extends Controller
                 'group' => 'Inventori',
                 'group_key' => 'inventori',
             ],
-            in_array($key, ['monitoring-unit', 'upload-dokumen-operasional'], true) => [
+            in_array($key, ['monitoring-unit', 'operasional-absen', 'upload-dokumen-operasional'], true) => [
                 'group' => 'Operasional',
                 'group_key' => 'operasional',
             ],

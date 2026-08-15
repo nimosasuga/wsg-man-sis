@@ -32,7 +32,6 @@ return [
         'import_required' => ['tanggal_muat', 'area', 'total_tarif'],
         'import_uppercase' => ['no_bap', 'regional', 'area', 'rute_asal', 'rute_tujuan', 'vendor', 'nopol_driver', 'jenis', 'no_po', 'no_si', 'no_sj', 'status_dokument'],
         'import_date' => ['tanggal_muat', 'tanggal_terima'],
-        'import_store_date_formats' => ['tanggal_muat' => 'd/m/Y', 'tanggal_terima' => 'd/m/Y'],
         'import_unique_dates' => ['tanggal_muat'],
         'import_datetime' => ['create_data', 'tanggal_dokument_naik'],
         'import_numeric' => [
@@ -77,7 +76,6 @@ return [
         'import_required' => ['tanggal', 'tahun', 'week', 'nopol', 'area', 'project'],
         'import_uppercase' => ['no_po', 'no_si', 'nopol', 'tipe_unit', 'area', 'driver', 'helper', 'region', 'project', 'posisi_project', 'status_dokument', 'status'],
         'import_date' => ['tanggal'],
-        'import_store_date_formats' => ['tanggal' => 'd/m/Y'],
         'import_unique_dates' => ['tanggal'],
         'import_datetime' => ['tanggal_dokument_naik'],
         'import_numeric' => [
@@ -103,7 +101,6 @@ return [
         'import_enabled' => true,
         'import_required' => ['tanggal', 'area', 'nopol', 'tipe', 'tarif_sewa_unit_bln'],
         'import_date' => ['tanggal'],
-        'import_store_date_formats' => ['tanggal' => 'm-d-Y'],
         'import_unique_dates' => ['tanggal'],
         'import_uppercase' => ['area', 'regional', 'nopol', 'tipe'],
         'import_numeric' => ['tarif_sewa_unit_bln', 'biaya_legalitas'],
@@ -125,15 +122,11 @@ return [
         'import_enabled' => true,
         'import_required' => ['no_stt', 'tanggal', 'tahun', 'bulan', 'week', 'nama_pengirim', 'kota_asal', 'nama_penerima', 'kota_tujuan', 'total_ongkir'],
         'import_date' => ['tanggal'],
-        'import_date_formats' => [
-            'tanggal' => ['Y-m-d', 'm/d/Y', 'm-d-Y', 'd/m/Y', 'd-m-Y'],
-        ],
-        'import_store_date_formats' => ['tanggal' => 'n/j/Y'],
         'import_uppercase' => ['no_stt', 'kota_asal', 'kota_tujuan', 'jenis_ppn'],
         'import_numeric' => ['tahun', 'week', 'total_koli', 'qty_unit', 'total_ongkir', 'total_ppn', 'tagihan_cod', 'total_bayar', 'kembalian'],
         'import_text' => ['no_stt', 'kode_pesanan'],
         'import_unique' => [['no_stt']],
-        'import_instruction' => 'PROFIT LCL AppSheet dihitung dari penjumlahan TOTAL ONGKIR. NO STT wajib unik dan disimpan sebagai teks agar formatnya tidak berubah. Gunakan tanggal bulan/hari/tahun untuk data LCL lama, misalnya 6/9/2026.',
+        'import_instruction' => 'PROFIT LCL AppSheet dihitung dari penjumlahan TOTAL ONGKIR. NO STT wajib unik dan disimpan sebagai teks agar formatnya tidak berubah. Gunakan tanggal standar YYYY-MM-DD, misalnya 2026-09-06.',
     ],
     'unit-inventori' => [
         'label' => 'Daftar Unit',
@@ -225,6 +218,19 @@ return [
         ],
         'import_unique' => [['nopol', 'tanggal_jam']],
         'import_instruction' => 'NOPOL wajib sudah terdaftar di inventori. Location diisi dalam format latitude,longitude, misalnya -6.175392,106.827153.',
+    ],
+    'operasional-absen' => [
+        'label' => 'Absensi Operasional',
+        'table' => 'operasional_absen',
+        'key' => 'id_key',
+        'permission' => 'system.manage',
+        'back' => '/module-records',
+        'fields' => [
+            'nomer_si', 'nama', 'area', 'tanggal', 'bulan', 'waktu_masuk', 'waktu_pulang',
+            'total_waktu_kerja', 'selisih_jam_kerja', 'status', 'keterangan', 'foto_masuk',
+            'foto_pulang', 'maps_masuk', 'maps_pulang', 'jam_overtime', 'tarif_ovt', 'total_ovt',
+            'email', 'lembur', 'approval_ovt', 'status_kerja', 'week', 'project',
+        ],
     ],
     'service-umum' => [
         'label' => 'Riwayat Service Umum',

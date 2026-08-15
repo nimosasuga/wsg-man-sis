@@ -186,10 +186,7 @@ class ImportExportController extends Controller
                     continue 2;
                 }
 
-                $data[$field] = $this->formatDateForStorage(
-                    $date,
-                    $config['import_store_date_formats'][$field] ?? null,
-                );
+                $data[$field] = $date;
             }
 
             foreach (($config['import_latlong'] ?? []) as $field) {
@@ -545,15 +542,6 @@ class ImportExportController extends Controller
         } catch (Throwable) {
             return null;
         }
-    }
-
-    private function formatDateForStorage(string $date, ?string $format): string
-    {
-        if (! $format) {
-            return $date;
-        }
-
-        return \Carbon\Carbon::createFromFormat('!Y-m-d', $date)->format($format);
     }
 
     private function dateStorageVariants(string $value): array

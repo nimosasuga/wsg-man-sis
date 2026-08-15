@@ -15,6 +15,7 @@ use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -652,6 +653,7 @@ class DatabaseManagerController extends Controller
                 foreach ($row as $columnNumber => $value) {
                     $coordinate = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columnNumber + 1).($rowNumber + 1);
                     $sheet->setCellValueExplicit($coordinate, $this->exportValue($value, $columnDefinitionsByIndex[$columnNumber] ?? null), DataType::TYPE_STRING);
+                    $sheet->getStyle($coordinate)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
                 }
             }
 
@@ -689,11 +691,19 @@ class DatabaseManagerController extends Controller
 
     private function formatDateForExport(string $value, ?array $column): string
     {
-        if ($value === '' || $column === null || ! $this->isAppsheetTemporalTextColumn($column)) {
+        if ($value === '' || $column === null || ! $this->isTemporalColumn($column)) {
             return $value;
         }
 
         return $this->normalizeTemporalTextForAppsheet($value, $column, false);
+    }
+
+    private function isTemporalColumn(array $column): bool
+    {
+        $baseType = strtolower((string) preg_replace('/\(.*/', '', (string) ($column['type'] ?? '')));
+
+        return in_array($baseType, ['date', 'datetime', 'timestamp'], true)
+            || $this->isAppsheetTemporalTextColumn($column);
     }
 
     private function importTablePayload(string $table): array
@@ -1153,7 +1163,7 @@ class DatabaseManagerController extends Controller
     private function normalizationHint(string $baseType, bool $withTime): string
     {
         if (in_array($baseType, ['date', 'datetime', 'timestamp'], true)) {
-            return 'Pakai format DD/MM/YYYY'.($withTime ? ' atau DD/MM/YYYY HH:mm' : '').'.';
+            return 'Pakai format YYYY-MM-DD'.($withTime ? ' atau YYYY-MM-DD HH:mm:ss' : '').'.';
         }
 
         if ($baseType === 'time') {
@@ -1687,13 +1697,13 @@ class DatabaseManagerController extends Controller
 
         if ($date === null) {
             if ($strict) {
-                throw new \InvalidArgumentException('kolom '.$column['name'].' berisi "'.$value.'", tetapi belum terbaca sebagai tanggal AppSheet. Pakai DD/MM/YYYY atau DD/MM/YYYY HH:mm:ss.');
+                throw new \InvalidArgumentException('kolom '.$column['name'].' berisi "'.$value.'", tetapi belum terbaca sebagai tanggal. Pakai YYYY-MM-DD atau YYYY-MM-DD HH:mm:ss.');
             }
 
             return $value;
         }
 
-        return $date->format($withTime ? 'd/m/Y H:i:s' : 'd/m/Y');
+        return $date->format($withTime ? 'Y-m-d H:i:s' : 'Y-m-d');
     }
 
     private function normalizeIndonesianMonthName(string $value): string
@@ -1745,6 +1755,11 @@ class DatabaseManagerController extends Controller
 
     private function temporalColumnExpectsDateTime(array $column): bool
     {
+        $baseType = strtolower((string) preg_replace('/\(.*/', '', (string) ($column['type'] ?? '')));
+        if (in_array($baseType, ['datetime', 'timestamp'], true)) {
+            return true;
+        }
+
         $name = strtolower((string) ($column['name'] ?? ''));
 
         if (preg_match('/^jam_(?:request|proses|isi_bbm_\d+)$/', $name) === 1 || $name === 'jam') {
@@ -1988,7 +2003,7 @@ class DatabaseManagerController extends Controller
         }
 
         throw new \InvalidArgumentException(
-            'kolom '.$column['name'].' berisi "'.$value.'", tetapi belum terbaca sebagai tanggal. Pakai format DD/MM/YYYY'.($withTime ? ' atau DD/MM/YYYY HH:mm' : '').'.',
+            'kolom '.$column['name'].' berisi "'.$value.'", tetapi belum terbaca sebagai tanggal. Pakai format YYYY-MM-DD'.($withTime ? ' atau YYYY-MM-DD HH:mm:ss' : '').'.',
         );
     }
 
@@ -2038,7 +2053,7 @@ class DatabaseManagerController extends Controller
                     $date = Carbon::instance(ExcelDate::excelToDateTimeObject((float) $rawValue));
                     $withTime = $this->temporalColumnExpectsDateTime($column) || (float) $rawValue !== floor((float) $rawValue);
 
-                    return $date->format($withTime ? 'd/m/Y H:i:s' : 'd/m/Y');
+                    return $date->format($withTime ? 'Y-m-d H:i:s' : 'Y-m-d');
                 } catch (\Throwable) {
                     // Kalau metadata Excel tidak lengkap, lanjut pakai nilai tampilan.
                 }
