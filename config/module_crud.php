@@ -224,7 +224,7 @@ return [
         'table' => 'operasional_absen',
         'key' => 'id_key',
         'permission' => 'system.manage',
-        'back' => '/module-records',
+        'back' => '/module-records/operasional-absen',
         'fields' => [
             'nomer_si', 'nama', 'area', 'tanggal', 'bulan', 'waktu_masuk', 'waktu_pulang',
             'total_waktu_kerja', 'selisih_jam_kerja', 'status', 'keterangan', 'foto_masuk',
