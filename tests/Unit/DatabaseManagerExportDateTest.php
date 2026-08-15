@@ -34,15 +34,35 @@ class DatabaseManagerExportDateTest extends TestCase
                 ['name' => 'waktu_masuk', 'type' => 'datetime'],
                 '2026-08-15 07:13:00',
             ],
+            'native timestamp from Indonesian format' => [
+                '15/08/2026 07:13:45',
+                ['name' => 'created_at', 'type' => 'timestamp'],
+                '2026-08-15 07:13:45',
+            ],
+            'native date drops an accidental midnight time' => [
+                '2026-08-15 00:00:00',
+                ['name' => 'tanggal', 'type' => 'date'],
+                '2026-08-15',
+            ],
             'date-like varchar' => [
                 '15 Agustus 2026',
                 ['name' => 'tanggal_invoice', 'type' => 'varchar(50)'],
+                '2026-08-15',
+            ],
+            'date-like varchar drops an accidental midnight time' => [
+                '15/08/2026 00:00:00',
+                ['name' => 'tanggal_inv', 'type' => 'varchar(50)'],
                 '2026-08-15',
             ],
             'datetime-like varchar' => [
                 '15/08/2026 07:13:45',
                 ['name' => 'waktu_pulang', 'type' => 'varchar(50)'],
                 '2026-08-15 07:13:45',
+            ],
+            'datetime-like varchar adds missing seconds' => [
+                '15/08/2026 07.13',
+                ['name' => 'waktu_masuk', 'type' => 'varchar(19)'],
+                '2026-08-15 07:13:00',
             ],
             'ISO date remains unchanged' => [
                 '2026-08-15',
@@ -58,6 +78,11 @@ class DatabaseManagerExportDateTest extends TestCase
                 '08/15/2026: HERY: BALIKPAPAN',
                 ['name' => 'add_data', 'type' => 'varchar(255)'],
                 '2026-08-15: HERY: BALIKPAPAN',
+            ],
+            'ordinary text remains unchanged' => [
+                '15/08/2026 hanya catatan',
+                ['name' => 'keterangan', 'type' => 'text'],
+                '15/08/2026 hanya catatan',
             ],
         ];
     }

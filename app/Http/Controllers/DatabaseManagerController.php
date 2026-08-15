@@ -701,7 +701,11 @@ class DatabaseManagerController extends Controller
         }
 
         if ($this->isTemporalColumn($column)) {
-            return $this->normalizeTemporalTextForAppsheet($value, $column, false);
+            $baseType = strtolower((string) preg_replace('/\(.*/', '', (string) ($column['type'] ?? '')));
+            $forceDateOnly = $baseType === 'date'
+                || ($this->isAppsheetTemporalTextColumn($column) && $this->isAppsheetDateOnlyTextColumn($column));
+
+            return $this->normalizeTemporalTextForAppsheet($value, $column, false, $forceDateOnly);
         }
 
         if ($this->isDateAnnotatedTextColumn($column)) {
