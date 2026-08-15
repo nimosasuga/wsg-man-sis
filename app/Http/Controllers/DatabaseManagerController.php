@@ -691,11 +691,19 @@ class DatabaseManagerController extends Controller
 
     private function formatDateForExport(string $value, ?array $column): string
     {
-        if ($value === '' || $column === null || ! $this->isTemporalColumn($column)) {
+        if ($value === '' || $column === null) {
             return $value;
         }
 
-        return $this->normalizeTemporalTextForAppsheet($value, $column, false);
+        if ($this->isTemporalColumn($column)) {
+            return $this->normalizeTemporalTextForAppsheet($value, $column, false);
+        }
+
+        if ($this->isDateAnnotatedTextColumn($column)) {
+            return $this->normalizeLeadingDateForExport($value);
+        }
+
+        return $value;
     }
 
     private function isTemporalColumn(array $column): bool
@@ -1658,6 +1666,22 @@ class DatabaseManagerController extends Controller
         }
 
         return preg_match('/(?:tanggal|tgl|tempo|(?:^|_)date(?:_|$))/', $name) === 1;
+    }
+
+    private function isDateAnnotatedTextColumn(array $column): bool
+    {
+        return in_array(strtolower((string) ($column['name'] ?? '')), ['add_data', 'update_data'], true);
+    }
+
+    private function normalizeLeadingDateForExport(string $value): string
+    {
+        if (preg_match('/^(?<date>\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})(?<suffix>.*)$/', $value, $matches) !== 1) {
+            return $value;
+        }
+
+        $date = $this->parseTemporalTextValue((string) $matches['date'], false);
+
+        return $date === null ? $value : $date->format('Y-m-d').$matches['suffix'];
     }
 
     private function normalizeTemporalTextForAppsheet(string $value, array $column, bool $strict, bool $forceDateOnly = false): string
