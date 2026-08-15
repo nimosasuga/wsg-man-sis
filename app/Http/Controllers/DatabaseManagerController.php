@@ -583,6 +583,11 @@ class DatabaseManagerController extends Controller
             fclose($output);
         }, "export-{$table}-lengkap-".now()->format('Ymd-His').'.csv', [
             'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+            'X-Accel-Buffering' => 'no',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
