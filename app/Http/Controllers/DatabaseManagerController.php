@@ -509,13 +509,14 @@ class DatabaseManagerController extends Controller
     public function template(string $table): StreamedResponse
     {
         $this->guardTable($table);
-        $columns = collect($this->columns($table))->pluck('name')->all();
+        $columnDefinitions = $this->columns($table);
+        $columns = collect($columnDefinitions)->pluck('name')->all();
 
         return $this->spreadsheet(
             [$columns],
             "template-{$table}.xlsx",
             $table,
-            $columns,
+            $columnDefinitions,
         );
     }
 
@@ -539,7 +540,7 @@ class DatabaseManagerController extends Controller
             [$columns, ...$rows],
             "export-{$table}-".now()->format('Ymd-His').'.xlsx',
             $table,
-            $columns,
+            $columnDefinitions,
         );
     }
 
@@ -638,16 +639,15 @@ class DatabaseManagerController extends Controller
         ])->values()->all();
     }
 
-    private function spreadsheet(array $rows, string $fileName, string $sheetTitle, array $columns): StreamedResponse
+    private function spreadsheet(array $rows, string $fileName, string $sheetTitle, array $columnDefinitions): StreamedResponse
     {
-        return response()->streamDownload(function () use ($rows, $sheetTitle, $columns) {
+        return response()->streamDownload(function () use ($rows, $sheetTitle, $columnDefinitions) {
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle(substr($sheetTitle, 0, 31));
 
-            $columnDefinitionsByIndex = collect($columns)
-                ->mapWithKeys(fn (string $column, int $index) => [$index => ['name' => $column]])
-                ->all();
+            $columnDefinitionsByIndex = collect($columnDefinitions)->values()->all();
+            $columns = collect($columnDefinitionsByIndex)->pluck('name')->all();
 
             foreach ($rows as $rowNumber => $row) {
                 foreach ($row as $columnNumber => $value) {
