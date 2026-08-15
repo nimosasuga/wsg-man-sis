@@ -179,34 +179,33 @@ class NormalizeLegacyTemporalColumns extends Command
             return $result;
         }
 
-        DB::transaction(function () use ($table, $name, $primaryKey, $updates, $chunkSize, $column, $targetType, $default) {
-            foreach (array_chunk($updates, $chunkSize) as $chunk) {
-                $bindings = [];
-                $when = [];
-                $keys = [];
-                foreach ($chunk as $update) {
-                    $when[] = 'WHEN ? THEN ?';
-                    $bindings[] = $update['key'];
-                    $bindings[] = $update['value'];
-                    $keys[] = $update['key'];
-                }
-
-                $quotedTable = $this->quoteIdentifier($table);
-                $quotedColumn = $this->quoteIdentifier($name);
-                $quotedKey = $this->quoteIdentifier($primaryKey);
-                $placeholders = implode(', ', array_fill(0, count($keys), '?'));
-                DB::update(
-                    "UPDATE {$quotedTable} SET {$quotedColumn} = CASE {$quotedKey} ".implode(' ', $when)." ELSE {$quotedColumn} END WHERE {$quotedKey} IN ({$placeholders})",
-                    [...$bindings, ...$keys],
-                );
+        // MySQL implicitly commits ALTER TABLE, so this cannot share a Laravel transaction.
+        foreach (array_chunk($updates, $chunkSize) as $chunk) {
+            $bindings = [];
+            $when = [];
+            $keys = [];
+            foreach ($chunk as $update) {
+                $when[] = 'WHEN ? THEN ?';
+                $bindings[] = $update['key'];
+                $bindings[] = $update['value'];
+                $keys[] = $update['key'];
             }
 
-            if (strtoupper((string) $column['is_nullable']) === 'YES') {
-                DB::table($table)->where($name, '')->update([$name => null]);
-            }
+            $quotedTable = $this->quoteIdentifier($table);
+            $quotedColumn = $this->quoteIdentifier($name);
+            $quotedKey = $this->quoteIdentifier($primaryKey);
+            $placeholders = implode(', ', array_fill(0, count($keys), '?'));
+            DB::update(
+                "UPDATE {$quotedTable} SET {$quotedColumn} = CASE {$quotedKey} ".implode(' ', $when)." ELSE {$quotedColumn} END WHERE {$quotedKey} IN ({$placeholders})",
+                [...$bindings, ...$keys],
+            );
+        }
 
-            $this->alterColumn($table, $name, $targetType, $column, $default);
-        });
+        if (strtoupper((string) $column['is_nullable']) === 'YES') {
+            DB::table($table)->where($name, '')->update([$name => null]);
+        }
+
+        $this->alterColumn($table, $name, $targetType, $column, $default);
 
         return $result;
     }
