@@ -4,7 +4,7 @@
 
 {$APP_DOMAIN} {
     encode zstd gzip
-    reverse_proxy web:80
+    reverse_proxy washeng_web:80
 }
 
 {$MYSQL_TLS_DOMAIN:db.cargo.washeng.online} {

@@ -102,7 +102,9 @@ services:
     volumes:
       - washeng_storage:/var/www/html/storage:ro
     networks:
-      - washeng
+      washeng:
+        aliases:
+          - washeng_web
 
   caddy:
     image: caddy:2.10-alpine
