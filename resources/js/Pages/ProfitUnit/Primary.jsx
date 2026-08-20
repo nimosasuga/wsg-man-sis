@@ -15,6 +15,13 @@ const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", {
 })}`;
 const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
 const isAll = (value) => !value || value === "ALL";
+const normalizeWeek = (value) => {
+    const text = String(value ?? "").trim();
+    if (!text || text === "-") return "";
+
+    const match = text.match(/\d+/);
+    return match ? String(Number(match[0])) : text.toUpperCase();
+};
 const dateParts = (value) => {
     const text = String(value || "").trim();
     let match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -147,7 +154,11 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
         if (keys.includes("TIPE")) result.TIPE = unique("tipe");
         if (keys.includes("NOPOL")) result.NOPOL = unique("nopol");
         if (keys.includes("KATEGORI")) result.KATEGORI = filterOptions.KATEGORI?.length ? filterOptions.KATEGORI : unique("regional");
-        if (keys.includes("WEEK")) result.WEEK = unique("week");
+        if (keys.includes("WEEK")) {
+            const weeks = [...new Set(rows.map((row) => normalizeWeek(row.week)).filter(Boolean))]
+                .sort((left, right) => Number(left) - Number(right));
+            result.WEEK = ["ALL", ...weeks];
+        }
         if (keys.includes("HARI")) result.HARI = unique("tanggal");
         return result;
     }, [rows, page.filterFields, filterOptions]);
@@ -160,7 +171,7 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
             && (isAll(filters.TIPE) || row.tipe === filters.TIPE)
             && (isAll(filters.NOPOL) || row.nopol === filters.NOPOL)
             && (isAll(filters.KATEGORI) || (filterOptions.KATEGORI_MAP?.[filters.KATEGORI] || []).includes(row.regional))
-            && (isAll(filters.WEEK) || row.week === filters.WEEK)
+            && (isAll(filters.WEEK) || normalizeWeek(row.week) === normalizeWeek(filters.WEEK))
             && (isAll(filters.HARI) || row.tanggal === filters.HARI);
     }), [rows, filters, activeMonth, filterOptions]);
     const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));

@@ -19,6 +19,7 @@ export default function Rental({ rows = [] }) {
                     ["AREA", "Area"],
                     ["TIPE", "Tipe Unit"],
                     ["NOPOL", "Nopol"],
+                    ["WEEK", "Minggu"],
                 ],
             }}
         />

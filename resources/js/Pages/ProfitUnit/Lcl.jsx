@@ -17,6 +17,7 @@ export default function Lcl({ rows = [] }) {
                     ["BULAN", "Bulan"],
                     ["AREA", "Area"],
                     ["NOPOL", "No. STT"],
+                    ["WEEK", "Minggu"],
                 ],
             }}
         />
