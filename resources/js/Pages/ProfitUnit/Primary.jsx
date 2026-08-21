@@ -128,6 +128,7 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
         revenueLabel: config.revenueLabel || "Pendapatan",
         costLabel: config.costLabel || "Biaya",
         profitLabel: config.profitLabel || `Total Profit ${config.shortName || "Primary"}`,
+        summaryCards: config.summaryCards || null,
         showWeeklyFlow: Boolean(config.showWeeklyFlow),
         description: config.description || "",
     };
@@ -160,6 +161,7 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
         if (keys.includes("AREA")) result.AREA = filterOptions.AREA?.length ? filterOptions.AREA : unique("area");
         if (keys.includes("TIPE")) result.TIPE = unique("tipe");
         if (keys.includes("NOPOL")) result.NOPOL = unique("nopol");
+        if (keys.includes("DEPARTURE")) result.DEPARTURE = filterOptions.DEPARTURE?.length ? filterOptions.DEPARTURE : unique("departure");
         if (keys.includes("KATEGORI")) result.KATEGORI = filterOptions.KATEGORI?.length ? filterOptions.KATEGORI : unique("regional");
         if (keys.includes("WEEK")) {
             const weeks = [...new Set(weekSourceRows.map((row) => normalizeWeek(row.week)).filter(Boolean))]
@@ -176,6 +178,7 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
             && (isAll(filters.AREA) || row.area === filters.AREA)
             && (isAll(filters.TIPE) || row.tipe === filters.TIPE)
             && (isAll(filters.NOPOL) || row.nopol === filters.NOPOL)
+            && (isAll(filters.DEPARTURE) || row.departure === filters.DEPARTURE)
             && (isAll(filters.KATEGORI) || (filterOptions.KATEGORI_MAP?.[filters.KATEGORI] || []).includes(row.regional))
             && (isAll(filters.WEEK) || normalizeWeek(row.week) === normalizeWeek(filters.WEEK))
             && (isAll(filters.HARI) || row.tanggal === filters.HARI);
@@ -263,12 +266,26 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
         return Object.values(grouped).sort((a, b) => Number(a.key) - Number(b.key));
     }, [filteredRows, activeMonth]);
     const margin = summary.revenue > 0 ? summary.profit / summary.revenue * 100 : 0;
+    const summaryValues = {
+        revenue: formatRp(summary.revenue),
+        cost: formatRp(summary.cost),
+        profit: formatRp(summary.profit),
+        margin: `${margin.toFixed(1)}%`,
+        record: formatNumber(filteredRows.length),
+    };
+    const summaryCards = page.summaryCards || [
+        { label: page.revenueLabel, key: "revenue" },
+        { label: page.costLabel, key: "cost" },
+        { label: "Margin", key: "margin" },
+        { label: "Record", key: "record" },
+    ];
+    const summaryGridClass = summaryCards.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4";
 
     return <AdminLayout><Head title={page.name} />
         <div className="mb-4 flex items-center text-xs font-bold uppercase tracking-widest text-slate-500"><Link href="/profit-unit">Profit Unit</Link><ChevronRight size={14} className="mx-1"/><span className="text-slate-900">{page.name}</span></div>
         <section className="mb-5 rounded-xl bg-slate-950 p-5 text-white shadow-sm">
             <p className="text-xs font-black uppercase text-cyan-200">{page.profitLabel}</p><h1 className="mt-2 text-2xl font-black">{formatRp(summary.profit)}</h1>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[[page.revenueLabel,formatRp(summary.revenue)],[page.costLabel,formatRp(summary.cost)],["Margin",`${margin.toFixed(1)}%`],["Record",formatNumber(filteredRows.length)]].map(([label,value])=><div key={label} className="rounded-lg border border-white/10 bg-white/10 p-3"><p className="text-[10px] font-black uppercase text-slate-400">{label}</p><p className="mt-1 text-lg font-black">{value}</p></div>)}</div>
+            <div className={`mt-4 grid gap-3 sm:grid-cols-2 ${summaryGridClass}`}>{summaryCards.map(({ label, key })=><div key={label} className="rounded-lg border border-white/10 bg-white/10 p-3"><p className="text-[10px] font-black uppercase text-slate-400">{label}</p><p className="mt-1 text-lg font-black">{summaryValues[key]}</p></div>)}</div>
         </section>
         <section className="mb-5 rounded-xl border border-cyan-100 bg-white p-5 shadow-sm"><div className="flex items-start gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-700"><Lightbulb size={19}/></div><div><p className="text-xs font-black uppercase text-cyan-700">Catatan kerja</p><h2 className="mt-1 text-lg font-black text-slate-950">Baca profit sebelum mengejar volume</h2><p className="mt-2 text-sm font-semibold leading-6 text-slate-600">{filteredRows.length ? `Dari ${formatNumber(filteredRows.length)} transaksi yang tampil, margin ${page.shortName} berada di ${margin.toFixed(1)}%. Cek row dengan biaya besar dan profit tipis sebelum menambah pekerjaan pada jalur yang sama.` : `Belum ada transaksi yang cocok. Longgarkan filter untuk melihat data ${page.shortName} yang tersedia.`}</p>{page.description && <p className="mt-3 rounded-lg bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-900">{page.description}</p>}</div></div></section>
         <FilterPanel filters={filters} options={options} onChange={changeFilters} onReset={resetFilters} shortName={page.shortName} fields={page.filterFields} />

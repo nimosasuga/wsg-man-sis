@@ -729,7 +729,7 @@ class ProfitUnitController extends Controller
         }
 
         $revenue = (float) (clone $query)->sum('total_ongkir');
-        $cost = 0.0;
+        $cost = (float) (clone $query)->sum('biaya_kirim');
         $profitTotal = $revenue - $cost;
         $count = (clone $query)->count();
         $rataProfit = $count > 0 ? $profitTotal / $count : 0;
@@ -737,7 +737,7 @@ class ProfitUnitController extends Controller
         $rataBiaya = $count > 0 ? $cost / $count : 0;
 
         $byArea = (clone $query)
-            ->select('kota_tujuan', DB::raw('SUM(total_ongkir) as profit'))
+            ->select('kota_tujuan', DB::raw('SUM(COALESCE(total_ongkir, 0) - COALESCE(biaya_kirim, 0)) as profit'))
             ->groupBy('kota_tujuan')
             ->orderByDesc('profit')
             ->get()
@@ -772,7 +772,7 @@ class ProfitUnitController extends Controller
             ]);
 
         $byType = (clone $query)
-            ->select('katagori_barang', DB::raw('COUNT(*) as total'), DB::raw('SUM(total_ongkir) as revenue'), DB::raw('SUM(total_ongkir) as profit'))
+            ->select('katagori_barang', DB::raw('COUNT(*) as total'), DB::raw('SUM(total_ongkir) as revenue'), DB::raw('SUM(COALESCE(total_ongkir, 0) - COALESCE(biaya_kirim, 0)) as profit'))
             ->groupBy('katagori_barang')
             ->orderByDesc('profit')
             ->get()
@@ -801,7 +801,7 @@ class ProfitUnitController extends Controller
         ];
 
         $byYear = (clone $query)
-            ->selectRaw("tahun, SUM(total_ongkir) as revenue, 0 as cost, SUM(total_ongkir) as profit, COUNT(*) as total")
+            ->selectRaw("tahun, SUM(total_ongkir) as revenue, SUM(biaya_kirim) as cost, SUM(COALESCE(total_ongkir, 0) - COALESCE(biaya_kirim, 0)) as profit, COUNT(*) as total")
             ->whereNotNull('tahun')
             ->where('tahun', '!=', '')
             ->groupBy('tahun')
@@ -816,7 +816,7 @@ class ProfitUnitController extends Controller
             ]);
 
         $byRegional = (clone $query)
-            ->select('region', DB::raw('SUM(total_ongkir) as profit'), DB::raw('COUNT(*) as total'))
+            ->select('region', DB::raw('SUM(COALESCE(total_ongkir, 0) - COALESCE(biaya_kirim, 0)) as profit'), DB::raw('COUNT(*) as total'))
             ->whereNotNull('region')
             ->where('region', '!=', '')
             ->groupBy('region')
@@ -829,7 +829,7 @@ class ProfitUnitController extends Controller
             ]);
 
         $topUnits = (clone $query)
-            ->select('no_stt', 'kota_tujuan', 'katagori_barang', DB::raw('SUM(total_ongkir) as profit'), DB::raw('COUNT(*) as total'))
+            ->select('no_stt', 'kota_tujuan', 'katagori_barang', DB::raw('SUM(COALESCE(total_ongkir, 0) - COALESCE(biaya_kirim, 0)) as profit'), DB::raw('COUNT(*) as total'))
             ->whereNotNull('no_stt')
             ->where('no_stt', '!=', '')
             ->groupBy('no_stt', 'kota_tujuan', 'katagori_barang')
@@ -862,6 +862,15 @@ class ProfitUnitController extends Controller
             ],
         ];
 
+        $departures = DB::table('db_chargo_data_paket_delivery')
+            ->select('no_stt', DB::raw('MAX(tgl_kapal_berangkat) as departure'))
+            ->whereNotNull('no_stt')
+            ->where('no_stt', '!=', '')
+            ->whereNotNull('tgl_kapal_berangkat')
+            ->where('tgl_kapal_berangkat', '!=', '')
+            ->groupBy('no_stt')
+            ->pluck('departure', 'no_stt');
+
         $rows = DB::table('db_chargo_data_paket_masuk')
             ->orderByRaw(LegacyDate::sql('tanggal').' desc')
             ->get([
@@ -873,6 +882,7 @@ class ProfitUnitController extends Controller
                 'katagori_barang',
                 'week',
                 'total_ongkir',
+                'biaya_kirim',
             ])
             ->map(fn ($row) => [
                 'id_key' => $row->id_key,
@@ -882,9 +892,10 @@ class ProfitUnitController extends Controller
                 'tipe' => $row->katagori_barang ?: 'TIDAK DIKETAHUI',
                 'rute' => trim(($row->kota_asal ?: '-').' - '.($row->kota_tujuan ?: '-')),
                 'week' => $row->week,
+                'departure' => $departures->get((string) $row->no_stt) ?: 'TIDAK DIKETAHUI',
                 'revenue' => (float) $row->total_ongkir,
-                'cost' => 0.0,
-                'profit' => (float) $row->total_ongkir,
+                'cost' => (float) $row->biaya_kirim,
+                'profit' => (float) $row->total_ongkir - (float) $row->biaya_kirim,
             ]);
 
         return Inertia::render('ProfitUnit/Lcl', [
@@ -929,6 +940,7 @@ class ProfitUnitController extends Controller
                 'KATEGORI' => 'kode_pesanan',
             ]) + [
                 'SALES' => ['ALL'],
+                'DEPARTURE' => ['ALL', ...$departures->values()->filter()->unique()->sort()->values()->all()],
             ],
         ]);
     }
@@ -970,8 +982,8 @@ class ProfitUnitController extends Controller
                 'nopol' => $row->no_stt,
                 'tipe' => $row->katagori_barang,
                 'tarif' => (float) $row->total_ongkir,
-                'biaya' => 0,
-                'profit' => (float) $row->total_ongkir,
+                'biaya' => (float) $row->biaya_kirim,
+                'profit' => (float) $row->total_ongkir - (float) $row->biaya_kirim,
                 'week' => $row->week ? 'W'.$row->week : '-',
             ]);
 
@@ -1006,8 +1018,8 @@ class ProfitUnitController extends Controller
                 'tipe' => $row->katagori_barang,
                 'driver' => $row->dibuat_oleh,
                 'tarif' => (float) $row->total_ongkir,
-                'biaya' => 0,
-                'profit' => (float) $row->total_ongkir,
+                'biaya' => (float) $row->biaya_kirim,
+                'profit' => (float) $row->total_ongkir - (float) $row->biaya_kirim,
                 'week' => $row->week ? 'W'.$row->week : '-',
                 'order_type' => $row->status_pembayaran,
                 'no_po' => $row->nomor_inv,
