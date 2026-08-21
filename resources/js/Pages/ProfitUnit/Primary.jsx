@@ -138,6 +138,13 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
     const [filters, setFilters] = useState(defaults);
     const [tablePage, setTablePage] = useState(1);
     const pageSize = 25;
+    const activeMonth = filters.BULAN === "ALL" ? "ALL" : filters.BULAN.slice(0, 2);
+    const weekSourceRows = useMemo(() => rows.filter((row) => {
+        const date = dateParts(row.tanggal);
+
+        return (isAll(filters.TAHUN) || date.year === filters.TAHUN)
+            && (isAll(activeMonth) || date.month === activeMonth);
+    }), [rows, filters.TAHUN, activeMonth]);
     const options = useMemo(() => {
         const unique = (key) => ["ALL", ...new Set(rows.map((row) => String(row[key] || "")).filter(Boolean).sort())];
         const result = {};
@@ -155,14 +162,13 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
         if (keys.includes("NOPOL")) result.NOPOL = unique("nopol");
         if (keys.includes("KATEGORI")) result.KATEGORI = filterOptions.KATEGORI?.length ? filterOptions.KATEGORI : unique("regional");
         if (keys.includes("WEEK")) {
-            const weeks = [...new Set(rows.map((row) => normalizeWeek(row.week)).filter(Boolean))]
+            const weeks = [...new Set(weekSourceRows.map((row) => normalizeWeek(row.week)).filter(Boolean))]
                 .sort((left, right) => Number(left) - Number(right));
             result.WEEK = ["ALL", ...weeks];
         }
         if (keys.includes("HARI")) result.HARI = unique("tanggal");
         return result;
-    }, [rows, page.filterFields, filterOptions]);
-    const activeMonth = filters.BULAN === "ALL" ? "ALL" : filters.BULAN.slice(0,2);
+    }, [rows, page.filterFields, filterOptions, weekSourceRows]);
     const filteredRows = useMemo(() => rows.filter((row) => {
         const date = dateParts(row.tanggal);
         return (isAll(filters.TAHUN) || date.year === filters.TAHUN)
@@ -212,7 +218,17 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
         [sortedRows, currentPage, pageSize],
     );
     const changeFilters = (nextFilters) => {
-        setFilters(nextFilters);
+        const nextMonth = isAll(nextFilters.BULAN) ? "ALL" : nextFilters.BULAN.slice(0, 2);
+        const selectedWeek = normalizeWeek(nextFilters.WEEK);
+        const selectedWeekStillAvailable = isAll(nextFilters.WEEK) || rows.some((row) => {
+            const date = dateParts(row.tanggal);
+
+            return (isAll(nextFilters.TAHUN) || date.year === nextFilters.TAHUN)
+                && (isAll(nextMonth) || date.month === nextMonth)
+                && normalizeWeek(row.week) === selectedWeek;
+        });
+
+        setFilters(selectedWeekStillAvailable ? nextFilters : { ...nextFilters, WEEK: "ALL" });
         setTablePage(1);
     };
     const resetFilters = () => {
