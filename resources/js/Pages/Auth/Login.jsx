@@ -43,10 +43,10 @@ export default function Login({ status }) {
     };
 
     return (
-        <div className="min-h-[100dvh] bg-[#fffaf7] font-sans text-slate-950 lg:grid lg:grid-cols-[minmax(320px,0.82fr)_minmax(480px,1.18fr)]">
+        <div className="min-h-[100dvh] w-full max-w-none overflow-x-hidden bg-[#fffaf7] font-sans text-slate-950 lg:grid lg:grid-cols-2">
             <Head title="Masuk - Washeng GO" />
 
-            <aside className="login-brand-panel relative hidden h-[100dvh] overflow-hidden bg-orange-600 p-6 text-white lg:flex lg:flex-col lg:justify-between xl:p-8">
+            <aside className="login-brand-panel relative hidden h-[100dvh] w-full overflow-hidden bg-orange-600 p-6 text-white lg:flex lg:flex-col lg:justify-between xl:p-8">
                 <div className="pointer-events-none absolute -right-20 top-20 h-40 w-40 rounded-[36px] border border-white/20" />
                 <div className="pointer-events-none absolute -bottom-24 -left-20 h-56 w-56 rounded-[48px] border border-white/15" />
 
@@ -103,7 +103,7 @@ export default function Login({ status }) {
                 </p>
             </aside>
 
-            <main className="flex min-h-[100dvh] min-w-0 flex-col overflow-y-auto">
+            <main className="flex min-h-[100dvh] min-w-0 w-full max-w-none flex-col overflow-y-auto">
                 <header className="flex items-center gap-3 border-b border-orange-100 bg-white px-5 py-4 lg:hidden">
                     <div className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl border border-orange-100 bg-white shadow-sm">
                         <img
