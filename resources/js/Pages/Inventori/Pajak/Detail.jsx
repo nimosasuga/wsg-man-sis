@@ -472,7 +472,7 @@ export default function Detail({
             <div className="grid min-w-0 grid-cols-1 gap-4 pb-10 2xl:grid-cols-2 2xl:gap-6">
                 {/* RIWAYAT SERVICE */}
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col max-h-96">
-                    <div className="flex flex-col items-start gap-2 border-b border-gray-100 bg-gray-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+                    <div className="flex shrink-0 flex-col items-start gap-2 border-b border-gray-100 bg-gray-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
                         <h3 className="font-black text-gray-800 text-sm flex items-center gap-2">
                             <Wrench size={16} className="text-amber-500" />{" "}
                             RIWAYAT SERVICE
@@ -481,25 +481,25 @@ export default function Detail({
                             TOTAL: {aggregates.qtyService}x
                         </span>
                     </div>
-                    <div className="custom-scrollbar overflow-auto p-3 sm:p-4">
-                        <table className="w-full min-w-[560px] text-left text-xs">
-                            <thead className="text-[10px] font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 bg-white">
+                    <div className="custom-scrollbar min-h-0 flex-1 overflow-auto">
+                        <table className="w-full min-w-[560px] border-separate border-spacing-0 text-left text-xs">
+                            <thead className="sticky top-0 z-20 bg-gray-50 text-[10px] font-bold uppercase text-gray-500 shadow-[0_1px_0_#e5e7eb]">
                                 <tr>
-                                    <th className="pb-2">Tanggal</th>
-                                    <th className="pb-2">
+                                    <th scope="col" className="px-4 py-3">Tanggal</th>
+                                    <th scope="col" className="px-3 py-3">
                                         Jenis Pekerjaan / Keluhan
                                     </th>
-                                    <th className="pb-2 text-right">Biaya</th>
+                                    <th scope="col" className="px-4 py-3 text-right">Biaya</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {riwayatService.length > 0 ? (
                                     riwayatService.map((rs) => (
                                         <tr key={rs.id_key} {...historyRowProps("/riwayat-service-unit/service-umum", rs.id_key)}>
-                                            <td className="py-2.5 font-medium whitespace-nowrap">
+                                            <td className="whitespace-nowrap px-4 py-2.5 font-medium">
                                                 {rs.tanggal_services || "-"}
                                             </td>
-                                            <td className="py-2.5">
+                                            <td className="px-3 py-2.5">
                                                 <span className="block font-bold text-gray-800">
                                                     {rs.tipe_service ||
                                                         "Service Berkala"}
@@ -508,7 +508,7 @@ export default function Detail({
                                                     {rs.keluhan || "-"}
                                                 </span>
                                             </td>
-                                            <td className="py-2.5 text-right font-bold text-gray-700 whitespace-nowrap">
+                                            <td className="whitespace-nowrap px-4 py-2.5 text-right font-bold text-gray-700">
                                                 {formatRp(
                                                     rs.total_biaya_service,
                                                 )}
@@ -519,7 +519,7 @@ export default function Detail({
                                     <tr>
                                         <td
                                             colSpan="3"
-                                            className="py-4 text-center text-gray-400"
+                                            className="px-4 py-4 text-center text-gray-400"
                                         >
                                             Belum ada riwayat service.
                                         </td>
@@ -532,7 +532,7 @@ export default function Detail({
 
                 {/* RIWAYAT GANTI BAN */}
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col max-h-96">
-                    <div className="flex flex-col items-start gap-2 border-b border-gray-100 bg-gray-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+                    <div className="flex shrink-0 flex-col items-start gap-2 border-b border-gray-100 bg-gray-50/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
                         <h3 className="font-black text-gray-800 text-sm flex items-center gap-2">
                             <PenTool size={16} className="text-blue-500" />{" "}
                             RIWAYAT GANTI BAN
@@ -541,27 +541,27 @@ export default function Detail({
                             TOTAL: {aggregates.qtyBan} Ban
                         </span>
                     </div>
-                    <div className="custom-scrollbar overflow-auto p-3 sm:p-4">
-                        <table className="w-full min-w-[560px] text-left text-xs">
-                            <thead className="text-[10px] font-bold text-gray-400 uppercase border-b border-gray-100 sticky top-0 bg-white">
+                    <div className="custom-scrollbar min-h-0 flex-1 overflow-auto">
+                        <table className="w-full min-w-[560px] border-separate border-spacing-0 text-left text-xs">
+                            <thead className="sticky top-0 z-20 bg-gray-50 text-[10px] font-bold uppercase text-gray-500 shadow-[0_1px_0_#e5e7eb]">
                                 <tr>
-                                    <th className="pb-2">Tanggal</th>
-                                    <th className="pb-2">Posisi Ban</th>
-                                    <th className="pb-2">Merk / Seri</th>
-                                    <th className="pb-2 text-right">Biaya</th>
+                                    <th scope="col" className="px-4 py-3">Tanggal</th>
+                                    <th scope="col" className="px-3 py-3">Posisi Ban</th>
+                                    <th scope="col" className="px-3 py-3">Merk / Seri</th>
+                                    <th scope="col" className="px-4 py-3 text-right">Biaya</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {riwayatBan.length > 0 ? (
                                     riwayatBan.map((rb) => (
                                         <tr key={rb.id_key} {...historyRowProps("/riwayat-service-unit/service-ban", rb.id_key)}>
-                                            <td className="py-2.5 font-medium whitespace-nowrap">
+                                            <td className="whitespace-nowrap px-4 py-2.5 font-medium">
                                                 {rb.tanggal_ganti_ban || "-"}
                                             </td>
-                                            <td className="py-2.5 font-bold">
+                                            <td className="px-3 py-2.5 font-bold">
                                                 {rb.posisi || "-"}
                                             </td>
-                                            <td className="py-2.5">
+                                            <td className="px-3 py-2.5">
                                                 <span className="block text-gray-800">
                                                     {rb.jenis_ban || "-"}
                                                 </span>
@@ -569,7 +569,7 @@ export default function Detail({
                                                     {rb.tipe_ban || "-"}
                                                 </span>
                                             </td>
-                                            <td className="py-2.5 text-right font-bold text-gray-700 whitespace-nowrap">
+                                            <td className="whitespace-nowrap px-4 py-2.5 text-right font-bold text-gray-700">
                                                 {formatRp(rb.total_harga)}
                                             </td>
                                         </tr>
@@ -578,7 +578,7 @@ export default function Detail({
                                     <tr>
                                         <td
                                             colSpan="4"
-                                            className="py-4 text-center text-gray-400"
+                                            className="px-4 py-4 text-center text-gray-400"
                                         >
                                             Belum ada riwayat ganti ban.
                                         </td>
