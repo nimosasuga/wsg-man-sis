@@ -36,18 +36,26 @@ const formatDate = (value) => {
     match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
     return match ? `${match[2].padStart(2, "0")}/${match[1].padStart(2, "0")}/${match[3]}` : text || "-";
 };
+const formatDepartureDate = (value) => {
+    const text = String(value || "").trim();
+    let match = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+    match = text.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+    return match ? `${match[1].padStart(2, "0")}/${match[2].padStart(2, "0")}/${match[3]}` : text || "-";
+};
 
-function SearchableSelect({ label, value, options, onChange }) {
+function SearchableSelect({ label, value, options, onChange, formatOption = (option) => option }) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
-    const visibleOptions = options.filter((option) => (option === "ALL" ? "Semua" : option)
+    const optionLabel = (option) => option === "ALL" ? "Semua" : formatOption(option);
+    const visibleOptions = options.filter((option) => optionLabel(option)
         .toLowerCase().includes(search.trim().toLowerCase()));
 
     return (
         <div className="relative">
             <span className="mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</span>
             <button type="button" onClick={() => { setOpen((current) => !current); setSearch(""); }} className="flex h-10 w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 text-left text-sm font-bold text-slate-700 transition hover:border-cyan-300">
-                <span className="truncate">{value === "ALL" ? "Semua" : value}</span>
+                <span className="truncate">{optionLabel(value)}</span>
                 <ChevronRight size={15} className={`shrink-0 transition ${open ? "rotate-90 text-cyan-600" : "text-slate-400"}`} />
             </button>
             {open && (
@@ -58,7 +66,7 @@ function SearchableSelect({ label, value, options, onChange }) {
                     <div className="custom-scrollbar max-h-64 overflow-auto p-1">
                         {visibleOptions.length ? visibleOptions.map((option) => (
                             <button key={option} type="button" onClick={() => { onChange(option); setOpen(false); }} className={`block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold ${option === value ? "bg-cyan-50 text-cyan-700" : "text-slate-700 hover:bg-slate-50"}`}>
-                                {option === "ALL" ? "Semua" : option}
+                                {optionLabel(option)}
                             </button>
                         )) : <p className="px-3 py-4 text-center text-sm font-semibold text-slate-400">Tidak ditemukan.</p>}
                     </div>
@@ -82,7 +90,7 @@ function FilterPanel({ filters, options, onChange, onReset, shortName = "Primary
             </div>
             <div className={`grid gap-3 md:grid-cols-2 ${filterFields.length >= 7 ? "xl:grid-cols-7" : filterFields.length >= 5 ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}>
                 {filterFields.map(([key, label]) => (
-                    <SearchableSelect key={key} label={label} value={filters[key]} options={options[key]} onChange={(value) => onChange({ ...filters, [key]: value })} />
+                    <SearchableSelect key={key} label={label} value={filters[key]} options={options[key]} onChange={(value) => onChange({ ...filters, [key]: value })} formatOption={key === "DEPARTURE" ? formatDepartureDate : undefined} />
                 ))}
             </div>
         </section>

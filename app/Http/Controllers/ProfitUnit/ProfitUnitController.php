@@ -881,9 +881,20 @@ class ProfitUnitController extends Controller
             ->whereNotNull('no_stt')
             ->where('no_stt', '!=', '')
             ->whereNotNull('tgl_kapal_berangkat')
-            ->where('tgl_kapal_berangkat', '!=', '')
+            ->whereRaw("TRIM(tgl_kapal_berangkat) NOT IN ('', '0000-00-00')")
+            ->whereRaw(LegacyDate::sql('tgl_kapal_berangkat').' IS NOT NULL')
             ->groupBy('no_stt')
             ->pluck('departure', 'no_stt');
+
+        $departureOptions = DB::table('db_chargo_data_paket_delivery')
+            ->select('tgl_kapal_berangkat')
+            ->whereNotNull('tgl_kapal_berangkat')
+            ->whereRaw("TRIM(tgl_kapal_berangkat) NOT IN ('', '0000-00-00')")
+            ->whereRaw(LegacyDate::sql('tgl_kapal_berangkat').' IS NOT NULL')
+            ->groupBy('tgl_kapal_berangkat')
+            ->orderByRaw(LegacyDate::sql('tgl_kapal_berangkat').' desc')
+            ->pluck('tgl_kapal_berangkat')
+            ->all();
 
         $deliveryProfitByStt = (clone $deliveryQuery)
             ->select('d.no_stt', DB::raw('SUM(COALESCE(d.total_cod, 0)) as profit'))
@@ -962,7 +973,7 @@ class ProfitUnitController extends Controller
                 'KATEGORI' => 'kode_pesanan',
             ]) + [
                 'SALES' => ['ALL'],
-                'DEPARTURE' => ['ALL', ...$departures->values()->filter()->unique()->sort()->values()->all()],
+                'DEPARTURE' => ['ALL', ...$departureOptions],
             ],
         ]);
     }
