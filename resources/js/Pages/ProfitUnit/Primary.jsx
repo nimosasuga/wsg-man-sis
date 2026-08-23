@@ -9,12 +9,30 @@ const MONTHS = [
     ["09", "September"], ["10", "Oktober"], ["11", "November"], ["12", "Desember"],
 ];
 
-const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", {
+const safeNumber = (value) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
+};
+const formatRp = (value) => `Rp${safeNumber(value).toLocaleString("id-ID", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
 })}`;
-const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
+const formatNumber = (value) => safeNumber(value).toLocaleString("id-ID");
 const isAll = (value) => !value || value === "ALL";
+const normalizeMonth = (value) => {
+    const text = String(value ?? "").trim();
+    if (!text || text === "ALL") return text;
+
+    const numeric = text.match(/^(\d{1,2})(?:\D|$)/);
+    if (numeric && Number(numeric[1]) >= 1 && Number(numeric[1]) <= 12) {
+        return numeric[1].padStart(2, "0");
+    }
+
+    const letter = text.match(/^([A-L])(?:\s|$)/i);
+    if (letter) return String(letter[1].toUpperCase().charCodeAt(0) - 64).padStart(2, "0");
+
+    return MONTHS.find(([, name]) => text.toLowerCase().includes(name.toLowerCase()))?.[0] || "";
+};
 const normalizeWeek = (value) => {
     const text = String(value ?? "").trim();
     if (!text || text === "-") return "";
@@ -125,7 +143,7 @@ const FlowChart = memo(function FlowChart({ data, year, month, shortName = "Prim
     );
 });
 
-export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, initialFilters = {} }) {
+export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, initialFilters = {}, serverSummary = null }) {
     const page = {
         name: config.name || "Profit Primary",
         shortName: config.shortName || "Primary",
@@ -141,6 +159,8 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, ini
         description: config.description || "",
         filterRoute: config.filterRoute || "",
         serverSyncedFilters: config.serverSyncedFilters || [],
+        serverFilteredRows: Boolean(config.serverFilteredRows),
+        serverFilterResets: config.serverFilterResets || {},
     };
     const defaults = Object.fromEntries(
         (page.filterFields || [["TAHUN","Tahun"],["BULAN","Bulan"],["AREA","Area"],["TIPE","Tipe Unit"],["NOPOL","Nopol"]])
@@ -152,7 +172,7 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, ini
     const [filters, setFilters] = useState(initialFilterValues);
     const [tablePage, setTablePage] = useState(1);
     const pageSize = 25;
-    const activeMonth = filters.BULAN === "ALL" ? "ALL" : filters.BULAN.slice(0, 2);
+    const activeMonth = normalizeMonth(filters.BULAN);
     const weekSourceRows = useMemo(() => rows.filter((row) => {
         const date = dateParts(row.tanggal);
 
@@ -202,16 +222,17 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, ini
     }, [rows, page.filterFields, filterOptions, weekSourceRows]);
     const filteredRows = useMemo(() => rows.filter((row) => {
         const date = dateParts(row.tanggal);
-        return (isAll(filters.TAHUN) || date.year === filters.TAHUN)
-            && (isAll(filters.BULAN) || date.month === activeMonth)
-            && (isAll(filters.AREA) || row.area === filters.AREA)
+        const filterOnClient = (key) => !page.serverFilteredRows || !page.serverSyncedFilters.includes(key);
+        return (!filterOnClient("TAHUN") || isAll(filters.TAHUN) || date.year === filters.TAHUN)
+            && (!filterOnClient("BULAN") || isAll(filters.BULAN) || date.month === activeMonth)
+            && (!filterOnClient("AREA") || isAll(filters.AREA) || row.area === filters.AREA)
             && (isAll(filters.TIPE) || row.tipe === filters.TIPE)
             && (isAll(filters.NOPOL) || row.nopol === filters.NOPOL)
-            && (isAll(filters.DEPARTURE) || row.departure === filters.DEPARTURE)
+            && (!filterOnClient("DEPARTURE") || isAll(filters.DEPARTURE) || row.departure === filters.DEPARTURE)
             && (isAll(filters.KATEGORI) || (filterOptions.KATEGORI_MAP?.[filters.KATEGORI] || []).includes(row.regional))
-            && (isAll(filters.WEEK) || normalizeWeek(row.week) === normalizeWeek(filters.WEEK))
+            && (!filterOnClient("WEEK") || isAll(filters.WEEK) || normalizeWeek(row.week) === normalizeWeek(filters.WEEK))
             && (isAll(filters.HARI) || row.tanggal === filters.HARI);
-    }), [rows, filters, activeMonth, filterOptions]);
+    }), [rows, filters, activeMonth, filterOptions, page.serverFilteredRows, page.serverSyncedFilters]);
     const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
     const currentPage = Math.min(tablePage, totalPages);
     const visiblePages = useMemo(
@@ -255,7 +276,12 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, ini
             .filter((key) => !isAll(nextFilters[key]))
             .map((key) => [queryKey(key), nextFilters[key]])
     );
-    const changeFilters = (nextFilters) => {
+    const changeFilters = (requestedFilters) => {
+        const changedKey = Object.keys(defaults).find((key) => filters[key] !== requestedFilters[key]);
+        const nextFilters = { ...requestedFilters };
+        (page.serverFilterResets[changedKey] || []).forEach((key) => {
+            nextFilters[key] = "ALL";
+        });
         const shouldRefreshServerOptions = page.filterRoute && page.serverSyncedFilters.some((key) => filters[key] !== nextFilters[key]);
         if (shouldRefreshServerOptions) {
             setFilters(nextFilters);
@@ -293,13 +319,27 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, ini
             });
         }
     };
-    const summary = useMemo(() => filteredRows.reduce((total,row) => ({ revenue:total.revenue+Number(row.revenue||0), cost:total.cost+Number(row.cost||0), profit:total.profit+Number(row.profit||0) }), {revenue:0,cost:0,profit:0}), [filteredRows]);
+    const summary = useMemo(() => {
+        if (page.serverFilteredRows && serverSummary) {
+            return {
+                revenue: safeNumber(serverSummary.revenue),
+                cost: safeNumber(serverSummary.cost),
+                profit: safeNumber(serverSummary.profit),
+            };
+        }
+
+        return filteredRows.reduce((total, row) => ({
+            revenue: total.revenue + safeNumber(row.revenue),
+            cost: total.cost + safeNumber(row.cost),
+            profit: total.profit + safeNumber(row.profit),
+        }), { revenue: 0, cost: 0, profit: 0 });
+    }, [filteredRows, page.serverFilteredRows, serverSummary]);
     const chartData = useMemo(() => {
         const monthly = !isAll(filters.TAHUN);
         const keys = monthly ? (isAll(activeMonth) ? MONTHS.map(([key])=>key) : [activeMonth]) : [...new Set(filteredRows.map((row)=>dateParts(row.tanggal).year).filter(Boolean))].sort();
         return keys.map((key) => {
             const matching = filteredRows.filter((row) => (monthly ? dateParts(row.tanggal).month : dateParts(row.tanggal).year) === key);
-            return matching.reduce((item,row)=>({ ...item, revenue:item.revenue+Number(row.revenue||0), cost:item.cost+Number(row.cost||0), profit:item.profit+Number(row.profit||0) }), { key, label:monthly ? MONTHS.find(([month])=>month===key)?.[1].slice(0,3) : key, revenue:0,cost:0,profit:0 });
+            return matching.reduce((item,row)=>({ ...item, revenue:item.revenue+safeNumber(row.revenue), cost:item.cost+safeNumber(row.cost), profit:item.profit+safeNumber(row.profit) }), { key, label:monthly ? MONTHS.find(([month])=>month===key)?.[1].slice(0,3) : key, revenue:0,cost:0,profit:0 });
         });
     }, [filteredRows, filters.TAHUN, activeMonth]);
     const weeklyChartData = useMemo(() => {
@@ -312,9 +352,9 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, ini
             if (!weeks[key]) {
                 weeks[key] = { key, label: `W${weekNumber}`, revenue: 0, cost: 0, profit: 0 };
             }
-            weeks[key].revenue += Number(row.revenue || 0);
-            weeks[key].cost += Number(row.cost || 0);
-            weeks[key].profit += Number(row.profit || 0);
+            weeks[key].revenue += safeNumber(row.revenue);
+            weeks[key].cost += safeNumber(row.cost);
+            weeks[key].profit += safeNumber(row.profit);
             return weeks;
         }, {});
 
