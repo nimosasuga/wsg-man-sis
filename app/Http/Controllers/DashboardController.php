@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Models\Inventori;
 use App\Support\LegacyDate;
+use App\Support\MonthlyActivity;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -13,7 +13,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        $dbChartData = Cache::remember('dashboard.db_chart_data.v4', now()->addMinutes(5), function () {
+        $dbChartData = Cache::remember('dashboard.db_chart_data.v5', now()->addMinutes(5), function () {
         // 1. Tarik hanya kolom yang dibutuhkan untuk efisiensi memori
         $inventori = Inventori::select('status_pajak', 'status_stnk', 'status_kir')->get();
         $inventoriByArea = Inventori::select('area', 'status_pajak', 'status_stnk', 'status_kir')->get()->groupBy('area');
@@ -90,31 +90,13 @@ class DashboardController extends Controller
         $chartDataInvoice = $invoiceProgress;
         $totalInvoice = (int) ($invoiceSummary->total ?? 0);
 
-        $activityPrimary = DB::table('operasional_primary_input')
-            ->select('tanggal_muat')
-            ->whereNotNull('tanggal_muat')
-            ->where('tanggal_muat', '!=', '')
-            ->get()
-            ->groupBy(fn ($row) => substr($row->tanggal_muat, 3, 2))
-            ->sortKeys()
-            ->map(fn ($rows, $bulan) => [
-                'name' => $this->monthNumToId($bulan),
-                'value' => $rows->count(),
-            ])
-            ->values();
-        $totalActivityPrimary = $activityPrimary->sum('value');
+        $primaryActivity = $this->monthlyActivityByYear('operasional_primary_input', 'tanggal_muat');
+        $secondaryActivity = $this->monthlyActivityByYear('operasional_secondary_input', 'tanggal');
 
-        $activitySecondary = DB::table('operasional_secondary_input')
-            ->select('bulan')
-            ->get()
-            ->groupBy(fn ($row) => empty($row->bulan) ? 'TIDAK DIKETAHUI' : $row->bulan)
-            ->sortKeys()
-            ->map(fn ($rows, $name) => [
-                'name' => $this->cleanMonthLabel($name),
-                'value' => $rows->count(),
-            ])
-            ->values();
-        $totalActivitySecondary = $activitySecondary->sum('value');
+        $activityPrimary = $this->monthlyActivityTotals($primaryActivity['data']);
+        $activitySecondary = $this->monthlyActivityTotals($secondaryActivity['data']);
+        $totalActivityPrimary = $primaryActivity['total'];
+        $totalActivitySecondary = $secondaryActivity['total'];
 
         $fatDocPrimary = $this->fatDocByDivision('Primary - Operasional');
         $fatDocSecondary = $this->fatDocByDivision('Secondary - Operasional');
@@ -156,6 +138,10 @@ class DashboardController extends Controller
                 'invoiceProgress' => $invoiceProgress,
                 'activityPrimary' => $activityPrimary,
                 'activitySecondary' => $activitySecondary,
+                'primaryActivityByYear' => $primaryActivity['data'],
+                'primaryActivityYears' => $primaryActivity['years'],
+                'secondaryActivityByYear' => $secondaryActivity['data'],
+                'secondaryActivityYears' => $secondaryActivity['years'],
                 'fatDocPrimary' => $fatDocPrimary['data'],
                 'fatDocSecondary' => $fatDocSecondary['data'],
                 'totalPajak' => $totalPajak,
@@ -174,64 +160,7 @@ class DashboardController extends Controller
             ];
         });
 
-        // 7. Hitung Aktivitas Primary di luar cache agar selalu segar
-        $rawDates = DB::table('operasional_primary_input')
-            ->select('tanggal_muat')
-            ->whereNotNull('tanggal_muat')
-            ->where('tanggal_muat', '!=', '')
-            ->whereRaw('LENGTH(tanggal_muat) >= 10')
-            ->get()
-            ->groupBy(fn ($row) => substr($row->tanggal_muat, 6, 4))
-            ->filter(fn ($items, $tahun) => ctype_digit($tahun) && (int) $tahun > 2000);
-
-        $activityByYear = $rawDates
-            ->map(function ($items, $tahun) {
-                $byMonth = $items->groupBy(fn ($row) => substr($row->tanggal_muat, 3, 2));
-                $months = collect();
-                foreach (range(1, 12) as $m) {
-                    $key = str_pad((string) $m, 2, '0', STR_PAD_LEFT);
-                    $months->push([
-                        'bulan' => $m,
-                        'value' => optional($byMonth->get($key))->count() ?? 0,
-                    ]);
-                }
-                return ['tahun' => (int) $tahun, 'months' => $months];
-            })->sortKeysDesc()->values();
-
-        $availableYears = $activityByYear->pluck('tahun')->values();
-        $dbChartData['primaryActivityByYear'] = $activityByYear;
-        $dbChartData['primaryActivityYears'] = $availableYears;
-
-        // 8. Hitung Aktivitas Secondary per Tahun di luar cache
-        $rawSecondary = DB::table('operasional_secondary_input')
-            ->select('tanggal', 'tahun')
-            ->whereNotNull('tanggal')
-            ->where('tanggal', '!=', '')
-            ->get()
-            ->groupBy(fn ($row) => (int) $row->tahun)
-            ->filter(fn ($items, $tahun) => $tahun > 2000);
-
-        $secondaryActivityByYear = $rawSecondary
-            ->map(function ($items, $tahun) {
-                $byMonth = $items->groupBy(function ($row) {
-                    return LegacyDate::parse($row->tanggal)?->format('n');
-                })->filter(fn ($items, $bulan) => $bulan !== null);
-
-                $months = collect();
-                foreach (range(1, 12) as $m) {
-                    $months->push([
-                        'bulan' => $m,
-                        'value' => $byMonth->get($m)?->count() ?? 0,
-                    ]);
-                }
-                return ['tahun' => (int) $tahun, 'months' => $months];
-            })->sortKeysDesc()->values();
-
-        $secondaryAvailableYears = $secondaryActivityByYear->pluck('tahun')->values();
-        $dbChartData['secondaryActivityByYear'] = $secondaryActivityByYear;
-        $dbChartData['secondaryActivityYears'] = $secondaryAvailableYears;
-
-        // 9. Recent Activity — 5 record terbaru
+        // 7. Recent Activity — 5 record terbaru
         $dbChartData['recentActivity'] = DB::table('operasional_primary_input')
             ->select('id_key', 'tanggal_muat', 'area', 'nopol_driver')
             ->whereNotNull('tanggal_muat')
@@ -246,11 +175,48 @@ class DashboardController extends Controller
                 'nopol' => $row->nopol_driver,
             ]);
 
-        Cache::put('dashboard.db_chart_data.v4', $dbChartData, now()->addMinutes(5));
+        Cache::put('dashboard.db_chart_data.v5', $dbChartData, now()->addMinutes(5));
 
         return Inertia::render('Dashboard', [
             'dbChartData' => $dbChartData,
         ]);
+    }
+
+    private function monthlyActivityByYear(string $table, string $column): array
+    {
+        $dateExpression = LegacyDate::sql($column);
+
+        $rows = DB::table($table)
+            ->whereNotNull($column)
+            ->whereRaw($dateExpression.' IS NOT NULL')
+            ->selectRaw('YEAR('.$dateExpression.') as tahun')
+            ->selectRaw('MONTH('.$dateExpression.') as bulan')
+            ->selectRaw('COUNT(*) as value')
+            ->groupByRaw('YEAR('.$dateExpression.'), MONTH('.$dateExpression.')')
+            ->orderByDesc('tahun')
+            ->orderBy('bulan')
+            ->get();
+
+        return MonthlyActivity::fromGroupedRows($rows);
+    }
+
+    private function monthlyActivityTotals(array $data): array
+    {
+        $totals = array_fill(1, 12, 0);
+
+        foreach ($data as $year) {
+            foreach ($year['months'] as $month) {
+                $totals[$month['bulan']] += $month['value'];
+            }
+        }
+
+        return collect($totals)
+            ->map(fn (int $value, int $month) => [
+                'name' => $this->monthNumToId(str_pad((string) $month, 2, '0', STR_PAD_LEFT)),
+                'value' => $value,
+            ])
+            ->values()
+            ->all();
     }
 
     private function globalProfitKpis(): array
@@ -421,15 +387,6 @@ class DashboardController extends Controller
             'data' => $data,
             'total' => $data->sum('value'),
         ];
-    }
-
-    private function cleanMonthLabel(?string $label): string
-    {
-        if (! $label) {
-            return 'TIDAK DIKETAHUI';
-        }
-
-        return trim(preg_replace('/^[A-Z]\./', '', $label));
     }
 
     private function monthNameId(?string $month): string

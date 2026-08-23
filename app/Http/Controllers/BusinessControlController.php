@@ -12,11 +12,11 @@ class BusinessControlController extends Controller
 {
     public function performance()
     {
-        $dbChartData = Cache::get('dashboard.db_chart_data.v4', []);
+        $dbChartData = Cache::get('dashboard.db_chart_data.v5', []);
 
         if ($dbChartData === [] || !array_key_exists('primaryActivityByYear', $dbChartData)) {
             app(DashboardController::class)->index();
-            $dbChartData = Cache::get('dashboard.db_chart_data.v4', []);
+            $dbChartData = Cache::get('dashboard.db_chart_data.v5', []);
         }
 
         return Inertia::render('BusinessControl/Performance', [
@@ -26,11 +26,11 @@ class BusinessControlController extends Controller
 
     public function health()
     {
-        $dbChartData = Cache::get('dashboard.db_chart_data.v4', []);
+        $dbChartData = Cache::get('dashboard.db_chart_data.v5', []);
 
         if ($dbChartData === [] || !array_key_exists('primaryActivityByYear', $dbChartData)) {
             app(DashboardController::class)->index();
-            $dbChartData = Cache::get('dashboard.db_chart_data.v4', []);
+            $dbChartData = Cache::get('dashboard.db_chart_data.v5', []);
         }
 
         return Inertia::render('BusinessControl/Health', [

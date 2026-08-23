@@ -66,7 +66,7 @@ class HeaderNotificationController extends Controller
 
     private function syncOperationalAlerts(User $user): void
     {
-        $dashboard = Cache::get('dashboard.db_chart_data.v4', []);
+        $dashboard = Cache::get('dashboard.db_chart_data.v5', []);
 
         if ($user->can('approval.view') && Schema::hasTable('finance_accounting_tax_alur_aproval')) {
             $pending = DB::table('finance_accounting_tax_alur_aproval')
