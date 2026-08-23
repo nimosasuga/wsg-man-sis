@@ -25,6 +25,38 @@ class ProfitUnitController extends Controller
         return (string) request()->query($snake, request()->query($label, $default));
     }
 
+    private function monthNumberFromFilter(string $value): ?int
+    {
+        $value = trim($value);
+        if ($value === '' || $value === 'ALL') {
+            return null;
+        }
+
+        if (preg_match('/^(\d{1,2})(?:\D|$)/', $value, $matches)) {
+            $month = (int) $matches[1];
+
+            return $month >= 1 && $month <= 12 ? $month : null;
+        }
+
+        if (preg_match('/^([A-L])(?:\s|$)/i', $value, $matches)) {
+            return ord(strtoupper($matches[1])) - 64;
+        }
+
+        $monthNames = [
+            'januari', 'februari', 'maret', 'april', 'mei', 'juni',
+            'juli', 'agustus', 'september', 'oktober', 'november', 'desember',
+        ];
+        $normalized = strtolower($value);
+
+        foreach ($monthNames as $index => $monthName) {
+            if (str_contains($normalized, $monthName)) {
+                return $index + 1;
+            }
+        }
+
+        return null;
+    }
+
     private function filterOptions(string $table, array $columns): array
     {
         $options = [];
@@ -899,6 +931,7 @@ class ProfitUnitController extends Controller
             ->pluck('departure', 'no_stt');
 
         $departureDateExpression = LegacyDate::sql('d.tgl_kapal_berangkat');
+        $departureMonth = $this->monthNumberFromFilter($bulan);
         $lclOptionFilters = [
             'TAHUN' => $tahun,
             'BULAN' => $bulan,
@@ -950,7 +983,17 @@ class ProfitUnitController extends Controller
             DB::table('db_chargo_data_paket_delivery as d')
                 ->leftJoin('db_chargo_data_paket_masuk as m', 'm.no_stt', '=', 'd.no_stt'),
             ['TAHUN', 'BULAN', 'AREA', 'WEEK']
-        )
+        );
+
+        if ($tahun !== 'ALL' && preg_match('/^\d{4}$/', $tahun)) {
+            $departureOptionsQuery->whereRaw("YEAR({$departureDateExpression}) = ?", [(int) $tahun]);
+        }
+
+        if ($departureMonth !== null) {
+            $departureOptionsQuery->whereRaw("MONTH({$departureDateExpression}) = ?", [$departureMonth]);
+        }
+
+        $departureOptions = $departureOptionsQuery
             ->whereNotNull('d.tgl_kapal_berangkat')
             ->whereRaw("TRIM(d.tgl_kapal_berangkat) NOT IN ('', '0000-00-00')")
             ->whereRaw($departureDateExpression.' IS NOT NULL')
@@ -964,10 +1007,10 @@ class ProfitUnitController extends Controller
         $lclFilterOptions = array_merge(
             ['SALES' => ['ALL']],
             $lclOptionValues('AREA', 'm.kota_tujuan', ['TAHUN', 'BULAN']),
-            $lclOptionValues('WEEK', 'm.week', ['TAHUN', 'BULAN']),
+            $lclOptionValues('WEEK', 'm.week', ['TAHUN', 'BULAN'], 'CAST(m.week AS UNSIGNED), m.week'),
             $lclOptionValues('BULAN', 'm.bulan', ['TAHUN']),
             $lclOptionValues('TAHUN', 'm.tahun', [], 'm.tahun desc'),
-            ['DEPARTURE' => array_values(array_unique(array_merge(['ALL'], $departureOptionsQuery)))]
+            ['DEPARTURE' => array_values(array_unique(array_merge(['ALL'], $departureOptions)))]
         );
 
         $deliveryProfitByStt = (clone $deliveryQuery)
