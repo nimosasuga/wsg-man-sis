@@ -886,13 +886,28 @@ class ProfitUnitController extends Controller
             ->groupBy('no_stt')
             ->pluck('departure', 'no_stt');
 
-        $departureOptions = DB::table('db_chargo_data_paket_delivery')
+        $departureDateExpression = LegacyDate::sql('tgl_kapal_berangkat');
+        $departureOptionsQuery = DB::table('db_chargo_data_paket_delivery')
             ->select('tgl_kapal_berangkat')
             ->whereNotNull('tgl_kapal_berangkat')
             ->whereRaw("TRIM(tgl_kapal_berangkat) NOT IN ('', '0000-00-00')")
-            ->whereRaw(LegacyDate::sql('tgl_kapal_berangkat').' IS NOT NULL')
+            ->whereRaw($departureDateExpression.' IS NOT NULL');
+
+        if ($tahun !== 'ALL') {
+            $departureOptionsQuery->whereRaw('YEAR('.$departureDateExpression.') = ?', [(int) $tahun]);
+        }
+
+        if ($bulan !== 'ALL') {
+            $departureMonth = (int) substr($bulan, 0, 2);
+
+            if ($departureMonth >= 1 && $departureMonth <= 12) {
+                $departureOptionsQuery->whereRaw('MONTH('.$departureDateExpression.') = ?', [$departureMonth]);
+            }
+        }
+
+        $departureOptions = $departureOptionsQuery
             ->groupBy('tgl_kapal_berangkat')
-            ->orderByRaw(LegacyDate::sql('tgl_kapal_berangkat').' desc')
+            ->orderByRaw($departureDateExpression.' desc')
             ->pluck('tgl_kapal_berangkat')
             ->all();
 

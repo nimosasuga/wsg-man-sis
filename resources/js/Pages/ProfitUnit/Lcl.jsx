@@ -1,14 +1,17 @@
 import React from "react";
 import { ProfitFlowPage } from "./Primary";
 
-export default function Lcl({ rows = [], filterOptions = {} }) {
+export default function Lcl({ rows = [], filterOptions = {}, filters = {} }) {
     return (
         <ProfitFlowPage
             rows={rows}
+            initialFilters={filters}
             filterOptions={filterOptions}
             config={{
                 name: "Profit LCL",
                 shortName: "LCL",
+                filterRoute: "/profit-unit/lcl",
+                serverSyncedFilters: ["TAHUN", "BULAN"],
                 detailBase: "/profit-unit/lcl/table",
                 numberLabel: "No. STT",
                 routeLabel: "Rute Pengiriman",

@@ -125,7 +125,7 @@ const FlowChart = memo(function FlowChart({ data, year, month, shortName = "Prim
     );
 });
 
-export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
+export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, initialFilters = {} }) {
     const page = {
         name: config.name || "Profit Primary",
         shortName: config.shortName || "Primary",
@@ -139,12 +139,17 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
         summaryCards: config.summaryCards || null,
         showWeeklyFlow: Boolean(config.showWeeklyFlow),
         description: config.description || "",
+        filterRoute: config.filterRoute || "",
+        serverSyncedFilters: config.serverSyncedFilters || [],
     };
     const defaults = Object.fromEntries(
         (page.filterFields || [["TAHUN","Tahun"],["BULAN","Bulan"],["AREA","Area"],["TIPE","Tipe Unit"],["NOPOL","Nopol"]])
             .map(([key]) => [key, "ALL"])
     );
-    const [filters, setFilters] = useState(defaults);
+    const initialFilterValues = Object.fromEntries(
+        Object.keys(defaults).map((key) => [key, initialFilters[key] || defaults[key]])
+    );
+    const [filters, setFilters] = useState(initialFilterValues);
     const [tablePage, setTablePage] = useState(1);
     const pageSize = 25;
     const activeMonth = filters.BULAN === "ALL" ? "ALL" : filters.BULAN.slice(0, 2);
@@ -228,7 +233,27 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {} }) {
         () => sortedRows.slice((currentPage - 1) * pageSize, currentPage * pageSize),
         [sortedRows, currentPage, pageSize],
     );
+    const queryKey = (key) => key.toLowerCase();
+    const filterQuery = (nextFilters) => Object.fromEntries(
+        Object.keys(defaults).map((key) => [queryKey(key), nextFilters[key] || "ALL"])
+    );
     const changeFilters = (nextFilters) => {
+        const shouldRefreshServerOptions = page.filterRoute && page.serverSyncedFilters.some((key) => filters[key] !== nextFilters[key]);
+        if (shouldRefreshServerOptions) {
+            const syncedFilters = Object.prototype.hasOwnProperty.call(nextFilters, "DEPARTURE")
+                ? { ...nextFilters, DEPARTURE: "ALL" }
+                : nextFilters;
+
+            setFilters(syncedFilters);
+            setTablePage(1);
+            router.get(page.filterRoute, filterQuery(syncedFilters), {
+                preserveScroll: true,
+                preserveState: false,
+                replace: true,
+            });
+            return;
+        }
+
         const nextMonth = isAll(nextFilters.BULAN) ? "ALL" : nextFilters.BULAN.slice(0, 2);
         const selectedWeek = normalizeWeek(nextFilters.WEEK);
         const selectedWeekStillAvailable = isAll(nextFilters.WEEK) || rows.some((row) => {
