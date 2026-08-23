@@ -141,7 +141,6 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, ini
         description: config.description || "",
         filterRoute: config.filterRoute || "",
         serverSyncedFilters: config.serverSyncedFilters || [],
-        stableOptionFilters: config.stableOptionFilters || [],
     };
     const defaults = Object.fromEntries(
         (page.filterFields || [["TAHUN","Tahun"],["BULAN","Bulan"],["AREA","Area"],["TIPE","Tipe Unit"],["NOPOL","Nopol"]])
@@ -162,33 +161,41 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, ini
     }), [rows, filters.TAHUN, activeMonth]);
     const options = useMemo(() => {
         const unique = (key) => ["ALL", ...new Set(rows.map((row) => String(row[key] || "")).filter(Boolean).sort())];
+        const serverOptions = (key) => page.filterRoute && filterOptions[key]?.length ? filterOptions[key] : null;
         const result = {};
         const keys = (page.filterFields || []).map(([k]) => k);
         if (keys.includes("TAHUN")) {
-            if (page.stableOptionFilters.includes("TAHUN") && filterOptions.TAHUN?.length) {
-                result.TAHUN = filterOptions.TAHUN;
+            const optionsFromServer = serverOptions("TAHUN");
+            if (optionsFromServer) {
+                result.TAHUN = optionsFromServer;
             } else {
                 const years = [...new Set(rows.map((row) => dateParts(row.tanggal).year).filter(Boolean))].sort().reverse();
                 result.TAHUN = ["ALL", ...years];
             }
         }
         if (keys.includes("BULAN")) {
-            if (page.stableOptionFilters.includes("BULAN") && filterOptions.BULAN?.length) {
-                result.BULAN = filterOptions.BULAN;
+            const optionsFromServer = serverOptions("BULAN");
+            if (optionsFromServer) {
+                result.BULAN = optionsFromServer;
             } else {
                 const months = MONTHS.filter(([m]) => rows.some((row) => dateParts(row.tanggal).month === m)).map(([m,n]) => `${m} ${n}`);
                 result.BULAN = ["ALL", ...months];
             }
         }
-        if (keys.includes("AREA")) result.AREA = filterOptions.AREA?.length ? filterOptions.AREA : unique("area");
+        if (keys.includes("AREA")) result.AREA = serverOptions("AREA") || (filterOptions.AREA?.length ? filterOptions.AREA : unique("area"));
         if (keys.includes("TIPE")) result.TIPE = unique("tipe");
         if (keys.includes("NOPOL")) result.NOPOL = unique("nopol");
-        if (keys.includes("DEPARTURE")) result.DEPARTURE = filterOptions.DEPARTURE?.length ? filterOptions.DEPARTURE : unique("departure");
+        if (keys.includes("DEPARTURE")) result.DEPARTURE = serverOptions("DEPARTURE") || (filterOptions.DEPARTURE?.length ? filterOptions.DEPARTURE : unique("departure"));
         if (keys.includes("KATEGORI")) result.KATEGORI = filterOptions.KATEGORI?.length ? filterOptions.KATEGORI : unique("regional");
         if (keys.includes("WEEK")) {
-            const weeks = [...new Set(weekSourceRows.map((row) => normalizeWeek(row.week)).filter(Boolean))]
-                .sort((left, right) => Number(left) - Number(right));
-            result.WEEK = ["ALL", ...weeks];
+            const optionsFromServer = serverOptions("WEEK");
+            if (optionsFromServer) {
+                result.WEEK = optionsFromServer;
+            } else {
+                const weeks = [...new Set(weekSourceRows.map((row) => normalizeWeek(row.week)).filter(Boolean))]
+                    .sort((left, right) => Number(left) - Number(right));
+                result.WEEK = ["ALL", ...weeks];
+            }
         }
         if (keys.includes("HARI")) result.HARI = unique("tanggal");
         return result;
@@ -244,18 +251,16 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, ini
     );
     const queryKey = (key) => key.toLowerCase();
     const filterQuery = (nextFilters) => Object.fromEntries(
-        Object.keys(defaults).map((key) => [queryKey(key), nextFilters[key] || "ALL"])
+        Object.keys(defaults)
+            .filter((key) => !isAll(nextFilters[key]))
+            .map((key) => [queryKey(key), nextFilters[key]])
     );
     const changeFilters = (nextFilters) => {
         const shouldRefreshServerOptions = page.filterRoute && page.serverSyncedFilters.some((key) => filters[key] !== nextFilters[key]);
         if (shouldRefreshServerOptions) {
-            const syncedFilters = Object.prototype.hasOwnProperty.call(nextFilters, "DEPARTURE")
-                ? { ...nextFilters, DEPARTURE: "ALL" }
-                : nextFilters;
-
-            setFilters(syncedFilters);
+            setFilters(nextFilters);
             setTablePage(1);
-            router.get(page.filterRoute, filterQuery(syncedFilters), {
+            router.get(page.filterRoute, filterQuery(nextFilters), {
                 preserveScroll: true,
                 preserveState: false,
                 replace: true,

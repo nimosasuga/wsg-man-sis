@@ -886,30 +886,71 @@ class ProfitUnitController extends Controller
             ->groupBy('no_stt')
             ->pluck('departure', 'no_stt');
 
-        $departureDateExpression = LegacyDate::sql('tgl_kapal_berangkat');
-        $departureOptionsQuery = DB::table('db_chargo_data_paket_delivery')
-            ->select('tgl_kapal_berangkat')
-            ->whereNotNull('tgl_kapal_berangkat')
-            ->whereRaw("TRIM(tgl_kapal_berangkat) NOT IN ('', '0000-00-00')")
-            ->whereRaw($departureDateExpression.' IS NOT NULL');
-
-        if ($tahun !== 'ALL') {
-            $departureOptionsQuery->whereRaw('YEAR('.$departureDateExpression.') = ?', [(int) $tahun]);
-        }
-
-        if ($bulan !== 'ALL') {
-            $departureMonth = (int) substr($bulan, 0, 2);
-
-            if ($departureMonth >= 1 && $departureMonth <= 12) {
-                $departureOptionsQuery->whereRaw('MONTH('.$departureDateExpression.') = ?', [$departureMonth]);
+        $departureDateExpression = LegacyDate::sql('d.tgl_kapal_berangkat');
+        $lclOptionFilters = [
+            'TAHUN' => $tahun,
+            'BULAN' => $bulan,
+            'AREA' => $area,
+            'WEEK' => $week,
+            'DEPARTURE' => $departure,
+        ];
+        $applyLclOptionFilters = function ($optionQuery, string $except = '') use ($lclOptionFilters, $departureDateExpression) {
+            if ($except !== 'TAHUN' && $lclOptionFilters['TAHUN'] !== 'ALL') {
+                $optionQuery->where('d.tahun', $lclOptionFilters['TAHUN']);
             }
-        }
 
-        $departureOptions = $departureOptionsQuery
-            ->groupBy('tgl_kapal_berangkat')
-            ->orderByRaw($departureDateExpression.' desc')
-            ->pluck('tgl_kapal_berangkat')
-            ->all();
+            if ($except !== 'BULAN' && $lclOptionFilters['BULAN'] !== 'ALL') {
+                $optionQuery->where('d.bulan', $lclOptionFilters['BULAN']);
+            }
+
+            if ($except !== 'AREA' && $lclOptionFilters['AREA'] !== 'ALL') {
+                $optionQuery->where('m.kota_tujuan', $lclOptionFilters['AREA']);
+            }
+
+            if ($except !== 'WEEK' && $lclOptionFilters['WEEK'] !== 'ALL') {
+                $optionQuery->where('d.week', $lclOptionFilters['WEEK']);
+            }
+
+            if ($except !== 'DEPARTURE' && $lclOptionFilters['DEPARTURE'] !== 'ALL') {
+                $optionQuery->where('d.tgl_kapal_berangkat', $lclOptionFilters['DEPARTURE']);
+            }
+
+            return $optionQuery
+                ->whereNotNull('d.tgl_kapal_berangkat')
+                ->whereRaw("TRIM(d.tgl_kapal_berangkat) NOT IN ('', '0000-00-00')")
+                ->whereRaw($departureDateExpression.' IS NOT NULL');
+        };
+        $lclOptionBase = fn () => DB::table('db_chargo_data_paket_delivery as d')
+            ->leftJoin('db_chargo_data_paket_masuk as m', 'm.no_stt', '=', 'd.no_stt');
+        $lclOptionValues = function (string $label, string $column, string $except, ?string $orderByRaw = null) use ($lclOptionBase, $applyLclOptionFilters) {
+            $optionQuery = $applyLclOptionFilters($lclOptionBase(), $except)
+                ->whereNotNull($column)
+                ->whereRaw("TRIM({$column}) != ''")
+                ->selectRaw("{$column} as option_value")
+                ->groupBy($column);
+
+            if ($orderByRaw) {
+                $optionQuery->orderByRaw($orderByRaw);
+            } else {
+                $optionQuery->orderBy($column);
+            }
+
+            $values = $optionQuery
+                ->pluck('option_value')
+                ->map(fn ($value) => (string) $value)
+                ->values()
+                ->all();
+
+            return [$label => array_values(array_unique(array_merge(['ALL'], $values)))];
+        };
+        $lclFilterOptions = array_merge(
+            ['SALES' => ['ALL']],
+            $lclOptionValues('AREA', 'm.kota_tujuan', 'AREA'),
+            $lclOptionValues('WEEK', 'd.week', 'WEEK'),
+            $lclOptionValues('BULAN', 'd.bulan', 'BULAN'),
+            $lclOptionValues('TAHUN', 'd.tahun', 'TAHUN', 'd.tahun desc'),
+            $lclOptionValues('DEPARTURE', 'd.tgl_kapal_berangkat', 'DEPARTURE', $departureDateExpression.' desc')
+        );
 
         $deliveryProfitByStt = (clone $deliveryQuery)
             ->select('d.no_stt', DB::raw('SUM(COALESCE(d.total_cod, 0)) as profit'))
@@ -980,16 +1021,7 @@ class ProfitUnitController extends Controller
             'paymentStatus' => $paymentStatus,
             'deliveryStatus' => $deliveryStatus,
             'rows' => $rows,
-            'filterOptions' => $this->filterOptions('db_chargo_data_paket_masuk', [
-                'AREA' => 'kota_tujuan',
-                'WEEK' => 'week',
-                'BULAN' => 'bulan',
-                'TAHUN' => 'tahun',
-                'KATEGORI' => 'kode_pesanan',
-            ]) + [
-                'SALES' => ['ALL'],
-                'DEPARTURE' => ['ALL', ...$departureOptions],
-            ],
+            'filterOptions' => $lclFilterOptions,
         ]);
     }
 
