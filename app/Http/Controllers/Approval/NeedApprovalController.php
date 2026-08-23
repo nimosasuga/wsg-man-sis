@@ -163,8 +163,8 @@ class NeedApprovalController extends Controller
                     'id_key' => $row->id_key,
                     'no_invoice' => $row->no_invoice,
                     'no_payment' => $row->no_payment,
-                    'tanggal_invoice' => $invoice->invoice_date ?? null,
-                    'due_date' => $invoice->due_date ?? null,
+                    'tanggal_invoice' => $this->displayDate($invoice->invoice_date ?? null),
+                    'due_date' => $this->displayDate($invoice->due_date ?? null),
                     'days_left' => $invoice->days ?? null,
                     'regional' => $invoice->regional ?? null,
                     'divisi' => $invoice->divisi ?? null,
@@ -240,5 +240,16 @@ class NeedApprovalController extends Controller
                 ->values()
                 ->all()
         )));
+    }
+
+    private function displayDate(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '' || $value === '0000-00-00') {
+            return null;
+        }
+
+        return LegacyDate::parse($value)?->format('d/m/Y') ?? $value;
     }
 }

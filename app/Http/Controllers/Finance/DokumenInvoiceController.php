@@ -14,7 +14,9 @@ class DokumenInvoiceController extends Controller
     {
         $status = strtoupper(trim((string) $request->query('status', 'ALL')));
         $area = trim((string) $request->query('area', 'ALL'));
-        $divisi = trim((string) $request->query('divisi', 'ALL'));
+        $vendor = trim((string) $request->query('vendor', 'ALL'));
+        $defaultDivision = $this->userDivision($request);
+        $divisi = trim((string) $request->query('divisi', $defaultDivision ?: 'ALL'));
         $allowedStatuses = ['ALL', 'PAID', 'UNPAID', 'PARTIAL PAID', 'REFUND'];
 
         if (! in_array($status, $allowedStatuses, true)) {
@@ -82,6 +84,10 @@ class DokumenInvoiceController extends Controller
             $invoiceQuery->where('invoice.area', $area);
         }
 
+        if ($vendor !== '' && strtoupper($vendor) !== 'ALL') {
+            $invoiceQuery->where('invoice.vendor_supplier', $vendor);
+        }
+
         if ($divisi === 'Tanpa divisi') {
             $invoiceQuery->where(function ($query) {
                 $query->whereNull('invoice.divisi')
@@ -120,6 +126,8 @@ class DokumenInvoiceController extends Controller
             $editor = $editors->get($invoice->id_key);
             $invoice->editor = $editor->nama_admin ?? null;
             $invoice->edit_time = $editor->tgl_cek_admin ?? null;
+            $invoice->invoice_date = $this->displayDate($invoice->invoice_date);
+            $invoice->due_date = $this->displayDate($invoice->due_date);
 
             return $invoice;
         });
@@ -140,15 +148,25 @@ class DokumenInvoiceController extends Controller
             ->pluck('divisi')
             ->values();
 
+        $vendors = DB::table('finance_accounting_tax_input_fat')
+            ->whereNotNull('vendor_supplier')
+            ->where('vendor_supplier', '!=', '')
+            ->distinct()
+            ->orderBy('vendor_supplier')
+            ->pluck('vendor_supplier')
+            ->values();
+
         return Inertia::render('Finance/DokumenInvoice/Index', [
             'invoiceData' => $invoiceData,
             'filters' => [
                 'status' => $status,
                 'area' => $area === '' ? 'ALL' : $area,
                 'divisi' => $divisi === '' ? 'ALL' : $divisi,
+                'vendor' => $vendor === '' ? 'ALL' : $vendor,
             ],
             'areas' => $areas,
             'divisions' => $divisions,
+            'vendors' => $vendors,
         ]);
     }
 
@@ -167,9 +185,40 @@ class DokumenInvoiceController extends Controller
 
         $invoice->editor = $editor->nama_admin ?? null;
         $invoice->edit_time = $editor->tgl_cek_admin ?? null;
+        $invoice->invoice_date = $this->displayDate($invoice->invoice_date);
+        $invoice->due_date = $this->displayDate($invoice->due_date);
+        $invoice->create_date = $this->displayDate($invoice->create_date, true);
 
         return Inertia::render('Finance/DokumenInvoice/Detail', [
             'invoiceData' => $invoice
         ]);
+    }
+
+    private function userDivision(Request $request): ?string
+    {
+        $email = trim((string) $request->user()?->email);
+
+        if ($email === '') {
+            return null;
+        }
+
+        $division = DB::table('hr_manager_db_pegawai')
+            ->whereRaw('LOWER(TRIM(email)) = ?', [strtolower($email)])
+            ->whereNotNull('divisi')
+            ->where('divisi', '!=', '')
+            ->value('divisi');
+
+        return ($division = trim((string) $division)) !== '' ? $division : null;
+    }
+
+    private function displayDate(mixed $value, bool $withTime = false): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '' || $value === '0000-00-00') {
+            return null;
+        }
+
+        return LegacyDate::parse($value)?->format($withTime ? 'd/m/Y H:i:s' : 'd/m/Y') ?? $value;
     }
 }

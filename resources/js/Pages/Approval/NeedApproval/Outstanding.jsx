@@ -5,6 +5,10 @@ import AdminLayout from "../../../Layouts/AdminLayout";
 
 const formatNumber = (value) => Number(value || 0).toLocaleString("id-ID");
 const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 })}`;
+const dateSortValue = (value) => {
+    const match = String(value || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return match ? Number(`${match[3]}${match[2]}${match[1]}`) : 0;
+};
 
 function StatCard({ title, value, helper, icon: Icon, tone = "violet" }) {
     const tones = {
@@ -74,10 +78,7 @@ export default function Outstanding({ rows = [], summary = {}, filters = {}, fil
         const valueFor = (row) => {
             const value = row[sortKey];
             if (column.type === "number") return Number(value || 0);
-            if (column.type === "date") {
-                const time = Date.parse(value || "");
-                return Number.isNaN(time) ? String(value || "") : time;
-            }
+            if (column.type === "date") return dateSortValue(value);
             return String(value || "").toLocaleLowerCase("id-ID");
         };
 

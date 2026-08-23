@@ -1,17 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import AdminLayout from "../../../Layouts/AdminLayout";
-import { Head, Link, router, usePage } from "@inertiajs/react";
+import { Head, Link, router } from "@inertiajs/react";
 import {
     ArrowDown,
     ArrowUp,
     ArrowUpDown,
     ChevronLeft,
-    ChevronDown,
     ChevronRight,
-    FileText,
-    Filter,
-    PanelLeftClose,
-    PanelLeftOpen,
+    RotateCcw,
     SearchX,
 } from "lucide-react";
 
@@ -45,17 +41,35 @@ const normalizeInvoiceStatus = (status) => {
 const documentStatusLabel = (status) =>
     String(status || "").trim() || "Blank";
 
-export default function Index({ invoiceData = {}, filters = {}, areas = [], divisions = [] }) {
-    const { url } = usePage();
+const dateSortValue = (value) => {
+    const match = String(value || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return match ? Number(`${match[3]}${match[2]}${match[1]}`) : 0;
+};
+
+const FilterSelect = ({ label, value, options, onChange }) => (
+    <label className="min-w-0">
+        <span className="mb-2 block text-[10px] font-black uppercase tracking-wider text-gray-400">{label}</span>
+        <select
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            className="h-11 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-bold text-gray-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
+        >
+            <option value="ALL">Semua</option>
+            {options.map((option) => <option key={option} value={option}>{option}</option>)}
+        </select>
+    </label>
+);
+
+export default function Index({ invoiceData = {}, filters = {}, areas = [], divisions = [], vendors = [] }) {
     const rawTableData = invoiceData.data || [];
     const requestedStatus = filters.status || "ALL";
     const requestedArea = filters.area || "ALL";
     const requestedDivision = filters.divisi || "ALL";
-    const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(true);
-    const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(true);
+    const requestedVendor = filters.vendor || "ALL";
     const [activeStatus, setActiveStatus] = useState(requestedStatus);
     const [activeArea, setActiveArea] = useState(requestedArea);
     const [activeDivision, setActiveDivision] = useState(requestedDivision);
+    const [activeVendor, setActiveVendor] = useState(requestedVendor);
     const [sortConfig, setSortConfig] = useState({
         key: null,
         direction: "asc",
@@ -73,14 +87,18 @@ export default function Index({ invoiceData = {}, filters = {}, areas = [], divi
         setActiveDivision(requestedDivision);
     }, [requestedDivision]);
 
-    const statusList = ["PAID", "UNPAID", "PARTIAL PAID", "REFUND"];
-    const areaList = areas;
+    useEffect(() => {
+        setActiveVendor(requestedVendor);
+    }, [requestedVendor]);
 
-    const visitFilters = (nextStatus, nextArea, nextDivision, page = null) => {
+    const statusList = ["PAID", "UNPAID", "PARTIAL PAID", "REFUND"];
+
+    const visitFilters = (nextStatus, nextVendor, nextArea, nextDivision, page = null) => {
         router.get(
             "/finance/dokumen-invoice",
             {
                 status: nextStatus,
+                vendor: nextVendor,
                 area: nextArea,
                 divisi: nextDivision,
                 ...(page ? { page } : {}),
@@ -89,15 +107,29 @@ export default function Index({ invoiceData = {}, filters = {}, areas = [], divi
         );
     };
 
+    const applyFilters = (event) => {
+        event.preventDefault();
+        visitFilters(activeStatus, activeVendor, activeArea, activeDivision);
+    };
+
+    const resetFilters = () => {
+        setActiveStatus("ALL");
+        setActiveVendor("ALL");
+        setActiveArea("ALL");
+        setActiveDivision("ALL");
+        visitFilters("ALL", "ALL", "ALL", "ALL");
+    };
+
     const sortedAndFilteredData = useMemo(() => {
         const sortableItems = [...rawTableData];
 
         if (sortConfig.key !== null) {
             sortableItems.sort((a, b) => {
-                const aValue = a[sortConfig.key]
+                const isDate = ["invoice_date", "due_date"].includes(sortConfig.key);
+                const aValue = isDate ? dateSortValue(a[sortConfig.key]) : a[sortConfig.key]
                     ? a[sortConfig.key].toString().toLowerCase()
                     : "";
-                const bValue = b[sortConfig.key]
+                const bValue = isDate ? dateSortValue(b[sortConfig.key]) : b[sortConfig.key]
                     ? b[sortConfig.key].toString().toLowerCase()
                     : "";
 
@@ -149,143 +181,36 @@ export default function Index({ invoiceData = {}, filters = {}, areas = [], divi
                         <ChevronRight size={14} className="mx-1" />
                         <span className="text-gray-800">DOKUMEN INVOICE</span>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <h1 className="text-2xl font-black tracking-tight text-gray-800">
-                            Data Dokumen Invoice
-                        </h1>
-                        <button
-                            onClick={() =>
-                                setIsFilterSidebarOpen(!isFilterSidebarOpen)
-                            }
-                            className="rounded-md border border-gray-200 bg-white p-1.5 text-gray-400 shadow-sm transition-colors hover:text-blue-600"
-                            title="Toggle Filter"
-                        >
-                            {isFilterSidebarOpen ? (
-                                <PanelLeftClose size={18} />
-                            ) : (
-                                <PanelLeftOpen size={18} />
-                            )}
-                        </button>
-                    </div>
+                    <h1 className="text-2xl font-black tracking-tight text-gray-800">Data Dokumen Invoice</h1>
                 </div>
             </div>
 
-            <div className="flex h-[calc(100vh-180px)] flex-col gap-4 overflow-hidden md:flex-row">
-                <div
-                    className={`flex shrink-0 origin-left flex-col rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300 ease-in-out ${isFilterSidebarOpen ? "w-full opacity-100 md:w-72" : "w-0 overflow-hidden border-0 opacity-0"}`}
-                >
-                    <div
-                        onClick={() => {
-                            visitFilters("ALL", "ALL", "ALL");
-                            setIsStatusMenuOpen(!isStatusMenuOpen);
-                        }}
-                        className={`flex cursor-pointer items-center justify-between border-b border-gray-100 p-3 transition-colors ${activeStatus === "ALL" && activeArea === "ALL" && activeDivision === "ALL" ? "border-blue-100 bg-blue-50" : "hover:bg-gray-50"}`}
-                    >
-                        <span
-                            className={`text-sm font-bold ${activeStatus === "ALL" && activeArea === "ALL" && activeDivision === "ALL" ? "text-blue-800" : "text-gray-700"}`}
-                        >
-                            Semua Invoice
-                        </span>
-                        <ChevronDown
-                            size={16}
-                            className={`transition-transform duration-200 ${isStatusMenuOpen ? "rotate-0" : "rotate-180"} ${activeStatus === "ALL" ? "text-blue-600" : "text-gray-400"}`}
-                        />
-                    </div>
+            <form onSubmit={applyFilters} className="mb-4 grid gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto_auto] xl:items-end">
+                <FilterSelect label="Status" value={activeStatus} options={statusList} onChange={setActiveStatus} />
+                <FilterSelect label="Vendor" value={activeVendor} options={vendors} onChange={setActiveVendor} />
+                <FilterSelect label="Area" value={activeArea} options={areas} onChange={setActiveArea} />
+                <FilterSelect label="Divisi" value={activeDivision} options={divisions} onChange={setActiveDivision} />
+                <button type="submit" className="h-11 rounded-lg bg-orange-500 px-5 text-xs font-black text-white transition hover:bg-orange-600">Terapkan</button>
+                <button type="button" onClick={resetFilters} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 text-xs font-bold text-gray-600 transition hover:bg-gray-50">
+                    <RotateCcw size={15} />
+                    Reset
+                </button>
+            </form>
 
-                    <div
-                        className={`overflow-hidden transition-all duration-300 ${isStatusMenuOpen ? "max-h-64 border-b border-gray-100" : "max-h-0"}`}
-                    >
-                        {statusList.map((status) => (
-                            <div
-                                key={status}
-                                onClick={() => {
-                                    visitFilters(status, "ALL", activeDivision);
-                                }}
-                                className={`flex cursor-pointer items-center justify-between p-2 transition-colors ${activeStatus === status ? "bg-blue-50/50" : "hover:bg-gray-50"}`}
-                            >
-                                <div className="flex items-center pl-2">
-                                    <span
-                                        className={`mr-2 h-2 w-2 rounded-full ${statusTone(status).replace("100 text", "500 text")}`}
-                                    />
-                                    <span
-                                        className={`text-xs font-semibold ${activeStatus === status ? "text-blue-700" : "text-gray-600"}`}
-                                    >
-                                        {status}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="custom-scrollbar flex-1 space-y-1 overflow-y-auto p-2">
-                        <div className="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-gray-400">
-                            Filter Area
-                        </div>
-                        {areaList.map((area) => {
-                            const isActive = activeArea === area;
-
-                            return (
-                                <div
-                                    key={area}
-                                    onClick={() => visitFilters(activeStatus, isActive ? "ALL" : area, activeDivision)}
-                                    className={`flex cursor-pointer items-center justify-between rounded-md px-4 py-2 transition-colors ${isActive ? "border border-blue-100 bg-blue-50" : "hover:bg-gray-50"}`}
-                                >
-                                    <span
-                                        className={`text-[11px] font-bold ${isActive ? "text-blue-700" : "text-gray-600"}`}
-                                    >
-                                        {area}
-                                    </span>
-                                </div>
-                            );
-                        })}
-                        <div className="mt-3 border-t border-gray-100 px-3 pt-3 text-[10px] font-black uppercase tracking-wider text-gray-400">
-                            Filter Divisi
-                        </div>
-                        {divisions.map((division) => {
-                            const isActive = activeDivision === division;
-
-                            return (
-                                <div
-                                    key={division}
-                                    onClick={() => visitFilters(activeStatus, activeArea, isActive ? "ALL" : division)}
-                                    className={`flex cursor-pointer items-center justify-between rounded-md px-4 py-2 transition-colors ${isActive ? "border border-blue-100 bg-blue-50" : "hover:bg-gray-50"}`}
-                                >
-                                    <span className={`text-[11px] font-bold ${isActive ? "text-blue-700" : "text-gray-600"}`}>
-                                        {division}
-                                    </span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3">
-                        <p className="text-xs font-medium text-gray-500">
-                            Menampilkan {rawTableData.length} invoice pada halaman ini
-                        </p>
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => invoiceData.prev_page_url && visitFilters(activeStatus, activeArea, activeDivision, invoiceData.current_page - 1)}
-                                disabled={!invoiceData.prev_page_url}
-                                className="rounded-md border border-gray-200 p-1.5 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                aria-label="Halaman sebelumnya"
-                            >
-                                <ChevronLeft size={16} />
-                            </button>
-                            <span className="text-xs font-semibold text-gray-600">Halaman {invoiceData.current_page || 1}</span>
-                            <button
-                                type="button"
-                                onClick={() => invoiceData.next_page_url && visitFilters(activeStatus, activeArea, activeDivision, (invoiceData.current_page || 1) + 1)}
-                                disabled={!invoiceData.next_page_url}
-                                className="rounded-md border border-gray-200 p-1.5 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                aria-label="Halaman berikutnya"
-                            >
-                                <ChevronRight size={16} />
-                            </button>
-                        </div>
+            <div className="flex h-[calc(100vh-290px)] min-h-[420px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
+                    <p className="text-xs font-medium text-gray-500">Menampilkan {rawTableData.length} invoice pada halaman ini</p>
+                    <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => invoiceData.prev_page_url && visitFilters(activeStatus, activeVendor, activeArea, activeDivision, invoiceData.current_page - 1)} disabled={!invoiceData.prev_page_url} className="rounded-md border border-gray-200 p-1.5 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Halaman sebelumnya">
+                            <ChevronLeft size={16} />
+                        </button>
+                        <span className="text-xs font-semibold text-gray-600">Halaman {invoiceData.current_page || 1}</span>
+                        <button type="button" onClick={() => invoiceData.next_page_url && visitFilters(activeStatus, activeVendor, activeArea, activeDivision, (invoiceData.current_page || 1) + 1)} disabled={!invoiceData.next_page_url} className="rounded-md border border-gray-200 p-1.5 text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Halaman berikutnya">
+                            <ChevronRight size={16} />
+                        </button>
                     </div>
                 </div>
-
-                <div className="relative flex flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300">
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
                     <div className="custom-scrollbar flex-1 overflow-auto">
                         {sortedAndFilteredData.length > 0 ? (
                             <table className="w-full border-collapse whitespace-nowrap text-left">
