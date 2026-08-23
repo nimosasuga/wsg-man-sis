@@ -35,15 +35,15 @@ class DaftarKaryawanCsvExportTest extends TestCase
 
         $lines = preg_split('/\r\n|\n|\r/', trim(substr($content, 3)));
         $headers = str_getcsv($lines[0], ';');
-        $row = str_getcsv($lines[1], ';');
+        $rows = array_map(fn (string $line) => str_getcsv($line, ';'), array_slice($lines, 1));
 
         $this->assertCount(69, $headers);
         $this->assertSame(['STATUS', 'nama_karyawan', 'nip', 'area', 'nama_bank'], array_slice($headers, 0, 5));
         $this->assertSame(['foto_sim', 'foto_profil', 'keterangan', 'Related ABSENs'], array_slice($headers, -4));
         $this->assertSame('tanggal_lahir_anak_kedua', $headers[50]);
         $this->assertSame('tanggal_lahir_anak_kedua', $headers[53]);
-        $this->assertCount(2, $lines);
-        $this->assertSame('AKTIF', $row[0]);
-        $this->assertSame('Ana Washeng', $row[1]);
+        $this->assertCount(3, $lines);
+        $this->assertSame(['EXPIRED', 'AKTIF'], array_column($rows, 0));
+        $this->assertSame(['Ana Lama', 'Ana Washeng'], array_column($rows, 1));
     }
 }

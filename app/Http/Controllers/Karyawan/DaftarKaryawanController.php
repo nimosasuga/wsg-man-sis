@@ -240,11 +240,7 @@ class DaftarKaryawanController extends Controller
             ->all();
 
         $query = DB::table('hr_manager_db_pegawai')
-            ->select($selectedColumns)
-            ->where(function ($query) {
-                $query->whereNull('status')
-                    ->orWhereNotIn(DB::raw('UPPER(TRIM(status))'), $this->inactiveStatuses);
-            });
+            ->select($selectedColumns);
 
         $search = trim((string) $request->query('search', ''));
 
