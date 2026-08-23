@@ -12,6 +12,7 @@ export default function Lcl({ rows = [], filterOptions = {}, filters = {} }) {
                 shortName: "LCL",
                 filterRoute: "/profit-unit/lcl",
                 serverSyncedFilters: ["TAHUN", "BULAN"],
+                stableOptionFilters: ["TAHUN", "BULAN"],
                 detailBase: "/profit-unit/lcl/table",
                 numberLabel: "No. STT",
                 routeLabel: "Rute Pengiriman",

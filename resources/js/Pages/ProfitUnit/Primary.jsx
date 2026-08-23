@@ -141,6 +141,7 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, ini
         description: config.description || "",
         filterRoute: config.filterRoute || "",
         serverSyncedFilters: config.serverSyncedFilters || [],
+        stableOptionFilters: config.stableOptionFilters || [],
     };
     const defaults = Object.fromEntries(
         (page.filterFields || [["TAHUN","Tahun"],["BULAN","Bulan"],["AREA","Area"],["TIPE","Tipe Unit"],["NOPOL","Nopol"]])
@@ -164,12 +165,20 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, ini
         const result = {};
         const keys = (page.filterFields || []).map(([k]) => k);
         if (keys.includes("TAHUN")) {
-            const years = [...new Set(rows.map((row) => dateParts(row.tanggal).year).filter(Boolean))].sort().reverse();
-            result.TAHUN = ["ALL", ...years];
+            if (page.stableOptionFilters.includes("TAHUN") && filterOptions.TAHUN?.length) {
+                result.TAHUN = filterOptions.TAHUN;
+            } else {
+                const years = [...new Set(rows.map((row) => dateParts(row.tanggal).year).filter(Boolean))].sort().reverse();
+                result.TAHUN = ["ALL", ...years];
+            }
         }
         if (keys.includes("BULAN")) {
-            const months = MONTHS.filter(([m]) => rows.some((row) => dateParts(row.tanggal).month === m)).map(([m,n]) => `${m} ${n}`);
-            result.BULAN = ["ALL", ...months];
+            if (page.stableOptionFilters.includes("BULAN") && filterOptions.BULAN?.length) {
+                result.BULAN = filterOptions.BULAN;
+            } else {
+                const months = MONTHS.filter(([m]) => rows.some((row) => dateParts(row.tanggal).month === m)).map(([m,n]) => `${m} ${n}`);
+                result.BULAN = ["ALL", ...months];
+            }
         }
         if (keys.includes("AREA")) result.AREA = filterOptions.AREA?.length ? filterOptions.AREA : unique("area");
         if (keys.includes("TIPE")) result.TIPE = unique("tipe");
@@ -270,6 +279,14 @@ export function ProfitFlowPage({ rows = [], config = {}, filterOptions = {}, ini
     const resetFilters = () => {
         setFilters(defaults);
         setTablePage(1);
+
+        if (page.filterRoute) {
+            router.get(page.filterRoute, {}, {
+                preserveScroll: true,
+                preserveState: false,
+                replace: true,
+            });
+        }
     };
     const summary = useMemo(() => filteredRows.reduce((total,row) => ({ revenue:total.revenue+Number(row.revenue||0), cost:total.cost+Number(row.cost||0), profit:total.profit+Number(row.profit||0) }), {revenue:0,cost:0,profit:0}), [filteredRows]);
     const chartData = useMemo(() => {
