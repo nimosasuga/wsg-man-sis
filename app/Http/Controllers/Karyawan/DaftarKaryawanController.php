@@ -6,9 +6,11 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DaftarKaryawanController extends Controller
 {
@@ -66,6 +68,78 @@ class DaftarKaryawanController extends Controller
         'ukuran_baju',
         'ukuran_sepatu',
         'keterangan',
+    ];
+
+    private array $csvColumns = [
+        ['STATUS', 'status'],
+        ['nama_karyawan', 'nama_karyawan'],
+        ['nip', 'nip'],
+        ['area', 'area'],
+        ['nama_bank', 'nama_bank'],
+        ['rekening', 'rekening'],
+        ['divisi', 'divisi'],
+        ['jabatan', 'jabatan'],
+        ['agama', 'agama'],
+        ['tanggal_lahir', 'tanggal_lahir'],
+        ['tanggal_bergabung', 'tanggal_bergabung'],
+        ['awal_pkwt', 'awal_pkwt'],
+        ['akhir_pkwt', 'akhir_pkwt'],
+        ['masa_aktif', 'masa_aktif'],
+        ['status_pkwt', 'status_pkwt'],
+        ['jenis_sim', 'jenis_sim'],
+        ['no_sim', 'no_sim'],
+        ['masa_berlaku', 'masa_berlaku'],
+        ['hari_aktif', 'hari_aktif'],
+        ['status__20', 'status__20'],
+        ['no_ponsel', 'no_ponsel'],
+        ['no_ktp', 'no_ktp'],
+        ['bpjk_kes', 'bpjk_kes'],
+        ['bpjs_tk', 'bpjs_tk'],
+        ['email', 'email'],
+        ['tarif_ovt', 'tarif_ovt'],
+        ['nama_panggilan', 'nama_panggilan'],
+        ['jenis_kelamin', 'jenis_kelamin'],
+        ['tempat_lahir', 'tempat_lahir'],
+        ['umur', 'umur'],
+        ['no_kartu_keluarga', 'no_kartu_keluarga'],
+        ['alamat_sesuai_ktp', 'alamat_sesuai_ktp'],
+        ['alamat_domisili', 'alamat_domisili'],
+        ['status_pernikahan', 'status_pernikahan'],
+        ['nama_pemilik_rekening', 'nama_pemilik_rekening'],
+        ['no_npwp', 'no_npwp'],
+        ['pendidikan', 'pendidikan'],
+        ['nama_sekolah_universitas', 'nama_sekolah_universitas'],
+        ['fakultas', 'fakultas'],
+        ['jurusan', 'jurusan'],
+        ['nama_ayah_kandung', 'nama_ayah_kandung'],
+        ['nama_ibu_kandung', 'nama_ibu_kandung'],
+        ['nama_istri', 'nama_istri'],
+        ['nama_suami', 'nama_suami'],
+        ['jumlah_anak', 'jumlah_anak'],
+        ['nama_anak_pertama', 'nama_anak_pertama'],
+        ['jenis_kelamin_anak_pertama', 'jenis_kelamin_anak_pertama'],
+        ['tanggal_lahir_anak_pertama', 'tanggal_lahir_anak_pertama'],
+        ['nama_anak_kedua', 'nama_anak_kedua'],
+        ['jenis_kelamin_anak_kedua', 'jenis_kelamin_anak_kedua'],
+        ['tanggal_lahir_anak_kedua', 'tanggal_lahir_anak_kedua'],
+        ['nama_anak_ketiga', 'nama_anak_ketiga'],
+        ['jenis_kelamin_anak_ketiga', 'jenis_kelamin_anak_ketiga'],
+        ['tanggal_lahir_anak_kedua', 'tanggal_lahir_anak_ketiga'],
+        ['nama_kerabat_1', 'nama_kerabat_1'],
+        ['hubungan_dengan_pekerja_1', 'hubungan_dengan_pekerja_1'],
+        ['nomor_telepon_atau_wa_1', 'nomor_telepon_atau_wa_1'],
+        ['nama_kerabat_2', 'nama_kerabat_2'],
+        ['hubungan_dengan_pekerja_2', 'hubungan_dengan_pekerja_2'],
+        ['nomor_handphone_wa_2', 'nomor_handphone_wa_2'],
+        ['ukuran_baju', 'ukuran_baju'],
+        ['ukuran_sepatu', 'ukuran_sepatu'],
+        ['level', 'level'],
+        ['foto_ktp', 'foto_ktp'],
+        ['foto_kartu_keluarga', 'foto_kartu_keluarga'],
+        ['foto_sim', 'foto_sim'],
+        ['foto_profil', 'foto_profil'],
+        ['keterangan', 'keterangan'],
+        ['Related ABSENs', 'Related ABSENs'],
     ];
 
     public function index(): Response
@@ -152,6 +226,66 @@ class DaftarKaryawanController extends Controller
                 'status' => $this->distinctValues('status'),
                 'status_pkwt' => $this->distinctValues('status_pkwt'),
             ],
+        ]);
+    }
+
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $availableColumns = Schema::getColumnListing('hr_manager_db_pegawai');
+        $selectedColumns = collect($this->csvColumns)
+            ->pluck(1)
+            ->filter(fn (string $column) => in_array($column, $availableColumns, true))
+            ->unique()
+            ->values()
+            ->all();
+
+        $query = DB::table('hr_manager_db_pegawai')
+            ->select($selectedColumns)
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhereNotIn(DB::raw('UPPER(TRIM(status))'), $this->inactiveStatuses);
+            });
+
+        $search = trim((string) $request->query('search', ''));
+
+        if ($search !== '') {
+            $query->where(function ($query) use ($search) {
+                foreach (['nama_karyawan', 'nama_panggilan', 'nip', 'divisi', 'jabatan', 'area', 'no_ponsel', 'email'] as $column) {
+                    $query->orWhere($column, 'like', "%{$search}%");
+                }
+            });
+        }
+
+        foreach (['divisi', 'jabatan', 'area', 'status'] as $filter) {
+            $value = trim((string) $request->query($filter, 'all'));
+
+            if ($value !== '' && strtolower($value) !== 'all') {
+                $query->where($filter, $value);
+            }
+        }
+
+        $headers = collect($this->csvColumns)->pluck(0)->all();
+        $columns = $this->csvColumns;
+
+        return response()->streamDownload(function () use ($query, $headers, $columns) {
+            $output = fopen('php://output', 'wb');
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, $headers, ';');
+
+            foreach ($query->orderBy('nama_karyawan')->lazy(500) as $row) {
+                $values = (array) $row;
+                fputcsv($output, array_map(
+                    fn (array $column) => $values[$column[1]] ?? '',
+                    $columns,
+                ), ';');
+            }
+
+            fclose($output);
+        }, 'data-karyawan-'.now()->format('Ymd-His').'.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'X-Accel-Buffering' => 'no',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 

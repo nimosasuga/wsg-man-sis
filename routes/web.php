@@ -158,6 +158,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('permission:employees.view')->group(function () {
     Route::get('/daftar-karyawan', [DaftarKaryawanController::class, 'index'])->name('daftar-karyawan.index');
+    Route::get('/daftar-karyawan/export.csv', [DaftarKaryawanController::class, 'exportCsv'])->name('daftar-karyawan.export-csv');
     Route::get('/daftar-karyawan/arsip', [DaftarKaryawanController::class, 'archive'])->name('daftar-karyawan.archive');
     });
     Route::middleware('permission:employees.manage')->group(function () {

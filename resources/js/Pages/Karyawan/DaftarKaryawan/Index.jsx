@@ -3,6 +3,7 @@ import { Head, Link, router, usePage } from "@inertiajs/react";
 import {
     BadgeCheck,
     CalendarClock,
+    Download,
     Edit3,
     Mail,
     Phone,
@@ -200,6 +201,12 @@ export default function Index({
         setTablePage(1);
     }, [search, divisi, jabatan, area, status]);
 
+    const exportUrl = useMemo(() => {
+        const params = new URLSearchParams({ search, divisi, jabatan, area, status });
+
+        return `/daftar-karyawan/export.csv?${params.toString()}`;
+    }, [search, divisi, jabatan, area, status]);
+
     return (
         <AdminLayout>
             <Head title="Daftar Karyawan" />
@@ -321,7 +328,14 @@ export default function Index({
                                 Menampilkan {formatNumber(filteredEmployees.length)} dari {formatNumber(activeEmployees.length)} karyawan aktif.
                             </p>
                         </div>
-                        <div className="flex flex-col gap-2 sm:items-end">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                            <a
+                                href={exportUrl}
+                                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#635bff] bg-white px-4 text-xs font-semibold text-[#635bff] shadow-sm transition hover:bg-[#f5f3ff]"
+                            >
+                                <Download size={16} />
+                                Download CSV
+                            </a>
                             {canManage && (
                                 <Link
                                     href="/daftar-karyawan/create"
