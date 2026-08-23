@@ -76,7 +76,8 @@ class LegacyDate
             ."STR_TO_DATE(NULLIF(TRIM($safeColumn), ''), '%Y-%m-%d %H:%i'),"
             ."STR_TO_DATE(NULLIF(TRIM($safeColumn), ''), '%Y-%m-%d'),"
             ."STR_TO_DATE(NULLIF(TRIM($safeColumn), ''), '%m-%d-%Y'),"
-            ."STR_TO_DATE(NULLIF(TRIM($safeColumn), ''), '%m/%d/%Y')"
+            ."STR_TO_DATE(NULLIF(TRIM($safeColumn), ''), '%m/%d/%Y'),"
+            ."STR_TO_DATE(NULLIF(TRIM($safeColumn), ''), '%d-%m-%Y')"
             .")";
     }
 

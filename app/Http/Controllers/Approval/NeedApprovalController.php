@@ -146,7 +146,11 @@ class NeedApprovalController extends Controller
         $latestApproval = DB::table('finance_accounting_tax_alur_aproval')
             ->get()
             ->groupBy(fn ($row) => $this->approvalKey($row->no_invoice, $row->no_payment))
-            ->map(fn ($items) => $items->sortByDesc(fn ($item) => $this->dateScore($item->date_time))->first());
+            ->map(fn ($items) => $items->sortByDesc(fn ($item) => sprintf(
+                '%020d|%s',
+                $this->dateScore($item->date_time),
+                (string) ($item->id_key ?? '')
+            ))->first());
 
         $invoiceLookup = DB::table('finance_accounting_tax_input_fat')
             ->get()

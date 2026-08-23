@@ -49,21 +49,20 @@ class DashboardController extends Controller
         }
 
         // 5. Status invoice mengikuti formula virtual AppSheet dari pembayaran yang telah disetujui.
-        $latestApprovals = DB::table('finance_accounting_tax_alur_aproval')
-            ->selectRaw('no_invoice, no_payment, MAX('.LegacyDate::sql('date_time').') as last_update')
-            ->groupBy('no_invoice', 'no_payment');
+        $rankedApprovals = DB::table('finance_accounting_tax_alur_aproval')
+            ->select('id_key', 'no_invoice', 'no_payment', 'status_doc')
+            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY no_invoice, no_payment ORDER BY '.LegacyDate::sql('date_time').' DESC, id_key DESC) as approval_rank');
+
+        $latestApprovals = DB::query()
+            ->fromSub($rankedApprovals, 'ranked_approval')
+            ->where('approval_rank', 1);
 
         $approvedPayments = DB::table('finance_accounting_tax_mutasi_pembayaran as payment')
             ->joinSub($latestApprovals, 'latest_approval', function ($join) {
                 $join->on('latest_approval.no_invoice', '=', 'payment.no_invoice')
                     ->on('latest_approval.no_payment', '=', 'payment.no_payment');
             })
-            ->join('finance_accounting_tax_alur_aproval as approval', function ($join) {
-                $join->on('approval.no_invoice', '=', 'latest_approval.no_invoice')
-                    ->on('approval.no_payment', '=', 'latest_approval.no_payment')
-                    ->whereRaw(LegacyDate::sql('approval.date_time').' = latest_approval.last_update');
-            })
-            ->whereRaw("UPPER(TRIM(COALESCE(approval.status_doc, ''))) = 'APPROVED'")
+            ->whereRaw("UPPER(TRIM(COALESCE(latest_approval.status_doc, ''))) = 'APPROVED'")
             ->whereNotNull('payment.bukti_tf')
             ->where('payment.bukti_tf', '!=', '')
             ->selectRaw('payment.no_invoice, SUM(COALESCE(payment.payment_amount, 0) + COALESCE(payment.biaya_lainnya, 0)) as total_pembayaran_invoice')

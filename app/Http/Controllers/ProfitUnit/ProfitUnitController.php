@@ -329,13 +329,13 @@ class ProfitUnitController extends Controller
             });
         }
         if ($bulan !== '') {
-            $query->whereRaw("SUBSTRING(tanggal, 1, 2) = ?", [str_pad($bulan, 2, '0', STR_PAD_LEFT)]);
+            $query->whereRaw('MONTH('.LegacyDate::sql('tanggal').') = ?', [(int) $bulan]);
         }
         if ($tahun !== '') {
-            $query->whereRaw("SUBSTRING(tanggal, 7, 4) = ?", [$tahun]);
+            LegacyDate::whereYear($query, 'tanggal', $tahun);
         }
 
-        $pageSize = (int) request()->query('per_page', 50);
+        $pageSize = max(1, min((int) request()->query('per_page', 50), 200));
         $sort = (string) request()->query('sort', 'tanggal');
         $direction = (string) request()->query('direction', 'desc');
 
@@ -347,13 +347,28 @@ class ProfitUnitController extends Controller
 
         $ovtLookup = $this->secondaryOvtLookup();
 
-        $paginator = $query
-            ->orderBy($sort, $direction === 'asc' ? 'asc' : 'desc')
-            ->paginate($pageSize);
+        $summaryRows = (clone $query)
+            ->get([
+                'tanggal', 'driver', 'helper', 'tarif_unit', 'total_tarif',
+                'add_cost_long_route', 'tkbm', 'spsi', 'parkir_liar_keamanan',
+                'penyebrangan_pas_masuk', 'rapid_antigen', 'allowance',
+                'total_subsidi_bbm', 'subsidi_hotel', 'total_biaya_operasional',
+                'parkir_resmi', 'tol', 'kirim_dokumen', 'tarif_gs', 'atk',
+                'biaya_lainnya', 'tarif_sewa_unit_vendor', 'selisih_tagihan_hotel',
+                'total_non_klaim_bbm',
+            ])
+            ->map(fn ($row) => $this->secondaryMetrics($row, $ovtLookup));
+
+        $direction = $direction === 'asc' ? 'asc' : 'desc';
+        if ($sort === 'tanggal') {
+            LegacyDate::orderBy($query, $sort, $direction);
+        } else {
+            $query->orderBy($sort, $direction);
+        }
+
+        $paginator = $query->paginate($pageSize)->withQueryString();
 
         $paginator->through(fn ($row) => $this->secondaryTableRow($row, $ovtLookup));
-
-        $currentRows = $paginator->items();
 
         return Inertia::render('ProfitUnit/OperationTable', [
             'title' => 'Tabel Profit Secondary',
@@ -361,17 +376,17 @@ class ProfitUnitController extends Controller
             'rows' => $paginator,
             'filters' => ['AREA' => $area, 'NOPOL' => $nopol, 'SEARCH' => $search, 'SORT' => $sort, 'DIRECTION' => $direction],
             'summary' => [
-                'count' => count($currentRows),
-                'revenue' => array_sum(array_column($currentRows, 'total_tarif')),
-                'cost' => array_sum(array_column($currentRows, 'total_biaya_operasional')),
-                'profit' => array_sum(array_column($currentRows, 'profit')),
+                'count' => $summaryRows->count(),
+                'revenue' => (float) $summaryRows->sum('tagihan'),
+                'cost' => (float) $summaryRows->sum('cost'),
+                'profit' => (float) $summaryRows->sum('profit'),
             ],
         ]);
     }
 
     private function secondaryTableRow($row, array $ovtLookup): array
     {
-        $profit = (float) ($row->total_tarif ?? 0) - (float) ($row->total_biaya_operasional ?? 0);
+        $metrics = $this->secondaryMetrics($row, $ovtLookup);
 
         return [
             'id_key' => $row->id_key,
@@ -385,9 +400,9 @@ class ProfitUnitController extends Controller
             'jam_mulai' => $row->jam_mulai ?? '-',
             'jam_selesai' => $row->jam_selesai ?? '-',
             'tarif_unit' => (float) ($row->tarif_unit ?? 0),
-            'total_tarif' => (float) ($row->total_tarif ?? 0),
-            'total_biaya_operasional' => (float) ($row->total_biaya_operasional ?? 0),
-            'profit' => $profit,
+            'total_tarif' => $metrics['tagihan'],
+            'total_biaya_operasional' => $metrics['cost'],
+            'profit' => $metrics['profit'],
             'week' => $row->week ? 'W'.$row->week : '-',
         ];
     }
@@ -611,12 +626,20 @@ class ProfitUnitController extends Controller
             });
         }
 
+        $totals = (clone $query)
+            ->selectRaw('COUNT(*) as total_rows')
+            ->selectRaw('COALESCE(SUM(tarif_sewa_unit_bln), 0) as revenue')
+            ->selectRaw('COALESCE(SUM(biaya_legalitas), 0) as cost')
+            ->first();
+
+        $pageSize = max(1, min((int) request()->query('per_page', 50), 200));
         $rows = $query
             ->orderByRaw(LegacyDate::sql('tanggal').' desc')
             ->orderBy('area')
-            ->limit(300)
-            ->get()
-            ->map(fn ($row) => [
+            ->paginate($pageSize)
+            ->withQueryString();
+
+        $rows->through(fn ($row) => [
                 'id_key' => $row->id_key,
                 'tanggal' => $row->tanggal,
                 'area' => $row->area,
@@ -627,7 +650,8 @@ class ProfitUnitController extends Controller
                 'week' => LegacyDate::parse($row->tanggal) ? 'W'.LegacyDate::parse($row->tanggal)->format('W') : '-',
             ]);
 
-        $totalCost = $rows->sum('biaya_legalitas');
+        $totalCost = (float) ($totals->cost ?? 0);
+        $totalRevenue = (float) ($totals->revenue ?? 0);
 
         return Inertia::render('ProfitUnit/RentalTable', [
             'rows' => $rows,
@@ -638,10 +662,10 @@ class ProfitUnitController extends Controller
                 'SEARCH' => $search,
             ],
             'summary' => [
-                'count' => $rows->count(),
-                'revenue' => $rows->sum('tarif_sewa_unit_bln'),
+                'count' => (int) ($totals->total_rows ?? 0),
+                'revenue' => $totalRevenue,
                 'cost' => $totalCost,
-                'profit' => $rows->sum('tarif_sewa_unit_bln') - $totalCost,
+                'profit' => $totalRevenue - $totalCost,
             ],
         ]);
     }
@@ -1091,6 +1115,8 @@ class ProfitUnitController extends Controller
         $area = $this->filterValue('area', 'AREA');
         $nopol = (string) request()->query('nopol', 'ALL');
         $search = (string) request()->query('search', '');
+        $sort = (string) request()->query('sort', 'tanggal');
+        $direction = request()->query('direction') === 'asc' ? 'asc' : 'desc';
 
         $query = DB::table('db_chargo_data_paket_masuk');
 
@@ -1112,10 +1138,38 @@ class ProfitUnitController extends Controller
             });
         }
 
-        $rawRows = $query
-            ->orderByRaw(LegacyDate::sql('tanggal').' desc')
-            ->limit(300)
-            ->get();
+        $totals = (clone $query)
+            ->selectRaw('COUNT(*) as total_rows')
+            ->selectRaw('COALESCE(SUM(total_ongkir), 0) as revenue')
+            ->selectRaw('COALESCE(SUM(biaya_kirim), 0) as cost')
+            ->first();
+
+        $allStt = (clone $query)
+            ->whereNotNull('no_stt')
+            ->where('no_stt', '!=', '')
+            ->distinct()
+            ->pluck('no_stt');
+        $totalProfit = $allStt->isEmpty()
+            ? 0.0
+            : (float) DB::table('db_chargo_data_paket_delivery')
+                ->whereIn('no_stt', $allStt)
+                ->sum('total_cod');
+
+        $sortable = ['id_key', 'tanggal', 'kota_tujuan', 'no_stt', 'katagori_barang', 'total_ongkir', 'biaya_kirim', 'week'];
+        if (! in_array($sort, $sortable, true)) {
+            $sort = 'tanggal';
+            $direction = 'desc';
+        }
+
+        if ($sort === 'tanggal') {
+            LegacyDate::orderBy($query, $sort, $direction);
+        } else {
+            $query->orderBy($sort, $direction);
+        }
+
+        $pageSize = max(1, min((int) request()->query('per_page', 50), 200));
+        $paginator = $query->paginate($pageSize)->withQueryString();
+        $rawRows = collect($paginator->items());
 
         $sttList = $rawRows
             ->pluck('no_stt')
@@ -1134,8 +1188,7 @@ class ProfitUnitController extends Controller
                 ->pluck('profit', 'no_stt');
         }
 
-        $rows = $rawRows
-            ->map(fn ($row) => [
+        $paginator->through(fn ($row) => [
                 'id_key' => $row->id_key,
                 'tanggal' => $row->tanggal,
                 'area' => $row->kota_tujuan,
@@ -1150,13 +1203,13 @@ class ProfitUnitController extends Controller
         return Inertia::render('ProfitUnit/OperationTable', [
             'title' => 'Tabel Profit LCL',
             'type' => 'lcl',
-            'rows' => $rows,
-            'filters' => ['AREA' => $area, 'NOPOL' => $nopol, 'SEARCH' => $search],
+            'rows' => $paginator,
+            'filters' => ['AREA' => $area, 'NOPOL' => $nopol, 'SEARCH' => $search, 'SORT' => $sort, 'DIRECTION' => $direction],
             'summary' => [
-                'count' => $rows->count(),
-                'revenue' => $rows->sum('tarif'),
-                'cost' => $rows->sum('biaya'),
-                'profit' => $rows->sum('profit'),
+                'count' => (int) ($totals->total_rows ?? 0),
+                'revenue' => (float) ($totals->revenue ?? 0),
+                'cost' => (float) ($totals->cost ?? 0),
+                'profit' => $totalProfit,
             ],
         ]);
     }
@@ -1166,9 +1219,11 @@ class ProfitUnitController extends Controller
         $row = DB::table('db_chargo_data_paket_masuk')->where('id_key', $id)->first();
         abort_if(! $row, 404);
 
-        $deliveryProfit = (float) DB::table('db_chargo_data_paket_delivery')
-            ->where('no_stt', $row->no_stt)
-            ->sum('total_cod');
+        $deliveryProfit = trim((string) $row->no_stt) === ''
+            ? 0.0
+            : (float) DB::table('db_chargo_data_paket_delivery')
+                ->where('no_stt', $row->no_stt)
+                ->sum('total_cod');
 
         return Inertia::render('ProfitUnit/OperationDetail', [
             'title' => 'Detail Profit LCL',
@@ -1435,7 +1490,13 @@ class ProfitUnitController extends Controller
             LegacyDate::whereYear($query, 'tanggal_muat', $tahun);
         }
 
-        $pageSize = (int) request()->query('per_page', 50);
+        $totals = (clone $query)
+            ->selectRaw('COUNT(*) as total_rows')
+            ->selectRaw('COALESCE(SUM(total_tarif), 0) as revenue')
+            ->selectRaw('COALESCE(SUM(total_biaya), 0) as cost')
+            ->first();
+
+        $pageSize = max(1, min((int) request()->query('per_page', 50), 200));
         $sort = (string) request()->query('sort', 'tanggal_muat');
         $direction = (string) request()->query('direction', 'desc');
 
@@ -1452,7 +1513,7 @@ class ProfitUnitController extends Controller
             $query->orderBy($sort, $direction);
         }
 
-        $paginator = $query->paginate($pageSize);
+        $paginator = $query->paginate($pageSize)->withQueryString();
 
         $idKeys = $paginator->pluck('id_key');
 
@@ -1498,18 +1559,16 @@ class ProfitUnitController extends Controller
             'week' => $row->week ? 'W'.$row->week : '-',
         ]);
 
-        $currentRows = $paginator->items();
-
         return Inertia::render('ProfitUnit/OperationTable', [
             'title' => 'Tabel Profit Primary',
             'type' => 'primary',
             'rows' => $paginator,
             'filters' => ['AREA' => $area, 'NOPOL' => $nopol, 'SEARCH' => $search, 'SORT' => $sort, 'DIRECTION' => $direction],
             'summary' => [
-                'count' => count($currentRows),
-                'revenue' => array_sum(array_column($currentRows, 'tarif')),
-                'cost' => array_sum(array_column($currentRows, 'biaya')),
-                'profit' => array_sum(array_column($currentRows, 'profit')),
+                'count' => (int) ($totals->total_rows ?? 0),
+                'revenue' => (float) ($totals->revenue ?? 0),
+                'cost' => (float) ($totals->cost ?? 0),
+                'profit' => (float) ($totals->revenue ?? 0) - (float) ($totals->cost ?? 0),
             ],
         ]);
     }

@@ -92,14 +92,39 @@ const SECONDARY_CONFIG = {
     ],
 };
 
+const LCL_CONFIG = {
+    columns: ["ID_KEY", "TANGGAL", "AREA", "NO STT", "KATEGORI", "TARIF", "BIAYA", "PROFIT", "WEEK"],
+    sortable: {
+        "ID_KEY": "id_key",
+        "TANGGAL": "tanggal",
+        "AREA": "kota_tujuan",
+        "NO STT": "no_stt",
+        "KATEGORI": "katagori_barang",
+        "TARIF": "total_ongkir",
+        "BIAYA": "biaya_kirim",
+        "WEEK": "week",
+    },
+    renderCell: (row) => [
+        <td key="id_key" className="border-r border-slate-100 px-3 py-3 text-sm font-black text-slate-900"><span className="inline-flex items-center gap-1">{row.id_key || "-"}<ChevronRight size={14} className="text-slate-300" /></span></td>,
+        <td key="tanggal" className="whitespace-nowrap border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700">{row.tanggal || "-"}</td>,
+        <td key="area" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700">{row.area || "-"}</td>,
+        <td key="nopol" className="border-r border-slate-100 px-3 py-3 text-sm font-black text-blue-600">{row.nopol || "-"}</td>,
+        <td key="tipe" className="border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700">{row.tipe || "-"}</td>,
+        <td key="tarif" className="whitespace-nowrap border-r border-slate-100 px-3 py-3 text-sm font-black text-slate-950">{formatRp(row.tarif)}</td>,
+        <td key="biaya" className="whitespace-nowrap border-r border-slate-100 px-3 py-3 text-sm font-semibold text-slate-700">{formatRp(row.biaya)}</td>,
+        <td key="profit" className="whitespace-nowrap border-r border-slate-100 px-3 py-3 text-sm font-black text-emerald-600">{formatRp(row.profit)}</td>,
+        <td key="week" className="px-3 py-3 text-sm font-semibold text-slate-700">{row.week || "-"}</td>,
+    ],
+};
+
 export default function OperationTable({ title, type, rows: paginator = {}, filters = {}, summary = {} }) {
     const [search, setSearch] = useState(filters.SEARCH || "");
     const basePath = `/profit-unit/${type}/table`;
 
     const { data: rows = [], current_page, last_page, from, to, total } = paginator;
 
-    const config = useMemo(() => type === 'secondary' ? SECONDARY_CONFIG : PRIMARY_CONFIG, [type]);
-    const defaultSort = type === 'secondary' ? 'tanggal' : 'tanggal_muat';
+    const config = useMemo(() => type === 'secondary' ? SECONDARY_CONFIG : type === 'lcl' ? LCL_CONFIG : PRIMARY_CONFIG, [type]);
+    const defaultSort = type === 'primary' ? 'tanggal_muat' : 'tanggal';
     const sort = filters.SORT || defaultSort;
     const direction = filters.DIRECTION || 'desc';
 

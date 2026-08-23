@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Head, Link, router } from "@inertiajs/react";
-import { ArrowLeft, ChevronRight, RefreshCw, Search } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw, Search } from "lucide-react";
 import AdminLayout from "../../Layouts/AdminLayout";
 
 const formatRp = (value) =>
@@ -20,8 +20,9 @@ const formatTanggal = (value) => {
     return value;
 };
 
-export default function RentalTable({ rows = [], filters = {}, summary = {} }) {
+export default function RentalTable({ rows: paginator = {}, filters = {}, summary = {} }) {
     const [search, setSearch] = useState(filters.SEARCH || "");
+    const { data: rows = [], current_page = 1, last_page = 1, from = 0, to = 0, total = 0 } = paginator;
 
     const goSearch = (event) => {
         event.preventDefault();
@@ -40,6 +41,14 @@ export default function RentalTable({ rows = [], filters = {}, summary = {} }) {
         router.reload({
             preserveScroll: true,
         });
+    };
+
+    const goToPage = (page) => {
+        if (page < 1 || page > last_page) return;
+
+        const params = new URLSearchParams(window.location.search);
+        params.set("page", page);
+        router.get(`/profit-unit/rental/table?${params.toString()}`, {}, { preserveScroll: true });
     };
 
     return (
@@ -164,6 +173,20 @@ export default function RentalTable({ rows = [], filters = {}, summary = {} }) {
                             </tbody>
                         </table>
                     </div>
+                    {last_page > 1 && (
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3">
+                            <p className="text-xs font-semibold text-slate-500">Menampilkan {from}–{to} dari {total}</p>
+                            <div className="flex items-center gap-2">
+                                <button type="button" onClick={() => goToPage(current_page - 1)} disabled={current_page <= 1} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-30" aria-label="Halaman sebelumnya">
+                                    <ChevronLeft size={16} />
+                                </button>
+                                <span className="text-xs font-black text-slate-600">Halaman {current_page} dari {last_page}</span>
+                                <button type="button" onClick={() => goToPage(current_page + 1)} disabled={current_page >= last_page} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-30" aria-label="Halaman berikutnya">
+                                    <ChevronRight size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </section>
             </div>
         </AdminLayout>
