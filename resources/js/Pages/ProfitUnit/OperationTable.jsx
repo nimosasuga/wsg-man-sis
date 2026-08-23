@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Head, Link, router } from "@inertiajs/react";
 import { ArrowLeft, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, Search } from "lucide-react";
 import AdminLayout from "../../Layouts/AdminLayout";
@@ -119,6 +119,7 @@ const LCL_CONFIG = {
 
 export default function OperationTable({ title, type, rows: paginator = {}, filters = {}, summary = {} }) {
     const [search, setSearch] = useState(filters.SEARCH || "");
+    const lastRequestedSearch = useRef(filters.SEARCH || "");
     const basePath = `/profit-unit/${type}/table`;
 
     const { data: rows = [], current_page, last_page, from, to, total } = paginator;
@@ -128,19 +129,27 @@ export default function OperationTable({ title, type, rows: paginator = {}, filt
     const sort = filters.SORT || defaultSort;
     const direction = filters.DIRECTION || 'desc';
 
-    const goSearch = (event) => {
-        event.preventDefault();
+    useEffect(() => {
+        const normalizedSearch = search.trim();
+        if (normalizedSearch === lastRequestedSearch.current) return undefined;
 
-        const params = new URLSearchParams(window.location.search);
-        params.set('nopol', filters.NOPOL || 'ALL');
-        params.set('area', filters.AREA || 'ALL');
-        params.set('search', search);
-        params.delete('page');
+        const timeout = window.setTimeout(() => {
+            const params = new URLSearchParams(window.location.search);
+            params.set('nopol', filters.NOPOL || 'ALL');
+            params.set('area', filters.AREA || 'ALL');
+            normalizedSearch ? params.set('search', normalizedSearch) : params.delete('search');
+            params.delete('page');
+            lastRequestedSearch.current = normalizedSearch;
 
-        router.get(`${basePath}?${params.toString()}`, {}, {
-            preserveScroll: true,
-        });
-    };
+            router.get(`${basePath}?${params.toString()}`, {}, {
+                preserveScroll: true,
+                preserveState: true,
+                replace: true,
+            });
+        }, 400);
+
+        return () => window.clearTimeout(timeout);
+    }, [basePath, filters.AREA, filters.NOPOL, search]);
 
     const toggleSort = (column) => {
         const dbColumn = config.sortable[column];
@@ -203,7 +212,7 @@ export default function OperationTable({ title, type, rows: paginator = {}, filt
                         </div>
 
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <form onSubmit={goSearch} className="flex h-10 overflow-hidden rounded-lg border border-slate-200 bg-white">
+                            <div className="flex h-10 overflow-hidden rounded-lg border border-slate-200 bg-white">
                                 <div className="grid w-10 place-items-center text-slate-400">
                                     <Search size={17} />
                                 </div>
@@ -213,7 +222,7 @@ export default function OperationTable({ title, type, rows: paginator = {}, filt
                                     placeholder="Cari tanggal, area, nopol..."
                                     className="w-full min-w-0 border-0 px-1 text-sm font-semibold text-slate-800 outline-none focus:ring-0 sm:w-72"
                                 />
-                            </form>
+                            </div>
                             <button
                                 type="button"
                                 onClick={() => router.reload({ preserveScroll: true })}
