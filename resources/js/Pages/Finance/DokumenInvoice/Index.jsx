@@ -107,9 +107,24 @@ export default function Index({ invoiceData = {}, filters = {}, areas = [], divi
         );
     };
 
-    const applyFilters = (event) => {
-        event.preventDefault();
-        visitFilters(activeStatus, activeVendor, activeArea, activeDivision);
+    const changeStatus = (value) => {
+        setActiveStatus(value);
+        visitFilters(value, activeVendor, activeArea, activeDivision);
+    };
+
+    const changeVendor = (value) => {
+        setActiveVendor(value);
+        visitFilters(activeStatus, value, activeArea, activeDivision);
+    };
+
+    const changeArea = (value) => {
+        setActiveArea(value);
+        visitFilters(activeStatus, activeVendor, value, activeDivision);
+    };
+
+    const changeDivision = (value) => {
+        setActiveDivision(value);
+        visitFilters(activeStatus, activeVendor, activeArea, value);
     };
 
     const resetFilters = () => {
@@ -185,17 +200,16 @@ export default function Index({ invoiceData = {}, filters = {}, areas = [], divi
                 </div>
             </div>
 
-            <form onSubmit={applyFilters} className="mb-4 grid gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto_auto] xl:items-end">
-                <FilterSelect label="Status" value={activeStatus} options={statusList} onChange={setActiveStatus} />
-                <FilterSelect label="Vendor" value={activeVendor} options={vendors} onChange={setActiveVendor} />
-                <FilterSelect label="Area" value={activeArea} options={areas} onChange={setActiveArea} />
-                <FilterSelect label="Divisi" value={activeDivision} options={divisions} onChange={setActiveDivision} />
-                <button type="submit" className="h-11 rounded-lg bg-orange-500 px-5 text-xs font-black text-white transition hover:bg-orange-600">Terapkan</button>
+            <div className="mb-4 grid gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto] xl:items-end">
+                <FilterSelect label="Status" value={activeStatus} options={statusList} onChange={changeStatus} />
+                <FilterSelect label="Vendor" value={activeVendor} options={vendors} onChange={changeVendor} />
+                <FilterSelect label="Area" value={activeArea} options={areas} onChange={changeArea} />
+                <FilterSelect label="Divisi" value={activeDivision} options={divisions} onChange={changeDivision} />
                 <button type="button" onClick={resetFilters} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 text-xs font-bold text-gray-600 transition hover:bg-gray-50">
                     <RotateCcw size={15} />
                     Reset
                 </button>
-            </form>
+            </div>
 
             <div className="flex h-[calc(100vh-290px)] min-h-[420px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3">
