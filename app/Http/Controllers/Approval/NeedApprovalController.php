@@ -109,17 +109,17 @@ class NeedApprovalController extends Controller
         abort_if(! $row, 404);
 
         DB::table('finance_accounting_tax_alur_aproval')->insert([
-            'id_key' => 'APR-' . Str::uuid(),
+            'id_key' => 'APR-'.Str::uuid(),
             'no_invoice' => $row->no_invoice,
             'no_payment' => $row->no_payment,
-            'date_time' => now()->format('d/m/Y H:i:s'),
+            'date_time' => now()->format('Y-m-d H:i:s'),
             'email' => auth()->user()->email,
             'status_doc' => 'APPROVED',
-            'diajukan' => auth()->user()->name,
+            'diajukan' => auth()->user()->name ?? auth()->user()->nik,
         ]);
 
         return redirect()->route('need-approval.outstanding')
-            ->with('success', 'Invoice ' . $row->no_invoice . ' berhasil disetujui.');
+            ->with('success', 'Invoice '.$row->no_invoice.' berhasil disetujui.');
     }
 
     public function reject(string $id)
@@ -128,17 +128,17 @@ class NeedApprovalController extends Controller
         abort_if(! $row, 404);
 
         DB::table('finance_accounting_tax_alur_aproval')->insert([
-            'id_key' => 'APR-' . Str::uuid(),
+            'id_key' => 'APR-'.Str::uuid(),
             'no_invoice' => $row->no_invoice,
             'no_payment' => $row->no_payment,
-            'date_time' => now()->format('d/m/Y H:i:s'),
+            'date_time' => now()->format('Y-m-d H:i:s'),
             'email' => auth()->user()->email,
             'status_doc' => 'REJECTED',
-            'diajukan' => auth()->user()->name,
+            'diajukan' => auth()->user()->name ?? auth()->user()->nik,
         ]);
 
         return redirect()->route('need-approval.outstanding')
-            ->with('success', 'Invoice ' . $row->no_invoice . ' ditolak.');
+            ->with('success', 'Invoice '.$row->no_invoice.' ditolak.');
     }
 
     private function outstandingRows(): Collection
