@@ -96,6 +96,8 @@ class DokumenInvoiceController extends Controller
             $invoiceQuery->where('invoice.divisi', $divisi);
         }
 
+        $totalPayment = (clone $invoiceQuery)->sum('invoice.total_payment');
+
         // Gunakan simple pagination supaya klik status tidak didahului COUNT seluruh invoice.
         $invoiceData = $invoiceQuery
             ->orderByRaw(LegacyDate::sql('invoice.invoice_date').' desc')
@@ -157,6 +159,9 @@ class DokumenInvoiceController extends Controller
 
         return Inertia::render('Finance/DokumenInvoice/Index', [
             'invoiceData' => $invoiceData,
+            'summary' => [
+                'totalPayment' => (float) $totalPayment,
+            ],
             'filters' => [
                 'status' => $status,
                 'area' => $area === '' ? 'ALL' : $area,
@@ -175,7 +180,7 @@ class DokumenInvoiceController extends Controller
             ->where('id_key', $id)
             ->first();
 
-        abort_if(!$invoice, 404);
+        abort_if(! $invoice, 404);
 
         $editor = DB::table('operasional_catatan_update')
             ->where('id_record', $invoice->id_key)
@@ -189,7 +194,7 @@ class DokumenInvoiceController extends Controller
         $invoice->create_date = $this->displayDate($invoice->create_date, true);
 
         return Inertia::render('Finance/DokumenInvoice/Detail', [
-            'invoiceData' => $invoice
+            'invoiceData' => $invoice,
         ]);
     }
 
