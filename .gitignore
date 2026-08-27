@@ -1,5 +1,7 @@
 *.log
 .DS_Store
+.obsidian/
+.opencode/
 .env
 .env.backup
 .env.production
