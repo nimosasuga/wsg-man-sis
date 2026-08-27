@@ -69,6 +69,7 @@ class DokumenInvoiceController extends Controller
                 'invoice.pph',
                 'invoice.total_payment',
                 'invoice.pengajuan',
+                'invoice.email',
                 'invoice.upload_invoice',
                 'invoice.status_dokumen_asli'
             )
@@ -125,6 +126,7 @@ class DokumenInvoiceController extends Controller
 
         $invoiceData->getCollection()->transform(function ($invoice) use ($editors) {
             $editor = $editors->get($invoice->id_key);
+            $invoice->user = $invoice->email ?? null;
             $invoice->editor = $editor->nama_admin ?? null;
             $invoice->edit_time = $editor->tgl_cek_admin ?? null;
             $invoice->invoice_date = $this->displayDate($invoice->invoice_date);

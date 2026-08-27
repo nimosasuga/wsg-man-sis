@@ -197,6 +197,7 @@ export default function Index({ invoiceData = {}, summary = {}, filters = {}, ar
     const columns = [
         { label: "STATUS INVOICE", key: "status_invoice" },
         { label: "STATUS DOKUMEN", key: "status_dokumen_asli" },
+        { label: "USER", key: "user" },
         { label: "EDITOR", key: "editor" },
         { label: "NO INVOICE", key: "no_invoice" },
         { label: "TANGGAL INVOICE", key: "invoice_date" },
@@ -323,6 +324,9 @@ export default function Index({ invoiceData = {}, summary = {}, filters = {}, ar
                                                 <span className={`rounded-md px-2 py-1 text-[10px] font-bold ${statusTone(row.status_dokumen_asli)}`}>
                                                     {documentStatusLabel(row.status_dokumen_asli)}
                                                 </span>
+                                            </td>
+                                            <td className="border-r border-gray-50 px-4 py-2.5 text-xs font-medium text-gray-700">
+                                                {row.user || "-"}
                                             </td>
                                             <td className="border-r border-gray-50 px-4 py-2.5 text-xs font-medium text-gray-700">
                                                 {row.editor || "-"}
