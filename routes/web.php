@@ -82,6 +82,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::prefix('biaya')->name('biaya.')->middleware('permission:biaya.view')->group(function () {
         Route::get('/', [BiayaController::class, 'index'])->name('index');
+        Route::get('/unit/{nopol}', [BiayaController::class, 'unitDetail'])->name('unit.detail');
         Route::get('/{slug}', [BiayaController::class, 'category'])->name('category');
         Route::get('/{slug}/{id}', [BiayaController::class, 'detail'])->name('detail');
     });

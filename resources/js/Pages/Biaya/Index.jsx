@@ -870,11 +870,11 @@ export default function Index({ summaryData = [], vehicleCosts = {}, operationFl
                             {vehicleRows.map((row) => (
                                 <tr
                                     key={row.nopol}
-                                    onClick={() => router.visit(`/inventori/pajak/${encodeURIComponent(row.nopol)}`)}
+                                    onClick={() => router.visit(`/biaya/unit/${encodeURIComponent(row.nopol)}`)}
                                     onKeyDown={(event) => {
                                         if (!["Enter", " "].includes(event.key)) return;
                                         event.preventDefault();
-                                        router.visit(`/inventori/pajak/${encodeURIComponent(row.nopol)}`);
+                                        router.visit(`/biaya/unit/${encodeURIComponent(row.nopol)}`);
                                     }}
                                     role="button"
                                     tabIndex={0}
