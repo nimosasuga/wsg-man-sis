@@ -88,21 +88,51 @@ export default function OperationDetail({ title, type, detail = {}, backUrl }) {
 
                 <SectionCard icon={FileText} title="Informasi Record">
                     <InfoItem label="ID KEY" value={detail.id_key} />
+                    <InfoItem label="HARI" value={detail.hari} />
                     <InfoItem label="CREATE" value={detail.create} />
-                    <InfoItem label="TANGGAL MUAT" value={detail.tanggal_muat} />
-                    <InfoItem label="TANGGAL TERIMA" value={detail.tanggal_terima} />
+                    <InfoItem label="BULAN" value={detail.bulan} />
+                    <InfoItem label="TAHUN" value={detail.tahun} />
                     <InfoItem label="WEEK" value={detail.week} />
+                    <InfoItem label="CROSSCEK DATE" value={detail.crosscek_date} />
+                    <InfoItem label="ADD DATA" value={detail.add_data} />
+                    {type !== "secondary" && (
+                        <>
+                            <InfoItem label="TANGGAL" value={detail.tanggal} />
+                            <InfoItem label="TANGGAL MUAT" value={detail.tanggal_muat} />
+                            <InfoItem label="TANGGAL TERIMA" value={detail.tanggal_terima} />
+                        </>
+                    )}
                 </SectionCard>
 
                 <SectionCard icon={MapPin} title="Lokasi & Rute">
-                    <InfoItem label="REGIONAL" value={detail.regional} />
-                    <InfoItem label="AREA" value={detail.area} />
-                    <InfoItem label="RUTE ASAL" value={detail.rute_asal} />
-                    <InfoItem label="RUTE TUJUAN" value={detail.rute_tujuan} />
+                    {type === "secondary" ? (
+                        <>
+                            <InfoItem label="REGION" value={detail.region} />
+                            <InfoItem label="AREA" value={detail.area} />
+                            <InfoItem label="TIPE UNIT" value={detail.tipe} />
+                            <InfoItem label="PROJECT" value={detail.project} />
+                            <InfoItem label="POSISI PROJECT" value={detail.posisi_project} />
+                            <InfoItem label="RUTE" value={detail.rute} />
+                            <InfoItem label="ASSET" value={detail.asset} />
+                            <InfoItem label="KETERANGAN" value={detail.keterangan} />
+                        </>
+                    ) : (
+                        <>
+                            <InfoItem label="REGIONAL" value={detail.regional} />
+                            <InfoItem label="AREA" value={detail.area} />
+                            <InfoItem label="TIPE UNIT" value={detail.tipe} />
+                            <InfoItem label="PROJECT" value={detail.project} />
+                            <InfoItem label="POSISI PROJECT" value={detail.posisi_project} />
+                            <InfoItem label="RUTE ASAL" value={detail.rute_asal} />
+                            <InfoItem label="RUTE TUJUAN" value={detail.rute_tujuan} />
+                        </>
+                    )}
                 </SectionCard>
 
                 <SectionCard icon={Box} title="Muatan & Dokumen">
                     <InfoItem label="NOPOL & DRIVER" value={detail.nopol} />
+                    {type === "secondary" && <InfoItem label="DRIVER" value={detail.driver} />}
+                    {type === "secondary" && <InfoItem label="HELPER" value={detail.helper} />}
                     <InfoItem label="VENDOR" value={detail.vendor} />
                     <InfoItem label="QTY" value={formatNum(detail.qty)} />
                     <InfoItem label="JENIS" value={detail.jenis} />
@@ -112,11 +142,22 @@ export default function OperationDetail({ title, type, detail = {}, backUrl }) {
                 </SectionCard>
 
                 <SectionCard icon={DollarSign} title="Keuangan">
-                    <InfoItem label="TOTAL" value={formatRp(detail.total)} />
-                    <InfoItem label="TARIF" value={formatRp(detail.tarif)} />
-                    <InfoItem label="TOTAL TARIF" value={formatRp(detail.total_tarif)} />
-                    <InfoItem label="TOTAL BIAYA" value={formatRp(detail.total_biaya)} />
-                    <InfoItem label="PROFIT" value={formatRp(detail.profit)} highlight />
+                    {type === "secondary" ? (
+                        <>
+                            <InfoItem label="TARIF UNIT" value={formatRp(detail.tarif_unit)} />
+                            <InfoItem label="TAGIHAN" value={formatRp(detail.tagihan)} />
+                            <InfoItem label="TOTAL BIAYA OPERASIONAL" value={formatRp(detail.total_biaya_operasional)} />
+                            <InfoItem label="PROFIT TRIP" value={formatRp(detail.profit)} highlight />
+                        </>
+                    ) : (
+                        <>
+                            <InfoItem label="TOTAL" value={formatRp(detail.total)} />
+                            <InfoItem label="TARIF" value={formatRp(detail.tarif)} />
+                            <InfoItem label="TOTAL TARIF" value={formatRp(detail.total_tarif)} />
+                            <InfoItem label="TOTAL BIAYA" value={formatRp(detail.total_biaya)} />
+                            <InfoItem label="PROFIT TRIP" value={formatRp(detail.profit)} highlight />
+                        </>
+                    )}
                 </SectionCard>
 
                 <SectionCard icon={User} title="Aktivitas">

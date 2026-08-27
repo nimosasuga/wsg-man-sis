@@ -234,9 +234,10 @@ export default function RentalDetail({ detail = {}, legalitas = {}, backUrl = "/
                         <InfoItem label="TANGGAL" value={formatTanggal(detail.tanggal)} />
                         <InfoItem label="AREA" value={detail.area} />
                         <InfoItem label="NOPOL" value={detail.nopol} />
-                        <InfoItem label="TIPE" value={detail.tipe} />
+                        <InfoItem label="TIPE UNIT" value={detail.tipe} />
                         <InfoItem label="TARIF_SEWA_UNIT_BLN" value={formatRp(detail.tarif_sewa_unit_bln)} />
                         <InfoItem label="BIAYA LEGALITAS" value={formatRp(detail.biaya_legalitas)} />
+                        <InfoItem label="PROFIT TRIP" value={formatRp((detail.tarif_sewa_unit_bln || 0) - (detail.biaya_legalitas || 0))} />
                         <InfoItem label="WEEK" value={detail.week} />
                         <InfoItem label="TAHUN" value={detail.tahun} />
                         <InfoItem label="BULAN" value={detail.bulan} />
