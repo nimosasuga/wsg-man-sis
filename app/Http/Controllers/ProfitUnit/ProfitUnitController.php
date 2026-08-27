@@ -708,7 +708,7 @@ class ProfitUnitController extends Controller
                         'status' => $unit->status_stnk,
                         'jatuh_tempo' => $unit->jatuh_tempo_stnk,
                         'masa_aktif' => $unit->masa_aktif_stnk,
-                        'no_bpkb' => $unit->bpkb,
+                        'no_bpkb' => $unit->no_bpkb,
                         'keterangan' => $unit->keterangan_stnk,
                     ],
                     'pajak' => [
