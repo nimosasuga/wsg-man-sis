@@ -209,6 +209,7 @@ class ProfitUnitController extends Controller
                         'area' => $row->area ?: 'TIDAK DIKETAHUI',
                         'nopol' => $row->nopol ?: '-',
                         'tipe' => $row->tipe_unit ?: 'TIDAK DIKETAHUI',
+                        'driver' => $row->driver ?: '-',
                         'rute' => $row->order_type ?: '-',
                         'revenue' => $metrics['tagihan'],
                         'cost' => $metrics['cost'],
