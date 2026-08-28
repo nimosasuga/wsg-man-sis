@@ -227,8 +227,12 @@ class ProfitUnitController extends Controller
     {
         $primaryQuery = DB::table('operasional_primary_input');
         $primaryRevenue = (float) (clone $primaryQuery)->sum('total_tarif');
-        $primaryCost = (float) (clone $primaryQuery)->sum('total_biaya');
-        $primaryProfit = (float) (clone $primaryQuery)->sum('profit');
+        $primaryCost = (float) (clone $primaryQuery)
+            ->selectRaw("COALESCE(SUM(total_biaya + COALESCE(CAST(NULLIF(productivity,'') AS DECIMAL(18,2)),0)), 0) as c")
+            ->value('c');
+        $primaryProfit = (float) (clone $primaryQuery)
+            ->selectRaw("COALESCE(SUM(CASE WHEN LOWER(regional) = 'selisih bbm' THEN 0 ELSE (total_tarif - total_biaya - COALESCE(CAST(NULLIF(productivity,'') AS DECIMAL(18,2)),0)) END), 0) as p")
+            ->value('p');
 
         $secondaryRows = $this->secondaryRowsWithMetrics();
         $secondaryRevenue = (float) $secondaryRows->sum('revenue');
@@ -255,7 +259,7 @@ class ProfitUnitController extends Controller
                     'profit' => $primaryProfit,
                     'count' => (clone $primaryQuery)->count(),
                     'revenueLabel' => 'Total Tarif Primary',
-                    'costLabel' => 'Total Biaya Primary',
+                    'costLabel' => 'Total Biaya + Produktivitas',
                     'formulaNote' => 'Profit merupakan total hasil setiap transaksi setelah tarif dikurangi seluruh biaya operasional dan produktivitas. Transaksi kategori Selisih BBM tidak menghasilkan profit.',
                 ],
                 [
@@ -1296,8 +1300,12 @@ class ProfitUnitController extends Controller
         }
 
         $revenue = (float) (clone $query)->sum('total_tarif');
-        $cost = (float) (clone $query)->sum('total_biaya');
-        $profitTotal = $revenue - $cost;
+        $cost = (float) (clone $query)
+            ->selectRaw("COALESCE(SUM(total_biaya + COALESCE(CAST(NULLIF(productivity,'') AS DECIMAL(18,2)),0)), 0) as cost")
+            ->value('cost');
+        $profitTotal = (float) (clone $query)
+            ->selectRaw("COALESCE(SUM(CASE WHEN LOWER(regional) = 'selisih bbm' THEN 0 ELSE total_tarif - total_biaya - COALESCE(CAST(NULLIF(productivity,'') AS DECIMAL(18,2)),0) END), 0) as profit")
+            ->value('profit');
         $count = (clone $query)->count();
 
         $avgProfit = $count > 0 ? $profitTotal / $count : 0;
@@ -1305,7 +1313,7 @@ class ProfitUnitController extends Controller
         $avgBiaya = (float) (clone $query)->avg('total_biaya');
 
         $byArea = (clone $query)
-            ->select('area', DB::raw('SUM(total_tarif - total_biaya) as profit'))
+            ->select('area', DB::raw("SUM(CASE WHEN LOWER(regional) = 'selisih bbm' THEN 0 ELSE total_tarif - total_biaya - COALESCE(CAST(NULLIF(productivity,'') AS DECIMAL(18,2)),0) END) as profit"))
             ->groupBy('area')
             ->orderByDesc('profit')
             ->get()
@@ -1315,7 +1323,7 @@ class ProfitUnitController extends Controller
             ]);
 
         $byType = (clone $query)
-            ->select('jenis', DB::raw('COUNT(*) as total'), DB::raw('SUM(total_tarif) as revenue'), DB::raw('SUM(total_tarif - total_biaya) as profit'))
+            ->select('jenis', DB::raw('COUNT(*) as total'), DB::raw('SUM(total_tarif) as revenue'), DB::raw("SUM(CASE WHEN LOWER(regional) = 'selisih bbm' THEN 0 ELSE total_tarif - total_biaya - COALESCE(CAST(NULLIF(productivity,'') AS DECIMAL(18,2)),0) END) as profit"))
             ->groupBy('jenis')
             ->orderByDesc('profit')
             ->get()
@@ -1327,7 +1335,7 @@ class ProfitUnitController extends Controller
             ]);
 
         $byYear = (clone $query)
-            ->selectRaw('YEAR('.LegacyDate::sql('tanggal_muat').') as tahun, SUM(total_tarif) as revenue, SUM(total_biaya) as cost, SUM(total_tarif - total_biaya) as profit, COUNT(*) as total')
+            ->selectRaw("YEAR(".LegacyDate::sql('tanggal_muat').") as tahun, SUM(total_tarif) as revenue, SUM(total_biaya + COALESCE(CAST(NULLIF(productivity,'') AS DECIMAL(18,2)),0)) as cost, SUM(CASE WHEN LOWER(regional) = 'selisih bbm' THEN 0 ELSE total_tarif - total_biaya - COALESCE(CAST(NULLIF(productivity,'') AS DECIMAL(18,2)),0) END) as profit, COUNT(*) as total")
             ->whereNotNull('tanggal_muat')
             ->groupBy('tahun')
             ->orderBy('tahun')
@@ -1341,7 +1349,7 @@ class ProfitUnitController extends Controller
             ]);
 
         $byRegional = (clone $query)
-            ->select('regional', DB::raw('SUM(total_tarif - total_biaya) as profit'), DB::raw('COUNT(*) as total'))
+            ->select('regional', DB::raw("SUM(CASE WHEN LOWER(regional) = 'selisih bbm' THEN 0 ELSE total_tarif - total_biaya - COALESCE(CAST(NULLIF(productivity,'') AS DECIMAL(18,2)),0) END) as profit"), DB::raw('COUNT(*) as total'))
             ->whereNotNull('regional')
             ->where('regional', '!=', '')
             ->groupBy('regional')
@@ -1354,7 +1362,7 @@ class ProfitUnitController extends Controller
             ]);
 
         $topUnits = (clone $query)
-            ->select('nopol_driver', 'area', 'jenis', DB::raw('SUM(total_tarif - total_biaya) as profit'), DB::raw('COUNT(*) as total'))
+            ->select('nopol_driver', 'area', 'jenis', DB::raw("SUM(CASE WHEN LOWER(regional) = 'selisih bbm' THEN 0 ELSE total_tarif - total_biaya - COALESCE(CAST(NULLIF(productivity,'') AS DECIMAL(18,2)),0) END) as profit"), DB::raw('COUNT(*) as total'))
             ->whereNotNull('nopol_driver')
             ->where('nopol_driver', '!=', '')
             ->groupBy('nopol_driver', 'area', 'jenis')
@@ -1383,9 +1391,13 @@ class ProfitUnitController extends Controller
                 'week',
                 'total_tarif',
                 'total_biaya',
-                'profit',
+                'productivity',
             ])
-            ->map(fn ($row) => [
+            ->map(function ($row) {
+                $productivity = (float) ($row->productivity ?: 0);
+                $isSelisihBbm = mb_strtolower(trim((string) $row->regional)) === 'selisih bbm';
+
+                return [
                 'id_key' => $row->id_key,
                 'tanggal' => $row->tanggal_muat,
                 'tanggal_terima' => $row->tanggal_terima,
@@ -1396,9 +1408,10 @@ class ProfitUnitController extends Controller
                 'rute' => trim(($row->rute_asal ?: '-').' - '.($row->rute_tujuan ?: '-')),
                 'week' => $row->week,
                 'revenue' => (float) $row->total_tarif,
-                'cost' => (float) $row->total_biaya,
-                'profit' => (float) $row->total_tarif - (float) $row->total_biaya,
-            ]);
+                'cost' => $isSelisihBbm ? 0 : (float) $row->total_biaya + $productivity,
+                'profit' => $isSelisihBbm ? 0 : (float) $row->total_tarif - (float) $row->total_biaya - $productivity,
+                ];
+            });
 
         return Inertia::render('ProfitUnit/Primary', [
             'filters' => [
@@ -1494,7 +1507,8 @@ class ProfitUnitController extends Controller
         $totals = (clone $query)
             ->selectRaw('COUNT(*) as total_rows')
             ->selectRaw('COALESCE(SUM(total_tarif), 0) as revenue')
-            ->selectRaw('COALESCE(SUM(total_biaya), 0) as cost')
+            ->selectRaw("COALESCE(SUM(total_biaya + COALESCE(CAST(NULLIF(productivity,'') AS DECIMAL(18,2)),0)), 0) as cost")
+            ->selectRaw("COALESCE(SUM(CASE WHEN LOWER(regional) = 'selisih bbm' THEN 0 ELSE total_tarif - total_biaya - COALESCE(CAST(NULLIF(productivity,'') AS DECIMAL(18,2)),0) END), 0) as profit")
             ->first();
 
         $pageSize = max(1, min((int) request()->query('per_page', 50), 200));
@@ -1555,8 +1569,8 @@ class ProfitUnitController extends Controller
             'nopol' => $row->nopol_driver,
             'tipe' => $row->jenis,
             'tarif' => (float) $row->total_tarif,
-            'biaya' => (float) $row->total_biaya,
-            'profit' => (float) $row->total_tarif - (float) $row->total_biaya,
+            'biaya' => (float) $row->total_biaya + (float) ($row->productivity ?: 0),
+            'profit' => mb_strtolower(trim((string) $row->regional)) === 'selisih bbm' ? 0 : (float) $row->total_tarif - (float) $row->total_biaya - (float) ($row->productivity ?: 0),
             'week' => $row->week ? 'W'.$row->week : '-',
         ]);
 
@@ -1569,7 +1583,7 @@ class ProfitUnitController extends Controller
                 'count' => (int) ($totals->total_rows ?? 0),
                 'revenue' => (float) ($totals->revenue ?? 0),
                 'cost' => (float) ($totals->cost ?? 0),
-                'profit' => (float) ($totals->revenue ?? 0) - (float) ($totals->cost ?? 0),
+                'profit' => (float) ($totals->profit ?? 0),
             ],
         ]);
     }
@@ -1605,8 +1619,9 @@ class ProfitUnitController extends Controller
                 'total' => (float) $row->total,
                 'tarif' => (float) $row->tarif,
                 'total_tarif' => (float) $row->total_tarif,
-                'total_biaya' => (float) $row->total_biaya,
-                'profit' => (float) $row->profit,
+                'total_biaya' => (float) $row->total_biaya + (float) ($row->productivity ?: 0),
+                'productivity' => (float) ($row->productivity ?: 0),
+                'profit' => mb_strtolower(trim((string) $row->regional)) === 'selisih bbm' ? 0 : (float) $row->total_tarif - (float) $row->total_biaya - (float) ($row->productivity ?: 0),
                 'week' => $row->week ? 'W'.$row->week : '-',
                 'no_po' => $row->no_po,
                 'no_si' => $row->no_si,
