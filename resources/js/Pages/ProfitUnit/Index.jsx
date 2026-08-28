@@ -11,16 +11,6 @@ const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", {
     maximumFractionDigits: 0,
 })}`;
 
-const formatCompactRp = (value) => {
-    const nominal = Number(value || 0);
-    const absolute = Math.abs(nominal);
-
-    if (absolute >= 1_000_000_000) return `Rp${(nominal / 1_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} M`;
-    if (absolute >= 1_000_000) return `Rp${(nominal / 1_000_000).toLocaleString("id-ID", { maximumFractionDigits: 0 })} jt`;
-
-    return formatRp(nominal);
-};
-
 const categoryHref = (item) => ({
     primary: "/profit-unit/primary",
     secondary: "/profit-unit/secondary",
@@ -87,16 +77,16 @@ function KpiStrip({ rows }) {
                             </div>
 
                             <p className={`mt-3 text-[10px] font-extrabold tracking-wide ${positive ? "text-emerald-600" : "text-rose-600"}`}>TOTAL PROFIT</p>
-                            <p title={formatRp(profit)} className="mt-0.5 break-words text-[clamp(1.25rem,2vw,1.6rem)] font-black leading-tight tracking-tight text-slate-950">{formatCompactRp(profit)}</p>
+                            <p title={formatRp(profit)} className="mt-0.5 whitespace-nowrap text-[clamp(1.15rem,1.8vw,1.5rem)] font-black leading-tight tracking-tight text-slate-950">{formatRp(profit)}</p>
 
                             <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
                                 <div className="min-w-0">
                                     <p className="text-[9px] font-extrabold leading-3 text-slate-500">{item.revenueLabel || "Total Tarif"}</p>
-                                    <p title={formatRp(item.revenue)} className="mt-0.5 break-words text-xs font-bold tabular-nums text-slate-700">{item.slug === "lcl" ? "-" : formatCompactRp(item.revenue)}</p>
+                                    <p title={formatRp(item.revenue)} className="mt-0.5 whitespace-nowrap text-xs font-bold tabular-nums text-slate-700">{item.slug === "lcl" ? "-" : formatRp(item.revenue)}</p>
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-[9px] font-extrabold leading-3 text-slate-500">{item.costLabel || "Total Biaya"}</p>
-                                    <p title={formatRp(item.cost)} className="mt-0.5 break-words text-xs font-bold tabular-nums text-slate-700">{hasCost ? formatCompactRp(item.cost) : "Tidak dihitung"}</p>
+                                    <p title={formatRp(item.cost)} className="mt-0.5 whitespace-nowrap text-xs font-bold tabular-nums text-slate-700">{hasCost ? formatRp(item.cost) : "-"}</p>
                                 </div>
                             </div>
                         </article>
@@ -180,7 +170,7 @@ Nilai setiap modul memakai formula AppSheet masing-masing, sehingga tidak dijuml
                                         <td className="px-5 py-4"><span className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-extrabold ${config.soft} ${config.accent}`}>{item.title}</span></td>
                                         <td className="px-5 py-4 text-xs font-semibold text-slate-500">{config.source}</td>
                                         <td className="px-5 py-4 text-right text-sm font-bold tabular-nums text-slate-700">{item.slug === "lcl" ? "-" : formatRp(item.revenue)}</td>
-                                        <td className="px-5 py-4 text-right text-sm font-bold tabular-nums text-slate-700">{hasCostFormula(item) ? formatRp(item.cost) : "Tidak dihitung"}</td>
+                                        <td className="px-5 py-4 text-right text-sm font-bold tabular-nums text-slate-700">{hasCostFormula(item) ? formatRp(item.cost) : "-"}</td>
                                         <td className="px-5 py-4 text-right text-sm font-black tabular-nums text-slate-950">{formatRp(item.profit)}</td>
                                         <td className="px-5 py-4 text-right text-sm font-semibold text-slate-500">{Number(item.count || 0).toLocaleString("id-ID")}</td>
                                         <td className="px-5 py-4 text-xs font-medium leading-5 text-slate-500">{item.formulaNote || "-"}</td>
