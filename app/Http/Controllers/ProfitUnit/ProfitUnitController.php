@@ -256,7 +256,7 @@ class ProfitUnitController extends Controller
                     'count' => (clone $primaryQuery)->count(),
                     'revenueLabel' => 'Total Tarif Primary',
                     'costLabel' => 'Total Biaya Primary',
-                    'formulaNote' => 'Profit merupakan total hasil setiap transaksi setelah tarif dikurangi seluruh biaya operasional dan produktivitas. Transaksi kategori Selisih BBM tidak menghasilkan profit.',
+                    'formulaNote' => 'Total tarif dan total biaya dibaca dari data Primary. Total profit mengikuti nilai profit yang dihitung dan disimpan oleh AppSheet untuk setiap transaksi.',
                 ],
                 [
                     'slug' => 'secondary',
@@ -267,7 +267,7 @@ class ProfitUnitController extends Controller
                     'count' => $secondaryRows->count(),
                     'revenueLabel' => 'Total Tagihan Secondary',
                     'costLabel' => 'Total Biaya Operasional Secondary',
-                    'formulaNote' => 'Profit merupakan total tagihan Secondary dikurangi biaya operasional. Jika tarif unit kosong, transaksi dibaca rugi sebesar total biaya non-claim.',
+                    'formulaNote' => 'Total tarif berasal dari total tagihan Secondary, total biaya berasal dari biaya operasional Secondary, dan total profit mengikuti profit trip hasil perhitungan AppSheet.',
                 ],
                 [
                     'slug' => 'rental',
@@ -276,9 +276,9 @@ class ProfitUnitController extends Controller
                     'cost' => $rentalCost,
                     'profit' => $rentalRevenue,
                     'count' => DB::table('operasional_rental_unit_input')->count(),
-                    'revenueLabel' => 'Nilai Sewa Unit',
-                    'costLabel' => 'Biaya Dalam Rumus',
-                    'formulaNote' => 'Profit Rental dihitung dari total nilai sewa unit bulanan. Biaya legalitas tidak menjadi pengurang pada rumus profit AppSheet.',
+                    'revenueLabel' => 'Total Sewa Unit',
+                    'costLabel' => 'Total Biaya',
+                    'formulaNote' => 'Total tarif dan total profit Rental sama-sama berasal dari total nilai sewa unit bulanan. Total biaya tidak menjadi pengurang pada rumus profit AppSheet.',
                 ],
                 [
                     'slug' => 'lcl',
@@ -287,9 +287,9 @@ class ProfitUnitController extends Controller
                     'cost' => $lclCost,
                     'profit' => $lclProfit,
                     'count' => (clone $lclQuery)->count(),
-                    'revenueLabel' => 'Sum Tarif LCL',
-                    'costLabel' => 'Sum Biaya LCL',
-                    'formulaNote' => 'Profit LCL mengikuti total COD dari data delivery. Nilainya diambil dari ongkir per paket yang hanya masuk jika pembayaran berstatus COD.',
+                    'revenueLabel' => 'Total Ongkir',
+                    'costLabel' => 'Total Biaya',
+                    'formulaNote' => 'Total tarif dan total profit LCL mengikuti nilai COD dari data delivery. Total biaya mengikuti biaya kirim paket.',
                 ],
             ],
         ]);

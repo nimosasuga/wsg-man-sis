@@ -237,9 +237,9 @@ Nilai setiap modul memakai formula AppSheet masing-masing, sehingga tidak dijuml
                             <tr>
                                 <th className="px-5 py-3">MODUL</th>
                                 <th className="px-5 py-3">SUMBER DATA</th>
-                                <th className="px-5 py-3 text-right">NILAI SUMBER</th>
-                                <th className="px-5 py-3 text-right">BIAYA SESUAI RUMUS</th>
-                                <th className="px-5 py-3 text-right">NILAI PROFIT</th>
+                                <th className="px-5 py-3 text-right">TOTAL TARIF</th>
+                                <th className="px-5 py-3 text-right">TOTAL BIAYA</th>
+                                <th className="px-5 py-3 text-right">TOTAL PROFIT</th>
                                 <th className="px-5 py-3 text-right">RECORD</th>
                                 <th className="px-5 py-3">KETERANGAN</th>
                             </tr>
