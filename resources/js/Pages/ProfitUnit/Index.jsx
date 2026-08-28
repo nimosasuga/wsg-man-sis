@@ -58,7 +58,7 @@ const hasCostFormula = (item) => !["rental", "lcl"].includes(item.slug);
 
 function KpiStrip({ rows }) {
     return (
-        <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-4">
             {rows.map((item) => {
                 const config = getConfig(item);
                 const hasCost = hasCostFormula(item);
@@ -68,25 +68,29 @@ function KpiStrip({ rows }) {
                     <Link key={item.slug} href={categoryHref(item)} className="group block min-w-0">
                         <article className="relative h-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/70">
                             <div className={`absolute inset-x-0 top-0 h-1 ${config.line}`} />
-                            <div className="flex items-center justify-between gap-2">
-                                <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-extrabold ${config.soft} ${config.accent}`}>
-                                    <span className={`grid h-5 w-5 place-items-center rounded-md text-white ${config.icon}`}><TrendingUp size={13} strokeWidth={2.5} /></span>
-                                    {item.title}
+                            <div className="flex min-w-0 items-center gap-2">
+                                <span className={`inline-flex min-w-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-extrabold ${config.soft} ${config.accent}`}>
+                                    <span className={`grid h-4 w-4 shrink-0 place-items-center rounded text-white ${config.icon}`}><TrendingUp size={11} strokeWidth={2.5} /></span>
+                                    <span className="truncate">{item.title}</span>
                                 </span>
-                                <span className="shrink-0 text-[11px] font-semibold text-slate-400">{Number(item.count || 0).toLocaleString("id-ID")} record</span>
                             </div>
 
-                            <p className={`mt-3 text-[10px] font-extrabold tracking-wide ${positive ? "text-emerald-600" : "text-rose-600"}`}>TOTAL PROFIT</p>
-                            <p title={formatRp(profit)} className="mt-0.5 whitespace-nowrap text-[clamp(1.15rem,1.8vw,1.5rem)] font-black leading-tight tracking-tight text-slate-950">{formatRp(profit)}</p>
-
-                            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+                            <div className="mt-2 flex items-end justify-between gap-2">
                                 <div className="min-w-0">
-                                    <p className="text-[9px] font-extrabold leading-3 text-slate-500">{item.revenueLabel || "Total Tarif"}</p>
-                                    <p title={formatRp(item.revenue)} className="mt-0.5 whitespace-nowrap text-xs font-bold tabular-nums text-slate-700">{item.slug === "lcl" ? "-" : formatRp(item.revenue)}</p>
+                                    <p className={`text-[9px] font-extrabold tracking-wide ${positive ? "text-emerald-600" : "text-rose-600"}`}>TOTAL PROFIT</p>
+                                    <p title={formatRp(profit)} className="mt-0.5 whitespace-nowrap text-[clamp(.95rem,1.2vw,1.2rem)] font-black leading-tight tracking-tight text-slate-950">{formatRp(profit)}</p>
+                                </div>
+                                <span className="shrink-0 text-[10px] font-semibold text-slate-400">{Number(item.count || 0).toLocaleString("id-ID")} record</span>
+                            </div>
+
+                            <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-2">
+                                <div className="min-w-0">
+                                    <p className="text-[8px] font-extrabold leading-3 text-slate-500">{item.revenueLabel || "Total Tarif"}</p>
+                                    <p title={formatRp(item.revenue)} className="mt-0.5 whitespace-nowrap text-[10px] font-bold tabular-nums text-slate-700">{item.slug === "lcl" ? "-" : formatRp(item.revenue)}</p>
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-[9px] font-extrabold leading-3 text-slate-500">{item.costLabel || "Total Biaya"}</p>
-                                    <p title={formatRp(item.cost)} className="mt-0.5 whitespace-nowrap text-xs font-bold tabular-nums text-slate-700">{hasCost ? formatRp(item.cost) : "-"}</p>
+                                    <p className="text-[8px] font-extrabold leading-3 text-slate-500">{item.costLabel || "Total Biaya"}</p>
+                                    <p title={formatRp(item.cost)} className="mt-0.5 whitespace-nowrap text-[10px] font-bold tabular-nums text-slate-700">{hasCost ? formatRp(item.cost) : "-"}</p>
                                 </div>
                             </div>
                         </article>
