@@ -68,7 +68,7 @@ const moduleConfig = {
 };
 
 const getConfig = (item) => moduleConfig[item.slug] || moduleConfig.primary;
-const hasCostFormula = (item) => item.slug !== "rental";
+const hasCostFormula = (item) => !["rental", "lcl"].includes(item.slug);
 
 function ProfitCard({ item }) {
     const config = getConfig(item);
@@ -252,7 +252,7 @@ Nilai setiap modul memakai formula AppSheet masing-masing, sehingga tidak dijuml
                                     <tr key={item.slug} role="button" tabIndex={0} onClick={() => router.visit(href)} onKeyDown={(event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); router.visit(href); } }} className="cursor-pointer transition hover:bg-violet-50/50 focus:bg-violet-50 focus:outline-none">
                                         <td className="px-5 py-4"><span className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-extrabold ${config.soft} ${config.accent}`}>{item.title}</span></td>
                                         <td className="px-5 py-4 text-xs font-semibold text-slate-500">{config.source}</td>
-                                        <td className="px-5 py-4 text-right text-sm font-bold tabular-nums text-slate-700">{formatRp(item.revenue)}</td>
+                                        <td className="px-5 py-4 text-right text-sm font-bold tabular-nums text-slate-700">{item.slug === "lcl" ? "-" : formatRp(item.revenue)}</td>
                                         <td className="px-5 py-4 text-right text-sm font-bold tabular-nums text-slate-700">{hasCostFormula(item) ? formatRp(item.cost) : "Tidak dihitung"}</td>
                                         <td className="px-5 py-4 text-right text-sm font-black tabular-nums text-slate-950">{formatRp(item.profit)}</td>
                                         <td className="px-5 py-4 text-right text-sm font-semibold text-slate-500">{Number(item.count || 0).toLocaleString("id-ID")}</td>

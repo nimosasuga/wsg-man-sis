@@ -239,10 +239,9 @@ class ProfitUnitController extends Controller
         $rentalCost = 0.0;
 
         $lclQuery = DB::table('db_chargo_data_paket_masuk');
-        $lclDeliveryQuery = DB::table('db_chargo_data_paket_delivery');
         $lclRevenue = (float) (clone $lclQuery)->sum('total_ongkir');
-        $lclCost = (float) (clone $lclQuery)->sum('biaya_kirim');
-        $lclProfit = (float) (clone $lclDeliveryQuery)->sum('total_cod');
+        $lclCost = 0.0;
+        $lclProfit = $lclRevenue;
 
 
         return Inertia::render('ProfitUnit/Index', [
@@ -288,8 +287,8 @@ class ProfitUnitController extends Controller
                     'profit' => $lclProfit,
                     'count' => (clone $lclQuery)->count(),
                     'revenueLabel' => 'Total Ongkir',
-                    'costLabel' => 'Total Biaya',
-                    'formulaNote' => 'Total tarif dan total profit LCL mengikuti nilai COD dari data delivery. Total biaya mengikuti biaya kirim paket.',
+                    'costLabel' => 'Tidak Dipakai',
+                    'formulaNote' => 'Total tarif dan total profit LCL sama-sama mengikuti total ongkir dari Data Paket Masuk. Modul LCL tidak memakai total biaya terpisah.',
                 ],
             ],
         ]);
