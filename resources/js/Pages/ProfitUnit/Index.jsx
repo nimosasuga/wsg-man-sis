@@ -68,7 +68,7 @@ const moduleConfig = {
 };
 
 const getConfig = (item) => moduleConfig[item.slug] || moduleConfig.primary;
-const hasCostFormula = (item) => ["primary", "secondary"].includes(item.slug);
+const hasCostFormula = (item) => item.slug !== "rental";
 
 function ProfitCard({ item }) {
     const config = getConfig(item);
@@ -196,7 +196,7 @@ export default function Index({ summaryData = [] }) {
                     </div>
                 </div>
                 <div className="border-t border-slate-100 bg-slate-50 px-5 py-3 text-xs font-semibold leading-5 text-slate-500 lg:px-7">
-                    Nilai pada halaman ini tidak dijumlahkan sebagai satu total, karena Secondary memakai PROFIT Primary sebagai nilai referensi sesuai formula AppSheet.
+Nilai setiap modul memakai formula AppSheet masing-masing, sehingga tidak dijumlahkan sebagai satu total gabungan. Baca keterangan pada tabel untuk dasar perhitungannya.
                 </div>
             </section>
 
@@ -232,7 +232,7 @@ export default function Index({ summaryData = [] }) {
                     <p className="text-xs font-semibold text-slate-500">Klik baris untuk membuka detail modul.</p>
                 </div>
                 <div className="custom-scrollbar overflow-x-auto">
-                    <table className="w-full min-w-[980px] border-collapse text-left">
+                    <table className="w-full min-w-[1280px] border-collapse text-left">
                         <thead className="bg-slate-50 text-[10px] font-extrabold tracking-wide text-slate-500">
                             <tr>
                                 <th className="px-5 py-3">MODUL</th>
@@ -241,6 +241,7 @@ export default function Index({ summaryData = [] }) {
                                 <th className="px-5 py-3 text-right">BIAYA SESUAI RUMUS</th>
                                 <th className="px-5 py-3 text-right">NILAI PROFIT</th>
                                 <th className="px-5 py-3 text-right">RECORD</th>
+                                <th className="px-5 py-3">KETERANGAN</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -255,6 +256,7 @@ export default function Index({ summaryData = [] }) {
                                         <td className="px-5 py-4 text-right text-sm font-bold tabular-nums text-slate-700">{hasCostFormula(item) ? formatRp(item.cost) : "Tidak dihitung"}</td>
                                         <td className="px-5 py-4 text-right text-sm font-black tabular-nums text-slate-950">{formatRp(item.profit)}</td>
                                         <td className="px-5 py-4 text-right text-sm font-semibold text-slate-500">{Number(item.count || 0).toLocaleString("id-ID")}</td>
+                                        <td className="px-5 py-4 text-xs font-medium leading-5 text-slate-500">{item.formulaNote || "-"}</td>
                                     </tr>
                                 );
                             })}
