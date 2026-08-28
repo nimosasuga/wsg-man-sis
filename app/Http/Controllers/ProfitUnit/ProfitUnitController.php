@@ -228,7 +228,7 @@ class ProfitUnitController extends Controller
         $primaryQuery = DB::table('operasional_primary_input');
         $primaryRevenue = (float) (clone $primaryQuery)->sum('total_tarif');
         $primaryCost = (float) (clone $primaryQuery)->sum('total_biaya');
-        $primaryProfit = (float) (clone $primaryQuery)->sum('profit');
+        $primaryProfit = $primaryRevenue - $primaryCost;
 
         $secondaryRows = $this->secondaryRowsWithMetrics();
         $secondaryRevenue = (float) $secondaryRows->sum('revenue');
@@ -255,7 +255,7 @@ class ProfitUnitController extends Controller
                     'count' => (clone $primaryQuery)->count(),
                     'revenueLabel' => 'Total Tarif Primary',
                     'costLabel' => 'Total Biaya Primary',
-                    'formulaNote' => 'Total tarif dan total biaya dibaca dari data Primary. Total profit mengikuti nilai profit yang dihitung dan disimpan oleh AppSheet untuk setiap transaksi.',
+                    'formulaNote' => 'Total tarif dan total biaya dibaca dari data Primary. Total profit dihitung sebagai selisih antara total tarif dan total biaya (TOTAL TARIF - TOTAL BIAYA = TOTAL PROFIT).',
                 ],
                 [
                     'slug' => 'secondary',
