@@ -22,6 +22,7 @@ export default function Lcl({ rows = [], filterOptions = {}, filters = {}, recor
                 },
                 detailBase: "/profit-unit/lcl/table",
                 showCreator: true,
+                showType: false,
                 numberLabel: "No. STT",
                 routeLabel: "Rute Pengiriman",
                 revenueLabel: "Sum Tarif",
