@@ -1391,6 +1391,9 @@ class ProfitUnitController extends Controller
             'detail' => [
                 'id_key' => $row->id_key,
                 'tanggal' => $row->tanggal,
+                'no_stt' => $row->no_stt,
+                'kode_pesanan' => $row->kode_pesanan,
+                'total_ongkir' => (float) $row->total_ongkir,
                 'area' => $row->kota_tujuan,
                 'nopol' => $row->no_stt,
                 'tipe' => $row->katagori_barang,

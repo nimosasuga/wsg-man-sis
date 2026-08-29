@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useId, useState } from "react";
 import { Head, Link } from "@inertiajs/react";
-import { ArrowLeft, Clock, User, MapPin, Route, Truck, Box, DollarSign, Hash, FileText, Fuel, BedDouble, Activity, ClipboardList } from "lucide-react";
+import { ArrowLeft, Clock, User, MapPin, Route, Truck, Box, DollarSign, Hash, FileText, Fuel, BedDouble, Activity, ClipboardList, ChevronDown } from "lucide-react";
 import AdminLayout from "../../Layouts/AdminLayout";
 
 const formatRp = (value) =>
@@ -37,6 +37,39 @@ function SectionCard({ icon: Icon, title, children }) {
 const formatNum = (value) => Number(value || 0).toLocaleString("id-ID");
 const hasValue = (value) => value !== null && value !== undefined && value !== "";
 const formatOptional = (value, formatter) => hasValue(value) ? formatter(value) : "-";
+
+function CollapsibleSection({ title = "Data Mentah / Advanced", subtitle = "Opsional • Untuk audit/admin", children }) {
+    const [open, setOpen] = useState(false);
+    const contentId = useId();
+
+    return (
+        <section className="rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-950/5">
+            <button
+                type="button"
+                aria-expanded={open}
+                aria-controls={contentId}
+                onClick={() => setOpen((value) => !value)}
+                className="flex min-h-[68px] w-full items-center justify-between gap-4 rounded-xl px-5 py-4 text-left transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/40"
+            >
+                <span className="flex min-w-0 items-start gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><ClipboardList size={16} /></span>
+                    <span className="min-w-0">
+                        <span className="flex flex-wrap items-center gap-2 text-sm font-black uppercase tracking-wide text-slate-950">
+                            {title}
+                            <span className="rounded bg-slate-100 px-2 py-0.5 text-[10px] font-black tracking-normal text-slate-500">Opsional</span>
+                        </span>
+                        <span className="mt-1 block text-xs font-semibold normal-case tracking-normal text-slate-500">{subtitle}</span>
+                        <span className="mt-0.5 block text-xs font-semibold normal-case tracking-normal text-cyan-700">{open ? "Klik untuk menyembunyikan" : "Klik untuk melihat payload lengkap"}</span>
+                    </span>
+                </span>
+                <ChevronDown size={20} className={`shrink-0 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+            </button>
+            <div id={contentId} hidden={!open} className="border-t border-slate-100">
+                {children}
+            </div>
+        </section>
+    );
+}
 
 function PrimarySection({ title, icon: Icon, children, fullWidth = false }) {
     return (
@@ -306,13 +339,54 @@ function SecondaryDetail({ detail = {}, dailySummary = {}, backUrl }) {
             <InfoItem label="Lama Cek Data" value={txt("lama_cek_data")} />
         </PrimarySection>
 
-        <details className="group rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-950/5">
-            <summary className="flex cursor-pointer items-center gap-2 px-5 py-4 text-sm font-black uppercase tracking-wide text-slate-950"><ClipboardList size={16} className="text-cyan-700" /> Data Mentah / Advanced</summary>
-            <div className="grid gap-4 border-t border-slate-100 p-5 sm:grid-cols-2 xl:grid-cols-3">
+        <CollapsibleSection>
+            <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3">
                 <InfoItem label="Row Data" value={txt("row_data")} />
                 {Object.keys(detail).filter((k) => !["tagihan", "profit", "total_klaim", "total_no_klaim", "nilai_ovt", "status_doc_fat", "lama_cek_data", "ovt_jam_driver", "ovt_jam_helper", "claim_total_ovt", "editor", "edit_time", "total_biaya_operasional"].includes(k)).map((k) => <InfoItem key={k} label={k} value={txt(k)} />)}
             </div>
-        </details>
+        </CollapsibleSection>
+    </>;
+}
+
+function LclDetail({ detail = {}, backUrl }) {
+    const text = (key) => hasValue(detail[key]) ? detail[key] : "-";
+    const money = (key) => formatOptional(detail[key], formatRp);
+    const number = (key) => formatOptional(detail[key], formatNum);
+    const paymentAvailable = hasValue(detail.tagihan_cod) || hasValue(detail.total_bayar) || hasValue(detail.kembalian);
+    const tagihan = Number(detail.tagihan_cod || 0);
+    const bayar = Number(detail.total_bayar || 0);
+    const kembalian = Number(detail.kembalian || 0);
+    const sisa = tagihan - bayar;
+    const payment = !paymentAvailable
+        ? { label: "DATA PEMBAYARAN BELUM TERSEDIA", tone: "bg-slate-100 text-slate-600" }
+        : kembalian === 0
+            ? { label: "LUNAS", tone: "bg-emerald-100 text-emerald-700" }
+            : bayar < tagihan
+                ? { label: "BELUM LUNAS", tone: "bg-red-100 text-red-700" }
+                : bayar > tagihan
+                    ? { label: "LEBIH BAYAR / CEK DATA", tone: "bg-amber-100 text-amber-700" }
+                    : { label: "PERLU CEK DATA", tone: "bg-amber-100 text-amber-700" };
+    const required = [["no_stt", "NO STT"], ["nama_pengirim", "NAMA PENGIRIM"], ["kota_asal", "KOTA ASAL"], ["nama_penerima", "NAMA PENERIMA"], ["kota_tujuan", "KOTA TUJUAN"], ["total_koli", "TOTAL KOLI"], ["total_ongkir", "TOTAL ONGKIR"], ["tagihan_cod", "TAGIHAN COD"], ["total_bayar", "TOTAL BAYAR"]];
+    const missing = required.filter(([key]) => !hasValue(detail[key]));
+
+    return <>
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-950/5">
+            <div className="flex min-w-0 items-center gap-3"><Link href={backUrl || "/profit-unit/lcl/table"} className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"><ArrowLeft size={19} /></Link><div className="min-w-0"><p className="text-[11px] font-black uppercase tracking-wide text-cyan-700">Profit Unit / LCL / Detail</p><h1 className="truncate text-xl font-black uppercase text-slate-950">Detail Profit LCL</h1></div></div>
+            <p className="mt-1 text-xs font-semibold text-slate-500">Ringkasan data paket dari AppSheet Data_Paket_Masuk</p>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-950/5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="break-words text-2xl font-black text-slate-950">{text("no_stt")}</h2><span className="rounded bg-cyan-100 px-2 py-0.5 text-[11px] font-black text-cyan-700">LCL</span></div><p className="mt-1 text-sm font-semibold text-slate-600">Kode Pesanan: {text("kode_pesanan")}</p><p className="mt-3 break-words text-base font-black text-slate-800">{text("kota_asal")} <span className="px-1 text-cyan-600">→</span> {text("kota_tujuan")}</p><p className="mt-2 text-sm font-semibold text-slate-600">Pengirim: {text("nama_pengirim")} · Penerima: {text("nama_penerima")}</p></div><span className={`rounded-lg px-3 py-2 text-xs font-black ${payment.tone}`}>{payment.label}</span></div></section>
+
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{[["Total Ongkir", money("total_ongkir"), "text-blue-700"], ["Tagihan COD", money("tagihan_cod"), "text-amber-700"], ["Total Bayar", money("total_bayar"), "text-emerald-700"], ["Kembalian", money("kembalian"), "text-slate-700"], ["Total Koli", number("total_koli"), "text-slate-900"], ["Qty Unit", number("qty_unit"), "text-slate-900"]].map(([label, value, tone]) => <div key={label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">{label}</p><p className={`mt-1 whitespace-nowrap text-lg font-black tabular-nums ${tone}`}>{value}</p></div>)}</section>
+
+        <PrimarySection title="Informasi Paket" icon={Box}><InfoItem label="No STT" value={text("no_stt")} /><InfoItem label="Kode Pesanan" value={text("kode_pesanan")} /><InfoItem label="Total Koli" value={number("total_koli")} /><InfoItem label="Qty Unit" value={number("qty_unit")} /></PrimarySection>
+        <section className="grid gap-4 md:grid-cols-2"><PrimarySection title="Pengirim" icon={User}><InfoItem label="Nama Pengirim" value={text("nama_pengirim")} /><InfoItem label="Kota Asal" value={text("kota_asal")} /></PrimarySection><PrimarySection title="Penerima" icon={User}><InfoItem label="Nama Penerima" value={text("nama_penerima")} /><InfoItem label="Kota Tujuan" value={text("kota_tujuan")} /></PrimarySection></section>
+        <PrimarySection title="Rute Paket" icon={Route} fullWidth><p className="break-words text-lg font-black text-slate-900">{text("kota_asal")} <span className="px-2 text-cyan-600">→</span> {text("kota_tujuan")}</p></PrimarySection>
+        <PrimarySection title="Ringkasan Biaya & Pembayaran" icon={DollarSign}><InfoItem label="Total Ongkir" value={money("total_ongkir")} /><InfoItem label="Jenis PPN" value={text("jenis_ppn")} /><InfoItem label="Total PPN" value={money("total_ppn")} /><InfoItem label="Tagihan COD" value={money("tagihan_cod")} /><InfoItem label="Total Bayar" value={money("total_bayar")} /><InfoItem label="Kembalian" value={money("kembalian")} /><InfoItem label="Sisa Pembayaran" value={paymentAvailable ? formatRp(sisa) : "-"} /><InfoItem label="Status Pembayaran" value={payment.label} /></PrimarySection>
+        <PrimarySection title="Highlight Data Penting" icon={FileText} fullWidth>{missing.length === 0 ? <p className="text-sm font-black text-emerald-700">Data utama lengkap.</p> : <div className="text-sm font-semibold text-amber-700"><p>Perlu dilengkapi:</p><ul className="mt-2 list-inside list-disc">{missing.map(([, label]) => <li key={label}>{label} kosong</li>)}</ul></div>}</PrimarySection>
+        <CollapsibleSection>
+            <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3">{Object.entries(detail).map(([key, value]) => <InfoItem key={key} label={key} value={hasValue(value) ? value : "-"} />)}</div>
+        </CollapsibleSection>
     </>;
 }
 
@@ -456,6 +530,10 @@ export default function OperationDetail({ title, type, detail = {}, backUrl, rel
 
     if (type === "secondary") {
         return <AdminLayout><Head title={`${title} - ${detail.nopol || detail.id_key || ""}`} /><div className="space-y-5"><SecondaryDetail detail={detail} dailySummary={dailySummary} backUrl={backUrl} /></div></AdminLayout>;
+    }
+
+    if (type === "lcl") {
+        return <AdminLayout><Head title={`${title} - ${detail.no_stt || detail.id_key || ""}`} /><div className="space-y-5"><LclDetail detail={detail} backUrl={backUrl} /></div></AdminLayout>;
     }
 
     return <LegacyOperationDetail title={title} type={type} detail={detail} backUrl={backUrl} />;
