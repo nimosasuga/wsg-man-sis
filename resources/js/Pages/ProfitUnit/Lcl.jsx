@@ -21,6 +21,7 @@ export default function Lcl({ rows = [], filterOptions = {}, filters = {}, recor
                     WEEK: ["DEPARTURE"],
                 },
                 detailBase: "/profit-unit/lcl/table",
+                showCreator: true,
                 numberLabel: "No. STT",
                 routeLabel: "Rute Pengiriman",
                 revenueLabel: "Sum Tarif",

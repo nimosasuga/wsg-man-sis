@@ -11,6 +11,7 @@ export default function Secondary({ rows = [] }) {
                 detailBase: "/profit-unit/secondary/table",
                 numberLabel: "Nopol",
                 showDriver: true,
+                showCreator: true,
                 routeLabel: "Kategori / Order",
                 revenueLabel: "Total Tarif Penagihan Secondary",
                 costLabel: "Total Biaya Operasional Secondary",
