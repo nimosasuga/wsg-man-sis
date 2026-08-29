@@ -130,7 +130,7 @@ class DashboardController extends Controller
         }
         $areaHealth = collect($areaHealth)->sortByDesc('score')->values()->all();
 
-            return [
+return [
                 'pajak' => $chartDataPajak,
                 'stnk' => $chartDataStnk,
                 'kir' => $chartDataKir,
@@ -157,6 +157,7 @@ class DashboardController extends Controller
                 'areaHealth' => $areaHealth,
                 'fatPrimaryStatus' => $this->fatPrimaryStatusCounts(),
                 'fatSecondaryStatus' => $this->fatSecondaryStatusCounts(),
+                'needApprovalCount' => $this->needApprovalCount(),
             ];
         });
 
@@ -302,7 +303,7 @@ class DashboardController extends Controller
                 'topAreaProfit' => (float) ($ranked->first()['profit'] ?? 0),
                 'areaCount' => $ranked->count(),
             ],
-            'areas' => $ranked->take(10)->all(),
+            'areas' => $ranked->all(),
         ];
     }
 
@@ -341,7 +342,7 @@ class DashboardController extends Controller
         ];
     }
 
-    private function fatSecondaryStatusCounts(): array
+private function fatSecondaryStatusCounts(): array
     {
         $counts = DB::table('operasional_secondary_input')
             ->whereIn('project', ['ON DEMAND - FULL SERVICE', 'RENTAL'])
@@ -365,6 +366,27 @@ class DashboardController extends Controller
             ],
             'total' => $total,
         ];
+    }
+
+    private function needApprovalCount(): int
+    {
+        $latestApproval = DB::table('finance_accounting_tax_alur_aproval')
+            ->get()
+            ->groupBy(fn ($row) => trim((string) $row->no_invoice).'|'.trim((string) $row->no_payment))
+            ->map(fn ($items) => $items->sortByDesc(fn ($item) => sprintf(
+                '%020d|%s',
+                LegacyDate::parse(str_replace('.', ':', $item->date_time))?->getTimestamp() ?? 0,
+                (string) ($item->id_key ?? '')
+            ))->first());
+
+        return DB::table('finance_accounting_tax_mutasi_pembayaran')
+            ->get()
+            ->filter(function ($row) use ($latestApproval) {
+                $approval = $latestApproval->get(trim((string) $row->no_invoice).'|'.trim((string) $row->no_payment));
+                $status = strtoupper(trim((string) ($approval->status_doc ?? '')));
+                return in_array($status, ['SUBMIT', 'RE-CHECK'], true);
+            })
+            ->count();
     }
 
     private function fatDocByDivision(string $division): array

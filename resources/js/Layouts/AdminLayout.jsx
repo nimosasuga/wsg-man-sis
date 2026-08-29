@@ -35,8 +35,8 @@ import {
 } from "lucide-react";
 
 
-const SIDEBAR_OPEN_WIDTH = 288;
-const SIDEBAR_CLOSED_WIDTH = 88;
+const SIDEBAR_OPEN_WIDTH = 260;
+const SIDEBAR_CLOSED_WIDTH = 80;
 const DESKTOP_QUERY = "(min-width: 1024px)";
 const SIDEBAR_STORAGE_KEY = "washeng:admin-sidebar-open";
 const SIDEBAR_PIN_STORAGE_KEY = "washeng:admin-sidebar-pinned";
@@ -281,7 +281,7 @@ export default function AdminLayout({ children }) {
     }, []);
 
     const isExpanded = isDesktop ? isSidebarOpen : true;
-    const sidebarWidthClass = isExpanded ? "w-72" : "w-[88px]";
+    const sidebarWidthClass = isExpanded ? "w-[260px]" : "w-[80px]";
     const administrationMenuNames = ["CRUD Data", "Mapping Database", "Database", "Role & Akses"];
     const mainMenus = visibleMenus.filter((menu) => !administrationMenuNames.includes(menu.name));
     const administrationMenus = visibleMenus.filter((menu) => administrationMenuNames.includes(menu.name));
@@ -341,7 +341,7 @@ export default function AdminLayout({ children }) {
             {flashMessage && dismissedFlash !== flashMessage && (
                 <div className="fixed inset-x-4 top-4 z-[80] mx-auto w-auto max-w-xl sm:left-auto sm:right-6 sm:mx-0 sm:w-full" role="alert">
                     <div className={`flex items-start gap-3 rounded-xl border p-4 shadow-xl ${flash.error ? "border-rose-200 bg-rose-50 text-rose-900" : "border-emerald-200 bg-emerald-50 text-emerald-900"}`}>
-                        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${flash.error ? "bg-rose-100 text-rose-600" : "bg-emerald-100 text-emerald-600"}`}>
+                        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg ${flash.error ? "bg-rose-100 text-rose-600" : "bg-emerald-100 text-emerald-600"}`}>
                             {flash.error ? <CircleAlert size={18} /> : <CheckCheck size={18} />}
                         </span>
                         <div className="min-w-0 flex-1">
@@ -370,9 +370,9 @@ export default function AdminLayout({ children }) {
                 }}
             >
                 <div className="absolute inset-x-0 top-0 h-1 bg-orange-500" aria-hidden="true" />
-                <div className={`h-[74px] shrink-0 ${isExpanded ? "px-5" : "px-0"} flex items-center ${isExpanded ? "justify-between" : "justify-center"}`}>
+                <div className={`h-[68px] shrink-0 ${isExpanded ? "px-5" : "px-0"} flex items-center ${isExpanded ? "justify-between" : "justify-center"}`}>
                     <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5">
-                        <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-transparent">
+                        <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-transparent">
                             <img
                                 src="/Icon-512x512-px.webp"
                                 alt="Logo Washeng"
@@ -393,7 +393,7 @@ export default function AdminLayout({ children }) {
                             <button
                                 type="button"
                                 onClick={toggleSidebarPin}
-                                className={`grid h-8 w-8 place-items-center rounded-lg transition-colors duration-200 ${isSidebarPinned ? "bg-orange-100 text-orange-700" : "text-slate-400 hover:bg-orange-50 hover:text-orange-700"}`}
+                                className={`grid h-7 w-7 place-items-center rounded-lg transition-colors duration-200 ${isSidebarPinned ? "bg-orange-100 text-orange-700" : "text-slate-400 hover:bg-orange-50 hover:text-orange-700"}`}
                                 title={isSidebarPinned ? "Sidebar terkunci" : "Sidebar mengikuti kursor"}
                             >
                                 {isSidebarPinned ? <Pin size={15} /> : <PinOff size={15} />}
@@ -402,7 +402,7 @@ export default function AdminLayout({ children }) {
                         <button
                             type="button"
                             onClick={() => isDesktop ? setDesktopSidebarOpen(false) : setIsMobileSidebarOpen(false)}
-                            className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 transition-colors duration-200 hover:bg-orange-50 hover:text-orange-700"
+                            className="grid h-7 w-7 place-items-center rounded-lg text-slate-400 transition-colors duration-200 hover:bg-orange-50 hover:text-orange-700"
                             title={isDesktop ? "Sembunyikan label menu" : "Tutup Sidebar"}
                         >
                             {isDesktop ? <PanelLeftClose size={17} /> : <X size={17} />}
@@ -439,12 +439,12 @@ export default function AdminLayout({ children }) {
 
                                                 setCollapsedMenus((prev) => ({ ...prev, [menu.name]: isOpen ? false : true }));
                                             }}
-                                            className={`group relative flex min-h-[40px] w-full items-center overflow-hidden rounded-lg text-[12px] font-semibold tracking-normal transition-colors duration-150 ${
+                                            className={`group relative flex min-h-[36px] w-full items-center overflow-hidden rounded-lg text-[12px] font-semibold tracking-normal transition-colors duration-150 ${
                                                 isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"
                                             } ${isAnyChildActive ? "bg-orange-50 text-orange-800 ring-1 ring-inset ring-orange-200" : "mt-2 text-slate-600 hover:bg-orange-50 hover:text-orange-800"}`}
                                         >
                                             <span
-                                                className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${isAnyChildActive ? "bg-orange-600 text-white shadow-sm shadow-orange-200" : "text-slate-500 group-hover:bg-orange-100 group-hover:text-orange-700"}`}
+                                                className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg transition ${isAnyChildActive ? "bg-orange-600 text-white shadow-sm shadow-orange-200" : "text-slate-500 group-hover:bg-orange-100 group-hover:text-orange-700"}`}
                                             >
                                                 <menu.icon size={18} strokeWidth={1.5} className="shrink-0" />
                                             </span>
@@ -467,7 +467,7 @@ export default function AdminLayout({ children }) {
                                                     href={child.path}
                                                     aria-current={isChildActive ? "page" : undefined}
                                                     onClick={() => { if (!isDesktop) setIsMobileSidebarOpen(false); }}
-                                                    className={`group relative flex min-h-[30px] items-center overflow-hidden rounded-md text-[11px] font-medium transition-colors duration-150 gap-2 pl-10 pr-3 border-l-2 ${
+                                                    className={`group relative flex min-h-[28px] items-center overflow-hidden rounded-md text-[11px] font-medium transition-colors duration-150 gap-2 pl-10 pr-3 border-l-2 ${
                                                         isChildActive
                                                             ? "border-orange-500 bg-orange-50 font-bold text-orange-800"
                                                             : "border-transparent text-slate-500 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-800"
@@ -499,10 +499,10 @@ export default function AdminLayout({ children }) {
                                             setIsMobileSidebarOpen(false);
                                         }
                                     }}
-                                    className={`group relative flex min-h-[40px] items-center overflow-visible rounded-lg text-[12px] font-semibold transition-colors duration-150 ${isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"} ${isActive ? "bg-orange-50 text-orange-800 ring-1 ring-inset ring-orange-200" : "text-slate-600 hover:bg-orange-50 hover:text-orange-800"}`}
+                                    className={`group relative flex min-h-[36px] items-center overflow-visible rounded-lg text-[12px] font-semibold transition-colors duration-150 ${isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"} ${isActive ? "bg-orange-50 text-orange-800 ring-1 ring-inset ring-orange-200" : "text-slate-600 hover:bg-orange-50 hover:text-orange-800"}`}
                                 >
                                     <span
-                                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${isActive ? "bg-orange-600 text-white shadow-sm shadow-orange-200" : "text-slate-500 group-hover:bg-orange-100 group-hover:text-orange-700"}`}
+                                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg transition ${isActive ? "bg-orange-600 text-white shadow-sm shadow-orange-200" : "text-slate-500 group-hover:bg-orange-100 group-hover:text-orange-700"}`}
                                     >
                                     <menu.icon
                                         size={18}
@@ -534,9 +534,9 @@ export default function AdminLayout({ children }) {
                                             title={!isExpanded ? menu.name : ""}
                                             aria-current={isActive ? "page" : undefined}
                                             onClick={() => { if (!isDesktop) setIsMobileSidebarOpen(false); }}
-                                            className={`group relative flex min-h-[40px] items-center overflow-visible rounded-lg text-[12px] font-semibold transition-colors duration-150 ${isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"} ${isActive ? "bg-orange-50 text-orange-800 ring-1 ring-inset ring-orange-200" : "text-slate-600 hover:bg-orange-50 hover:text-orange-800"}`}
+                                            className={`group relative flex min-h-[36px] items-center overflow-visible rounded-lg text-[12px] font-semibold transition-colors duration-150 ${isExpanded ? "gap-2.5 px-2.5 py-1.5 pr-3" : "justify-center px-0"} ${isActive ? "bg-orange-50 text-orange-800 ring-1 ring-inset ring-orange-200" : "text-slate-600 hover:bg-orange-50 hover:text-orange-800"}`}
                                         >
-                                            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition ${isActive ? "bg-orange-600 text-white shadow-sm shadow-orange-200" : "text-slate-500 group-hover:bg-orange-100 group-hover:text-orange-700"}`}>
+                                            <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg transition ${isActive ? "bg-orange-600 text-white shadow-sm shadow-orange-200" : "text-slate-500 group-hover:bg-orange-100 group-hover:text-orange-700"}`}>
                                                 <menu.icon size={18} strokeWidth={1.5} />
                                             </span>
                                             <span className={`${isExpanded ? "block" : "hidden"} truncate`}>{menu.name}</span>
@@ -552,12 +552,12 @@ export default function AdminLayout({ children }) {
 
             <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[#f8f7fa]">
             <header
-                className="relative z-20 shrink-0 flex h-[74px] min-w-0 items-center justify-between border-b border-[#e7e3eb] bg-white px-4 text-slate-800 sm:px-6"
+                className="relative z-20 shrink-0 flex h-[68px] min-w-0 items-center justify-between border-b border-[#e7e3eb] bg-white px-4 text-slate-800 sm:px-6"
             >
                 <div className="flex min-w-0 flex-1 items-center gap-4">
                     <button
                         onClick={() => setIsMobileSidebarOpen(true)}
-                        className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 lg:hidden"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 lg:hidden"
                         title="Buka Sidebar"
                     >
                         <Menu size={18} />
@@ -578,7 +578,7 @@ export default function AdminLayout({ children }) {
                             onFocus={() => setIsGlobalSearchOpen(true)}
                             onBlur={() => window.setTimeout(() => setIsGlobalSearchOpen(false), 140)}
                             placeholder="Cari data, unit, atau dokumen..."
-                            className="h-10 w-full rounded-lg border border-[#e7e3eb] bg-[#f8f7fa] pl-9 pr-3 text-[13px] font-semibold text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-[#7367f0]/40 focus:ring-2 focus:ring-[#7367f0]/10"
+                            className="h-9 w-full rounded-lg border border-[#e7e3eb] bg-[#f8f7fa] pl-9 pr-3 text-[12px] font-semibold text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-[#7367f0]/40 focus:ring-2 focus:ring-[#7367f0]/10"
                         />
                         {isGlobalSearchOpen && globalSearch.trim().length >= 2 && (
                             <div className="absolute left-0 right-0 top-11 z-50 overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-[0_18px_55px_rgba(15,23,42,0.22)]">
@@ -601,7 +601,7 @@ export default function AdminLayout({ children }) {
                                             onClick={() => openGlobalResult(item.url)}
                                             className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-cyan-50 focus:bg-cyan-50 focus:outline-none"
                                         >
-                                            <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-600">
+                                            <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-cyan-50 text-cyan-600">
                                                 <Search size={15} />
                                             </span>
                                             <span className="min-w-0 flex-1">
@@ -626,18 +626,18 @@ export default function AdminLayout({ children }) {
 
                 <div className="ml-3 flex shrink-0 items-center gap-2 sm:ml-4 sm:gap-3">
                     <div ref={appMenuRef} className="relative hidden sm:block">
-                        <button type="button" onClick={() => setIsAppsOpen((open) => !open)} className={`grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] ${isAppsOpen ? "bg-[#f5f3ff] text-[#7367f0]" : ""}`} title="Menu aplikasi" aria-expanded={isAppsOpen}><Grid2X2 size={18} /></button>
-                        {isAppsOpen && <div className="absolute right-0 top-11 z-50 w-[min(29rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-[0_18px_55px_rgba(15,23,42,0.22)]"><div className="mb-3 flex items-center justify-between px-1"><div><p className="text-sm font-extrabold text-slate-900">Menu aplikasi</p><p className="mt-0.5 text-xs text-slate-500">Akses cepat sesuai hak pengguna.</p></div><span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{appShortcuts.length} menu</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{appShortcuts.map((menu) => { const Icon = menu.icon; const isActive = activePath.startsWith(menu.path); return <Link key={menu.path} href={menu.path} onClick={() => setIsAppsOpen(false)} className={`group flex min-w-0 flex-col gap-2 rounded-xl border p-3 text-left transition ${isActive ? "border-violet-200 bg-violet-50" : "border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/50"}`}><span className={`grid h-8 w-8 place-items-center rounded-lg ${isActive ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600 group-hover:bg-white group-hover:text-violet-600"}`}><Icon size={16} /></span><span className="truncate text-xs font-bold text-slate-800">{menu.name}</span></Link>; })}</div></div>}
+                        <button type="button" onClick={() => setIsAppsOpen((open) => !open)} className={`grid h-8 w-8 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] ${isAppsOpen ? "bg-[#f5f3ff] text-[#7367f0]" : ""}`} title="Menu aplikasi" aria-expanded={isAppsOpen}><Grid2X2 size={18} /></button>
+                        {isAppsOpen && <div className="absolute right-0 top-11 z-50 w-[min(29rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-[0_18px_55px_rgba(15,23,42,0.22)]"><div className="mb-3 flex items-center justify-between px-1"><div><p className="text-sm font-extrabold text-slate-900">Menu aplikasi</p><p className="mt-0.5 text-xs text-slate-500">Akses cepat sesuai hak pengguna.</p></div><span className="rounded-lg bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{appShortcuts.length} menu</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{appShortcuts.map((menu) => { const Icon = menu.icon; const isActive = activePath.startsWith(menu.path); return <Link key={menu.path} href={menu.path} onClick={() => setIsAppsOpen(false)} className={`group flex min-w-0 flex-col gap-2 rounded-xl border p-3 text-left transition ${isActive ? "border-violet-200 bg-violet-50" : "border-slate-200 bg-white hover:border-violet-200 hover:bg-violet-50/50"}`}><span className={`grid h-7 w-7 place-items-center rounded-lg ${isActive ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600 group-hover:bg-white group-hover:text-violet-600"}`}><Icon size={16} /></span><span className="truncate text-xs font-bold text-slate-800">{menu.name}</span></Link>; })}</div></div>}
                     </div>
                     <button onClick={() => router.reload()} className="hidden h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] sm:grid" title="Muat Ulang">
                         <RefreshCw size={16} />
                     </button>
                     <div ref={notificationMenuRef} className="relative">
-                        <button type="button" onClick={() => { setIsNotificationOpen((open) => !open); setIsAppsOpen(false); }} className={`relative grid h-9 w-9 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] ${isNotificationOpen ? "bg-[#f5f3ff] text-[#7367f0]" : ""}`} title="Notifikasi" aria-label="Buka notifikasi" aria-expanded={isNotificationOpen}>
+                        <button type="button" onClick={() => { setIsNotificationOpen((open) => !open); setIsAppsOpen(false); }} className={`relative grid h-8 w-8 place-items-center rounded-lg text-slate-500 transition hover:bg-[#f5f3ff] hover:text-[#7367f0] ${isNotificationOpen ? "bg-[#f5f3ff] text-[#7367f0]" : ""}`} title="Notifikasi" aria-label="Buka notifikasi" aria-expanded={isNotificationOpen}>
                             <Bell size={18} />
                             {notificationUnreadCount > 0 && <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">{notificationUnreadCount > 9 ? "9+" : notificationUnreadCount}</span>}
                         </button>
-                        {isNotificationOpen && <div className="absolute right-0 top-11 z-50 w-[min(25rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.22)]"><div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3"><div><p className="text-sm font-extrabold text-slate-900">Notifikasi</p><p className="mt-0.5 text-xs text-slate-500">Hal yang perlu diperhatikan hari ini.</p></div>{notificationUnreadCount > 0 && <button type="button" onClick={markAllNotificationsRead} className="inline-flex shrink-0 items-center gap-1.5 text-xs font-bold text-violet-600 transition hover:text-violet-800"><CheckCheck size={15} />Tandai dibaca</button>}</div><div className="custom-scrollbar max-h-[min(31rem,70vh)] overflow-y-auto">{isNotificationsLoading && <p className="px-4 py-5 text-sm text-slate-500">Memuat notifikasi...</p>}{!isNotificationsLoading && notificationMigrationRequired && <div className="m-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-800">Pusat notifikasi akan aktif setelah migration database dijalankan.</div>}{!isNotificationsLoading && !notificationMigrationRequired && notifications.length === 0 && <div className="px-4 py-8 text-center"><CheckCheck size={23} className="mx-auto text-emerald-500" /><p className="mt-2 text-sm font-bold text-slate-800">Tidak ada perhatian baru</p><p className="mt-1 text-xs text-slate-500">Semuanya sudah terlihat aman untuk saat ini.</p></div>}{!isNotificationsLoading && notifications.map((notification) => <button key={notification.id} type="button" onClick={() => openNotification(notification)} className={`flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 hover:bg-violet-50/60 ${notification.readAt ? "bg-white" : "bg-violet-50/40"}`}><span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg ${notification.severity === "danger" ? "bg-rose-100 text-rose-600" : notification.severity === "warning" ? "bg-amber-100 text-amber-600" : notification.severity === "success" ? "bg-emerald-100 text-emerald-600" : "bg-cyan-100 text-cyan-600"}`}><CircleAlert size={16} /></span><span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-2"><span className="text-sm font-bold text-slate-900">{notification.title}</span>{!notification.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-violet-500" />}</span><span className="mt-1 block text-xs leading-5 text-slate-600">{notification.message}</span><span className="mt-1.5 block text-[11px] font-medium text-slate-400">{notificationTime(notification.createdAt)}</span></span></button>)}</div></div>}
+                        {isNotificationOpen && <div className="absolute right-0 top-11 z-50 w-[min(25rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.22)]"><div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3"><div><p className="text-sm font-extrabold text-slate-900">Notifikasi</p><p className="mt-0.5 text-xs text-slate-500">Hal yang perlu diperhatikan hari ini.</p></div>{notificationUnreadCount > 0 && <button type="button" onClick={markAllNotificationsRead} className="inline-flex shrink-0 items-center gap-1.5 text-xs font-bold text-violet-600 transition hover:text-violet-800"><CheckCheck size={15} />Tandai dibaca</button>}</div><div className="custom-scrollbar max-h-[min(31rem,70vh)] overflow-y-auto">{isNotificationsLoading && <p className="px-4 py-5 text-sm text-slate-500">Memuat notifikasi...</p>}{!isNotificationsLoading && notificationMigrationRequired && <div className="m-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-800">Pusat notifikasi akan aktif setelah migration database dijalankan.</div>}{!isNotificationsLoading && !notificationMigrationRequired && notifications.length === 0 && <div className="px-4 py-8 text-center"><CheckCheck size={23} className="mx-auto text-emerald-500" /><p className="mt-2 text-sm font-bold text-slate-800">Tidak ada perhatian baru</p><p className="mt-1 text-xs text-slate-500">Semuanya sudah terlihat aman untuk saat ini.</p></div>}{!isNotificationsLoading && notifications.map((notification) => <button key={notification.id} type="button" onClick={() => openNotification(notification)} className={`flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition last:border-b-0 hover:bg-violet-50/60 ${notification.readAt ? "bg-white" : "bg-violet-50/40"}`}><span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg ${notification.severity === "danger" ? "bg-rose-100 text-rose-600" : notification.severity === "warning" ? "bg-amber-100 text-amber-600" : notification.severity === "success" ? "bg-emerald-100 text-emerald-600" : "bg-cyan-100 text-cyan-600"}`}><CircleAlert size={16} /></span><span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-2"><span className="text-sm font-bold text-slate-900">{notification.title}</span>{!notification.readAt && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-violet-500" />}</span><span className="mt-1 block text-xs leading-5 text-slate-600">{notification.message}</span><span className="mt-1.5 block text-[11px] font-medium text-slate-400">{notificationTime(notification.createdAt)}</span></span></button>)}</div></div>}
                     </div>
                     <div className="mx-1 hidden h-8 w-px bg-slate-200 sm:block" />
                     <div className="hidden text-right md:block">
@@ -650,7 +650,7 @@ export default function AdminLayout({ children }) {
                         disabled={isLoggingOut}
                         title={isLoggingOut ? "Sedang keluar..." : "Keluar dari Sistem"}
                         aria-label={isLoggingOut ? "Sedang keluar dari sistem" : "Keluar dari Sistem"}
-                        className="grid h-9 w-9 place-items-center rounded-lg bg-[#7367f0] text-white shadow-lg shadow-violet-200 transition hover:bg-[#6258dc] disabled:cursor-wait disabled:opacity-60"
+                        className="grid h-8 w-8 place-items-center rounded-lg bg-[#7367f0] text-white shadow-lg shadow-violet-200 transition hover:bg-[#6258dc] disabled:cursor-wait disabled:opacity-60"
                     >
                         <LogOut size={16} className={isLoggingOut ? "animate-pulse" : ""} />
                     </button>
@@ -658,7 +658,7 @@ export default function AdminLayout({ children }) {
             </header>
 
             <main
-                className="app-main custom-scrollbar flex-1 overflow-y-auto p-4 sm:p-6"
+                className="app-main custom-scrollbar flex-1 overflow-y-auto density-compact p-3 sm:p-5"
             >
                 {children}
             </main>

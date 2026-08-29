@@ -1,416 +1,65 @@
-import React, { memo, useState } from "react";
+import React, { memo, useMemo, useState } from "react";
 import AdminLayout from "../../Layouts/AdminLayout";
-import { Head, router } from "@inertiajs/react";
-import {
-    TrendingUp, Activity, Truck, FileText, MapPin, DollarSign,
-    Clock, ArrowRight, ExternalLink, BarChart3, PieChart, Users,
-} from "lucide-react";
-import {
-    BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-    PieChart as RePieChart, Pie, Cell,
-} from "recharts";
-
-const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 })}`;
-
-const formatNum = (value) => Number(value || 0).toLocaleString("id-ID");
-
-const formatCompactRp = (value) => {
-    const nominal = Number(value || 0);
-    const absolute = Math.abs(nominal);
-
-    if (absolute >= 1_000_000_000) {
-        return `Rp${(nominal / 1_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} M`;
-    }
-
-    if (absolute >= 1_000_000) {
-        return `Rp${(nominal / 1_000_000).toLocaleString("id-ID", { maximumFractionDigits: 0 })} jt`;
-    }
-
-    return `Rp${nominal.toLocaleString("id-ID", { maximumFractionDigits: 0 })}`;
-};
+import { Head, Link, router } from "@inertiajs/react";
+import { BarChart, Bar, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ArrowRight, BarChart3, Building2, CircleDollarSign, Landmark, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+const formatRp = (value) => `Rp${Number(value || 0).toLocaleString("id-ID", { maximumFractionDigits: 0 })}`;
+const formatNum = (value) => Number(value || 0).toLocaleString("id-ID");
+const formatCompactRp = (value) => {
+    const amount = Number(value || 0);
+    if (Math.abs(amount) >= 1_000_000_000) return `Rp${(amount / 1_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} M`;
+    if (Math.abs(amount) >= 1_000_000) return `Rp${(amount / 1_000_000).toLocaleString("id-ID", { maximumFractionDigits: 0 })} jt`;
+    return formatRp(amount);
+};
 
-const CHART_COLORS = ["#2563eb", "#14b8a6", "#f59e0b", "#8b5cf6", "#ec4899", "#ef4444"];
+const Card = ({ children, className = "" }) => <section className={`rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/60 ${className}`}>{children}</section>;
 
-function pctColor(pct) {
-    if (pct >= 70) return "#10b981";
-    if (pct >= 40) return "#f59e0b";
-    return "#ef4444";
+const MetricCard = memo(function MetricCard({ label, value, fullValue, icon: Icon, tone, helper }) {
+    return <Card className="min-w-0 w-full p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-[11px] font-black uppercase tracking-wider text-slate-500">{label}</p><p title={fullValue ?? value} className="mt-2 min-w-0 truncate text-[clamp(1.05rem,1.6vw,1.55rem)] font-black tracking-tight text-slate-950 tabular-nums">{value}</p><p className="mt-1 text-xs font-semibold text-slate-400">{helper}</p></div><span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tone}`}><Icon size={20} /></span></div></Card>;
+});
+
+function areaStatus(area) {
+    const revenue = Number(area.revenue || 0);
+    const profit = Number(area.profit || 0);
+    const margin = revenue > 0 ? profit / revenue * 100 : null;
+    if (margin === null) return ["Perlu Dicek", "bg-slate-100 text-slate-600"];
+    if (profit < 0) return ["Loss", "bg-rose-50 text-rose-700"];
+    if (margin >= 60) return ["Excellent", "bg-emerald-50 text-emerald-700"];
+    if (margin >= 30) return ["Normal", "bg-cyan-50 text-cyan-700"];
+    return ["Rendah", "bg-amber-50 text-amber-700"];
 }
 
-function pctBg(pct) {
-    if (pct >= 70) return "bg-emerald-500";
-    if (pct >= 40) return "bg-amber-500";
-    return "bg-red-500";
+function AreaCards({ areas }) {
+    return <div className="space-y-3 md:hidden">{areas.map((area) => { const margin = area.revenue > 0 ? area.profit / area.revenue * 100 : null; const [status, tone] = areaStatus(area); return <div key={area.area} className="rounded-xl border border-slate-100 p-4"><div className="flex justify-between gap-3"><p className="font-black text-slate-900">{area.area}</p><span className={`rounded-md px-2 py-1 text-[10px] font-black ${tone}`}>{status}</span></div><dl className="mt-3 grid grid-cols-2 gap-3 text-xs"><div><dt className="text-slate-400">Revenue</dt><dd className="mt-1 font-bold text-slate-700">{formatCompactRp(area.revenue)}</dd></div><div><dt className="text-slate-400">Cost</dt><dd className="mt-1 font-bold text-slate-700">{formatCompactRp(area.cost)}</dd></div><div><dt className="text-slate-400">Profit</dt><dd className="mt-1 font-black text-emerald-700">{formatCompactRp(area.profit)}</dd></div><div><dt className="text-slate-400">Margin · Record</dt><dd className="mt-1 font-bold text-slate-700">{margin === null ? "—" : `${margin.toFixed(1)}%`} · {formatNum(area.records)}</dd></div></dl></div>; })}</div>;
 }
 
-const StatCard = memo(function StatCard({ title, value, subtitle, icon: Icon, color = "cyan" }) {
-    const colorMap = {
-        cyan: "bg-cyan-500/10 text-cyan-600",
-        emerald: "bg-emerald-500/10 text-emerald-600",
-        orange: "bg-orange-500/10 text-orange-600",
-        purple: "bg-purple-500/10 text-purple-600",
-    };
-    return (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/70 transition duration-200 hover:-translate-y-0.5 hover:shadow-md">
-            <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                    <p className="text-[11px] font-semibold tracking-wide text-slate-500">{title}</p>
-                    <p className="text-2xl font-black text-slate-950">{value}</p>
-                    {subtitle && <p className="text-xs font-semibold text-slate-400">{subtitle}</p>}
-                </div>
-                <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${colorMap[color]}`}>
-                    <Icon size={20} />
-                </div>
-            </div>
-        </div>
-    );
-});
+export default function Performance({ dbChartData, performanceData, selectedYear = null, availableYears = [] }) {
+    const year = selectedYear ? String(selectedYear) : "all";
+    const summary = performanceData?.summary || { revenue: 0, cost: 0, profit: 0, margin: 0 };
+    const areas = useMemo(() => [...(performanceData?.areas || [])].sort((a, b) => Number(b.profit) - Number(a.profit)), [performanceData]);
+    const modules = performanceData?.modules || [];
+    const years = availableYears;
+    const trend = useMemo(() => (performanceData?.monthly || []).map((item) => ({ ...item, label: year === "all" ? `${MONTHS[item.bulan - 1]} ${item.tahun}` : MONTHS[item.bulan - 1] })), [performanceData, year]);
+    const topAreas = areas.slice(0, 5);
+    const lowestMargin = areas.filter((area) => Number(area.revenue) > 0).sort((a, b) => (a.profit / a.revenue) - (b.profit / b.revenue))[0];
+    const topModule = [...modules].sort((a, b) => Number(b.profit) - Number(a.profit))[0];
+    const highestCostModule = [...modules].sort((a, b) => Number(b.cost) - Number(a.cost))[0];
+    const totalUnit = (dbChartData?.pajak || []).reduce((sum, item) => sum + Number(item.value || 0), 0);
+    const activeDocs = [dbChartData?.pajak, dbChartData?.stnk, dbChartData?.kir].reduce((sum, items) => sum + Number(items?.find((item) => item.name === "AKTIF")?.value || 0), 0);
+    const health = totalUnit > 0 ? activeDocs / (totalUnit * 3) * 100 : null;
+    const periodLabel = year === "all" ? "Menampilkan seluruh data historis" : `Menampilkan performa untuk tahun ${year}`;
+    const changeYear = (value) => router.get("/business-control/performance", value === "all" ? {} : { tahun: value }, { preserveScroll: true, preserveState: true });
 
-const GaugeChart = memo(function GaugeChart({ value = 0, label = "Health Score", max = 100 }) {
-    const pct = Math.min(value / max, 1);
-    const r = 36;
-    const circumference = 2 * Math.PI * r;
-    const half = circumference / 2;
-    const offset = half * (1 - pct);
-    const color = pctColor(pct * 100);
-
-    return (
-        <div className="flex flex-col items-center">
-            <svg width="130" height="90" viewBox="0 0 100 70">
-                <path d="M8,58 A36,36 0 0,1 92,58" fill="none" stroke="#e2e8f0" strokeWidth="8" strokeLinecap="round" />
-                <path d="M8,58 A36,36 0 0,1 92,58" fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
-                    strokeDasharray={`${half} ${circumference}`} strokeDashoffset={offset} />
-                <text x="50" y="54" textAnchor="middle" fontSize="18" fontWeight="900" fill="#0f172a">{Math.round(pct * 100)}%</text>
-            </svg>
-            <p className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
-        </div>
-    );
-});
-
-const ComplianceBar = memo(function ComplianceBar({ label, value, total }) {
-    const pct = total > 0 ? (value / total) * 100 : 0;
-    return (
-        <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-700">{label}</span>
-                <span className="font-black text-slate-900">{formatNum(value)} / {formatNum(total)}</span>
-            </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
-                <div className={`h-full rounded-full transition-all duration-500 ${pctBg(pct)}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-            </div>
-            <p className="text-right text-[11px] font-bold text-slate-500">{pct.toFixed(1)}%</p>
-        </div>
-    );
-});
-
-const DonutChart = memo(function DonutChart({ data = [], title, colors = CHART_COLORS }) {
-    const total = data.reduce((s, d) => s + d.value, 0);
-    return (
-        <div className="flex flex-col items-center">
-            <ResponsiveContainer width={180} height={180}>
-                <RePieChart>
-                    <Pie data={data} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={2}>
-                        {data.map((entry, i) => (
-                            <Cell key={entry.name} fill={colors[i % colors.length]} />
-                        ))}
-                    </Pie>
-                </RePieChart>
-            </ResponsiveContainer>
-            <p className="mt-1 text-xs font-bold uppercase tracking-wider text-slate-500">{title}</p>
-            <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1">
-                {data.map((d, i) => (
-                    <div key={d.name} className="flex items-center gap-1.5 text-[11px]">
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: colors[i % colors.length] }} />
-                        <span className="font-semibold text-slate-600">{d.name}</span>
-                        <span className="font-black text-slate-900">{total > 0 ? ((d.value / total) * 100).toFixed(1) : 0}%</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-});
-
-const ActivityChart = memo(function ActivityChart({ dataByYear = [], years = [], title, description, baseRoute }) {
-    const cy = new Date().getFullYear();
-    const [tahun, setTahun] = useState(
-        years.includes(cy) && dataByYear.find((d) => d.tahun === cy)?.months?.some((m) => m.value > 0)
-            ? cy : (years[0] || cy)
-    );
-    const yearData = dataByYear.find((d) => d.tahun === tahun);
-    const chartData = yearData?.months?.map((m) => ({ name: MONTHS[m.bulan - 1] || m.bulan, value: m.value })) || [];
-    const maxVal = Math.max(...chartData.map((d) => d.value), 1);
-
-    return (
-        <div className="font-[Manrope]">
-            <div className="mb-2 flex items-center justify-between">
-                <div>
-                    <p className="text-xs font-black uppercase tracking-wider text-slate-500">{title}</p>
-                    <p className="text-[11px] font-semibold text-slate-400">{description}</p>
-                </div>
-                <select value={tahun} onChange={(e) => setTahun(Number(e.target.value))}
-                    className="h-7 rounded-md border border-slate-200 bg-slate-50 px-2 text-[11px] font-bold text-slate-700 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100">
-                    {years.map((y) => <option key={y} value={y}>{y}</option>)}
-                </select>
-            </div>
-            <div className="flex h-[160px] min-h-[160px] w-full min-w-0 items-stretch gap-1 border-b border-slate-200 pb-1 min-[360px]:h-[180px] min-[360px]:min-h-[180px]">
-                {chartData.map((item, index) => {
-                    const height = item.value > 0 ? Math.max((item.value / maxVal) * 100, 4) : 2;
-
-                    return (
-                        <button
-                            key={item.name}
-                            type="button"
-                            title={`${item.name}: ${formatNum(item.value)} pengiriman`}
-                            aria-label={`Buka data ${item.name} ${tahun}: ${formatNum(item.value)} pengiriman`}
-                            onClick={() => router.visit(`${baseRoute}?bulan=${index + 1}&tahun=${tahun}`)}
-                            className="group flex min-w-0 flex-1 flex-col justify-end gap-1.5 rounded-t px-0.5 text-center outline-none transition focus-visible:ring-2 focus-visible:ring-cyan-500"
-                        >
-                            <span className="relative flex min-h-0 flex-1 items-end">
-                                <span
-                                    className={`w-full rounded-t-sm transition-all duration-300 ${item.value > 0 ? "bg-cyan-500 group-hover:bg-cyan-600" : "bg-slate-200"}`}
-                                    style={{ height: `${height}%` }}
-                                />
-                                <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-[10px] font-bold text-white shadow-lg group-hover:block group-focus-visible:block">
-                                    {formatNum(item.value)} pengiriman
-                                </span>
-                            </span>
-                            <span className="whitespace-nowrap text-[9px] font-bold text-slate-500 [overflow-wrap:normal]">
-                                <span className="min-[360px]:hidden">{item.name.charAt(0)}</span>
-                                <span className="hidden min-[360px]:inline">{item.name}</span>
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
-        </div>
-    );
-});
-
-export default function Performance({ dbChartData }) {
-    const {
-        pajak = [], stnk = [], kir = [], invoice = [],
-        globalProfit = { revenue: 0, cost: 0, profit: 0, margin: 0 },
-        profitByArea = [],
-        areaHealth = [],
-        primaryActivityByYear = [],
-        primaryActivityYears = [],
-        secondaryActivityByYear = [],
-        secondaryActivityYears = [],
-        recentActivity = [],
-    } = dbChartData || {};
-
-    const totalUnit = pajak.reduce((s, d) => s + d.value, 0);
-    const totalInvoice = invoice.reduce((s, d) => s + d.value, 0);
-    const marginPct = globalProfit.margin || 0;
-    const areaCount = profitByArea.length;
-    const pajakAktif = pajak.find((d) => d.name === "AKTIF")?.value || 0;
-    const stnkAktif = stnk.find((d) => d.name === "AKTIF")?.value || 0;
-    const kirAktif = kir.find((d) => d.name === "AKTIF")?.value || 0;
-    const invoiceLunas = invoice.find((d) => d.key === "PAID")?.value || 0;
-
-    const healthScore = totalUnit > 0
-        ? Math.round(((pajakAktif / totalUnit) + (stnkAktif / totalUnit) + (kirAktif / totalUnit) + (marginPct / 100)) / 4 * 100)
-        : 0;
-
-    const topAreas = [...profitByArea].sort((a, b) => b.profit - a.profit).slice(0, 5);
-    const topProfits = [...profitByArea].sort((a, b) => b.profit - a.profit).slice(0, 6);
-
-    return (
-        <AdminLayout>
-            <Head title="Performance" />
-
-            <div className="mb-6 grid gap-6 lg:grid-cols-2">
-
-                <div className="rounded-xl bg-white shadow-sm">
-                    <div className="border-b border-slate-100 px-5 py-4">
-                        <h2 className="text-lg font-extrabold tracking-tight text-slate-950">Kinerja bisnis</h2>
-                        <p className="mt-1 text-xs font-medium text-slate-500">Pendapatan, biaya, profit, dan margin secara global.</p>
-                    </div>
-                    <div className="p-5">
-                        <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(185px,1fr))] gap-3">
-                            <div className="min-w-0 rounded-lg bg-cyan-50 p-3">
-                                <p className="text-[11px] font-bold uppercase tracking-wider text-cyan-600">Revenue</p>
-                                <p className="mt-1 break-words text-[clamp(0.875rem,1.35vw,1.125rem)] font-black leading-tight tabular-nums text-slate-950">{formatRp(globalProfit.revenue)}</p>
-                            </div>
-                            <div className="min-w-0 rounded-lg bg-emerald-50 p-3">
-                                <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Profit</p>
-                                <p className="mt-1 break-words text-[clamp(0.875rem,1.35vw,1.125rem)] font-black leading-tight tabular-nums text-slate-950">{formatRp(globalProfit.profit)}</p>
-                            </div>
-                            <div className="min-w-0 rounded-lg bg-orange-50 p-3">
-                                <p className="text-[11px] font-bold uppercase tracking-wider text-orange-600">Margin</p>
-                                <p className="mt-1 text-[clamp(0.875rem,1.35vw,1.125rem)] font-black leading-tight tabular-nums text-slate-950">{marginPct.toFixed(1)}%</p>
-                            </div>
-                        </div>
-                        {topAreas.length > 0 && (
-                            <div>
-                                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Profit per Area (Top 5)</p>
-                                <div className="h-[140px] min-h-[140px] w-full min-w-0">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={topAreas} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-                                            <XAxis type="number" tick={{ fontSize: 10, fontWeight: 700, fill: "#94a3b8" }} tickFormatter={formatCompactRp} tickCount={3} minTickGap={18} axisLine={false} tickLine={false} />
-                                            <YAxis type="category" dataKey="area" tick={{ fontSize: 10, fontWeight: 700, fill: "#475569" }} axisLine={false} tickLine={false} width={80} />
-                                            <Tooltip contentStyle={{ borderRadius: 6, border: "1px solid #e2e8f0", fontSize: 11, fontWeight: 600 }}
-                                                formatter={(val) => [formatRp(val), "Profit"]} />
-                                            <Bar dataKey="profit" fill="#0ea5e9" radius={[0, 4, 4, 0]} barSize={14} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <StatCard title="Total Unit" value={formatNum(totalUnit)} subtitle="Unit terdaftar" icon={Truck} color="cyan" />
-                    <StatCard title="Invoice Lunas" value={formatNum(invoiceLunas)} subtitle={`Dari ${formatNum(totalInvoice)} total invoice`} icon={FileText} color="emerald" />
-                    <StatCard title="Area Aktif" value={formatNum(areaCount)} subtitle="Area operasional" icon={MapPin} color="orange" />
-                    <StatCard title="Margin Global" value={`${marginPct.toFixed(1)}%`} subtitle="Rasio profit" icon={TrendingUp} color="purple" />
-                </div>
-            </div>
-
-            <div className="mb-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-
-                <div className="rounded-xl bg-white p-5 shadow-sm">
-                    <div className="mb-4 flex items-center gap-2">
-                        <Activity size={16} className="text-slate-500" />
-                        <h3 className="text-sm font-bold text-slate-800">Kepatuhan dokumen</h3>
-                    </div>
-                    <div className="space-y-4">
-                        <ComplianceBar label="Pajak Aktif" value={pajakAktif} total={totalUnit} />
-                        <ComplianceBar label="STNK Aktif" value={stnkAktif} total={totalUnit} />
-                        <ComplianceBar label="KIR Aktif" value={kirAktif} total={totalUnit} />
-                        <ComplianceBar label="Invoice Lunas" value={invoiceLunas} total={totalInvoice} />
-                    </div>
-                </div>
-
-                <div className="rounded-xl bg-white p-5 shadow-sm">
-                    <div className="mb-4 flex items-center gap-2">
-                        <PieChart size={16} className="text-slate-500" />
-                        <h3 className="text-sm font-bold text-slate-800">Sebaran profit</h3>
-                    </div>
-                    {topProfits.length > 0 ? (
-                        <DonutChart data={topProfits.map((d) => ({ name: d.area, value: Math.max(d.profit, 0) }))} title="Top 6 Area" colors={CHART_COLORS} />
-                    ) : (
-                        <p className="py-8 text-center text-xs font-semibold text-slate-400">Belum ada data</p>
-                    )}
-                </div>
-
-                <div className="rounded-xl bg-white p-5 shadow-sm">
-                    <div className="mb-1 flex items-center gap-2">
-                        <BarChart3 size={16} className="text-slate-500" />
-                        <h3 className="text-sm font-bold text-slate-800">Aktivitas bulanan</h3>
-                    </div>
-                    {primaryActivityByYear.length > 0 ? (
-                        <ActivityChart dataByYear={primaryActivityByYear} years={primaryActivityYears}
-                            title="Pengiriman" description="Per bulan" baseRoute="/profit-unit/primary/table" />
-                    ) : (
-                        <p className="py-8 text-center text-xs font-semibold text-slate-400">Belum ada data</p>
-                    )}
-                </div>
-
-                <div className="rounded-xl bg-white p-5 shadow-sm">
-                    <div className="mb-4 flex items-center gap-2">
-                        <TrendingUp size={16} className="text-slate-500" />
-                        <h3 className="text-sm font-bold text-slate-800">Skor kesehatan</h3>
-                    </div>
-                    <GaugeChart value={healthScore} label="Skor Kesehatan" />
-                    <div className="mt-4 space-y-1.5 text-[11px] font-semibold text-slate-500">
-                        <div className="flex justify-between"><span>Pajak</span><span>{totalUnit > 0 ? ((pajakAktif / totalUnit) * 100).toFixed(0) : 0}%</span></div>
-                        <div className="flex justify-between"><span>STNK</span><span>{totalUnit > 0 ? ((stnkAktif / totalUnit) * 100).toFixed(0) : 0}%</span></div>
-                        <div className="flex justify-between"><span>KIR</span><span>{totalUnit > 0 ? ((kirAktif / totalUnit) * 100).toFixed(0) : 0}%</span></div>
-                        <div className="flex justify-between"><span>Margin</span><span>{marginPct.toFixed(1)}%</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-
-                <div className="rounded-xl bg-white shadow-sm">
-                    <div className="border-b border-slate-100 px-5 py-4">
-                        <h2 className="text-lg font-extrabold tracking-tight text-slate-950">Kinerja per area</h2>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">Top 5 area berdasarkan profit</p>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs">
-                            <thead>
-                                <tr className="border-b border-slate-100 bg-slate-50/50">
-                                    <th className="px-5 py-3 font-black uppercase tracking-wider text-slate-500">Area</th>
-                                    <th className="px-3 py-3 font-black uppercase tracking-wider text-slate-500">Revenue</th>
-                                    <th className="px-3 py-3 font-black uppercase tracking-wider text-slate-500">Cost</th>
-                                    <th className="px-3 py-3 font-black uppercase tracking-wider text-slate-500">Profit</th>
-                                    <th className="px-3 py-3 font-black uppercase tracking-wider text-slate-500">Margin</th>
-                                    <th className="px-3 py-3 font-black uppercase tracking-wider text-slate-500">Progress</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {topAreas.length > 0 ? topAreas.map((a, i) => {
-                                    const areaMargin = a.revenue > 0 ? (a.profit / a.revenue) * 100 : 0;
-                                    return (
-                                        <tr key={a.area} className="border-b border-slate-50 transition hover:bg-slate-50/50">
-                                            <td className="px-5 py-3.5">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full`} style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                                                    <span className="font-bold text-slate-900">{a.area}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-3 py-3.5 font-semibold text-slate-700">{formatRp(a.revenue)}</td>
-                                            <td className="px-3 py-3.5 font-semibold text-slate-700">{formatRp(a.cost)}</td>
-                                            <td className="px-3 py-3.5 font-black text-slate-900">{formatRp(a.profit)}</td>
-                                            <td className="px-3 py-3.5 font-bold" style={{ color: areaMargin >= 0 ? "#10b981" : "#ef4444" }}>
-                                                {areaMargin.toFixed(1)}%
-                                            </td>
-                                            <td className="px-3 py-3.5">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
-                                                        <div className={`h-full rounded-full ${pctBg(areaMargin)}`}
-                                                            style={{ width: `${Math.min(Math.abs(areaMargin), 100)}%` }} />
-                                                    </div>
-                                                    <span className="text-[11px] font-semibold text-slate-500">{a.records} record</span>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                }) : (
-                                    <tr><td colSpan={6} className="px-5 py-10 text-center text-xs font-semibold text-slate-400">Belum ada data area</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div className="rounded-xl bg-white shadow-sm">
-                    <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                        <div>
-                            <h2 className="text-sm font-black uppercase tracking-wide text-slate-950">Aktivitas Terbaru</h2>
-                            <p className="mt-1 text-xs font-semibold text-slate-500">5 record terakhir</p>
-                        </div>
-                        <Clock size={16} className="text-slate-400" />
-                    </div>
-                    <div className="divide-y divide-slate-100">
-                        {recentActivity.length > 0 ? recentActivity.map((act, i) => (
-                            <div key={act.id_key || i} className="flex gap-4 px-5 py-3.5 transition hover:bg-slate-50/50">
-                                <div className="flex flex-col items-center">
-                                    <div className={`h-2.5 w-2.5 shrink-0 rounded-full ring-2 ring-white ${i === 0 ? "bg-emerald-500" : "bg-slate-300"}`} />
-                                    {i < recentActivity.length - 1 && <div className="mt-1 h-full w-px bg-slate-200" />}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="truncate text-sm font-bold text-slate-900">
-                                        {act.area || "—"}
-                                    </p>
-                                    <p className="truncate text-xs font-semibold text-slate-500">
-                                        {act.nopol || "—"} &bull; {act.tanggal || "—"}
-                                    </p>
-                                </div>
-                                <ArrowRight size={14} className="mt-1 shrink-0 text-slate-300" />
-                            </div>
-                        )) : (
-                            <p className="px-5 py-10 text-center text-xs font-semibold text-slate-400">Belum ada aktivitas</p>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </AdminLayout>
-    );
+    return <AdminLayout><Head title="Business Performance" /><div className="space-y-6 font-[Manrope]">
+        <header className="flex flex-col gap-4 min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-end sm:justify-between"><div className="min-w-0"><span className="inline-flex rounded-full bg-cyan-50 px-3 py-1 text-[11px] font-bold text-cyan-700">Business control</span><h1 className="mt-3 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl truncate">Business Performance</h1><p className="mt-1 text-sm font-semibold text-slate-500">Kontrol pendapatan, biaya, profit, dan margin Washeng GO.</p><p className="mt-2 text-xs font-bold text-slate-400">{periodLabel}</p></div><div className="flex items-center gap-2 shrink-0"><label className="text-xs font-bold text-slate-500 hidden sm:inline">Periode</label><select value={year} onChange={(event) => changeYear(event.target.value)} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700"> <option value="all">Semua tahun</option>{years.map((item) => <option key={item} value={item}>{item}</option>)}</select></div></header>
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4"><MetricCard label="Revenue" value={formatCompactRp(summary.revenue)} fullValue={formatRp(summary.revenue)} helper="Total pendapatan tercatat" icon={Landmark} tone="bg-cyan-50 text-cyan-700" /><MetricCard label="Cost" value={formatCompactRp(summary.cost)} fullValue={formatRp(summary.cost)} helper="Total biaya operasional" icon={WalletCards} tone="bg-amber-50 text-amber-700" /><MetricCard label="Profit" value={formatCompactRp(summary.profit)} fullValue={formatRp(summary.profit)} helper="Revenue dikurangi cost" icon={CircleDollarSign} tone="bg-emerald-50 text-emerald-700" /><MetricCard label="Margin" value={`${Number(summary.margin || 0).toFixed(1)}%`} helper="Rasio profit periode aktif" icon={TrendingUp} tone="bg-violet-50 text-violet-700" /></div>
+        <div className="grid gap-6 2xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]"><Card className="p-5 min-w-0"><div className="mb-5"><h2 className="text-base font-black text-slate-950">Trend Revenue, Cost, Profit</h2><p className="mt-1 text-xs font-semibold text-slate-500">Akumulasi finansial bulanan dari data transaksi valid.</p></div>{trend.length ? <div className="h-72 w-full min-w-0"><ResponsiveContainer><LineChart data={trend} margin={{ top: 8, right: 6, left: 0, bottom: 0 }}><CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} /><XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} /><YAxis tickFormatter={formatCompactRp} tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} width={64} /><Tooltip formatter={(value, name) => [formatRp(value), name]} contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12 }} /><Legend wrapperStyle={{ fontSize: 12 }} /><Line type="monotone" dataKey="revenue" name="Revenue" stroke="#0891b2" strokeWidth={2.5} dot={false} /><Line type="monotone" dataKey="cost" name="Cost" stroke="#d97706" strokeWidth={2.5} dot={false} /><Line type="monotone" dataKey="profit" name="Profit" stroke="#059669" strokeWidth={2.5} dot={false} /></LineChart></ResponsiveContainer></div> : <p className="py-24 text-center text-sm font-semibold text-slate-400">Trend finansial belum tersedia.</p>}</Card>
+        <Card className="p-5 min-w-0"><div className="flex items-center gap-2"><BarChart3 size={18} className="text-violet-600" /><div><h2 className="font-black text-slate-950">Insight Performa</h2><p className="text-xs font-semibold text-slate-500">Ringkasan prioritas bisnis.</p></div></div>{areas.length || modules.length ? <div className="mt-5 space-y-4 text-sm">{[["Area profit tertinggi", topAreas[0]?.area, topAreas[0]?.profit, TrendingUp], ["Area margin terendah", lowestMargin?.area, lowestMargin && `${(lowestMargin.profit / lowestMargin.revenue * 100).toFixed(1)}%`, TrendingDown], ["Modul profit tertinggi", topModule?.module, topModule?.profit, Building2], ["Biaya terbesar", highestCostModule?.module, highestCostModule?.cost, WalletCards]].map(([label, name, value, Icon]) => <div key={label} className="flex gap-3 min-w-0"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><Icon size={16} /></span><div className="min-w-0"><p className="text-xs font-bold text-slate-500">{label}</p><p className="mt-0.5 truncate font-black text-slate-900">{name || "Belum tersedia"}{value !== undefined && value !== null ? <span className="font-bold text-slate-500"> — {typeof value === "number" ? formatCompactRp(value) : value}</span> : null}</p></div></div>)}</div> : <p className="py-20 text-center text-sm font-semibold text-slate-400">Data insight belum tersedia untuk periode ini.</p>}</Card></div>
+        <div className="grid gap-6 2xl:grid-cols-2"><Card className="p-5 min-w-0"><div className="mb-5"><h2 className="font-black text-slate-950">Top Area by Profit</h2><p className="mt-1 text-xs font-semibold text-slate-500">Lima area dengan profit tertinggi.</p></div>{topAreas.length ? <div className="h-72 w-full min-w-0"><ResponsiveContainer><BarChart data={topAreas} layout="vertical" margin={{ left: 0, right: 8 }}><XAxis type="number" tickFormatter={formatCompactRp} tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} /><YAxis type="category" dataKey="area" width={88} tick={{ fontSize: 11, fontWeight: 700, fill: "#334155" }} axisLine={false} tickLine={false} /><Tooltip formatter={(value) => [formatRp(value), "Profit"]} contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 12 }} /><Bar dataKey="profit" fill="#059669" radius={[0, 6, 6, 0]} barSize={18} /></BarChart></ResponsiveContainer></div> : <p className="py-24 text-center text-sm font-semibold text-slate-400">Belum ada data area.</p>}<div className="mt-2 grid gap-2 sm:grid-cols-2">{topAreas.map((area) => <p key={area.area} className="truncate text-xs font-semibold text-slate-500"><span className="font-black text-slate-800">{area.area}</span> · Margin {area.revenue > 0 ? `${(area.profit / area.revenue * 100).toFixed(1)}%` : "—"} · {formatNum(area.records)} record</p>)}</div></Card>
+        <Card className="p-5 min-w-0"><div className="mb-5"><h2 className="font-black text-slate-950">Performance per Modul</h2><p className="mt-1 text-xs font-semibold text-slate-500">Gunakan formula sumber masing-masing modul.</p></div>{modules.length ? <div className="grid gap-3 sm:grid-cols-2">{modules.map((module) => <div key={module.module} className="rounded-xl border border-slate-100 bg-slate-50 p-4 min-w-0"><p className="font-black text-slate-950 truncate">{module.module}</p><p className="mt-2 text-lg font-black text-emerald-700">{formatCompactRp(module.profit)}</p><p className="text-[11px] font-bold text-slate-500">Profit</p><dl className="mt-3 space-y-1 text-xs font-semibold text-slate-600"><div className="flex justify-between gap-2"><dt>Revenue</dt><dd>{formatCompactRp(module.revenue)}</dd></div><div className="flex justify-between gap-2"><dt>Cost</dt><dd>{formatCompactRp(module.cost)}</dd></div><div className="flex justify-between gap-2"><dt>Margin · Record</dt><dd>{module.margin === null ? "—" : `${Number(module.margin).toFixed(1)}%`} · {formatNum(module.records)}</dd></div></dl></div>)}</div> : <p className="py-24 text-center text-sm font-semibold text-slate-400">Data modul belum tersedia untuk periode ini.</p>}</Card></div>
+        <Card className="min-w-0"><div className="border-b border-slate-100 px-5 py-4"><h2 className="font-black text-slate-950">Area Performance</h2><p className="mt-1 text-xs font-semibold text-slate-500">Analisis profitabilitas area, read-only.</p></div><AreaCards areas={areas} /><div className="hidden overflow-x-auto md:block min-w-0"><table className="w-full min-w-[980px] text-left text-xs"><thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wide text-slate-500"><tr>{["Area", "Revenue", "Cost", "Profit", "Margin", "Record", "Profit / Record", "Status"].map((label) => <th key={label} className="px-4 py-3">{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{areas.length ? areas.map((area) => { const margin = area.revenue > 0 ? area.profit / area.revenue * 100 : null; const [status, tone] = areaStatus(area); return <tr key={area.area} className="font-semibold text-slate-600 hover:bg-slate-50/70"><td className="px-4 py-3 font-black text-slate-900">{area.area}</td><td className="px-4 py-3 whitespace-nowrap">{formatRp(area.revenue)}</td><td className="px-4 py-3 whitespace-nowrap">{formatRp(area.cost)}</td><td className="px-4 py-3 whitespace-nowrap font-black text-emerald-700">{formatRp(area.profit)}</td><td className="px-4 py-3">{margin === null ? "—" : `${margin.toFixed(1)}%`}</td><td className="px-4 py-3">{formatNum(area.records)}</td><td className="px-4 py-3 whitespace-nowrap">{area.records ? formatRp(area.profit / area.records) : "—"}</td><td className="px-4 py-3"><span className={`rounded-md px-2 py-1 text-[10px] font-black ${tone}`}>{status}</span></td></tr>; }) : <tr><td colSpan={8} className="px-4 py-12 text-center text-sm font-semibold text-slate-400">Belum ada data area untuk periode ini.</td></tr>}</tbody></table></div></Card>
+        <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-black text-slate-900">Data & Document Health</p><p className="mt-1 text-xs font-semibold text-slate-500">{health === null ? "Data kepatuhan global belum tersedia" : `${health.toFixed(1)}% dokumen kendaraan aktif`} · Data ini bersifat global dan tidak ikut filter periode.</p></div><Link href="/business-control/health" className="inline-flex w-fit items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-200">Lihat Data Health <ArrowRight size={14} /></Link></Card>
+    </div></AdminLayout>;
 }
