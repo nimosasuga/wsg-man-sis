@@ -442,13 +442,73 @@ class ProfitUnitController extends Controller
 
     public function secondaryDetail(string $id)
     {
-        $row = DB::table('operasional_secondary_input')->where('id_key', $id)->first();
+        $row = DB::table('operasional_secondary_input')
+            ->where('id_key', $id)
+            ->first([
+                'id_key', 'id_record', 'row_data', 'no_po', 'no_si', 'hari', 'tanggal', 'bulan', 'tahun', 'week',
+                'jam_mulai', 'jam_selesai', 'total_jam', 'nopol', 'tipe_unit', 'area', 'driver', 'helper', 'qty',
+                'km_awal', 'km_akhir', 'total_km', 'order_type', 'tarif_unit', 'add_cost_long_route', 'subsidi_bbm',
+                'tkbm', 'spsi', 'parkir_liar_keamanan', 'allowance', 'biaya_tagihan_hotel', 'tarif_hotel', 'subsidi_hotel',
+                'selisih_tagihan_hotel', 'penyebrangan_pas_masuk', 'rapid_antigen', 'bbm', 'nominal_pengisian_bbm',
+                'jenis_bbm', 'harga_perliter', 'jumlah_liter', 'odo_isi_bbm', 'selisih_bbm', 'non_claim_bbm',
+                'subsidi_bbm_2', 'tambah_bbm', 'bbm_2', 'parkir_resmi', 'tol', 'kirim_dokumen', 'tarif_gs', 'atk',
+                'biaya_lainnya', 'tarif_sewa_unit_vendor', 'total_non_klaim_bbm', 'total_subsidi_bbm', 'total_tarif',
+                'total_biaya_operasional', 'status', 'status_dokument', 'admin_cross_cek', 'crosscek_date',
+            ]);
         abort_if(! $row, 404);
 
-        $metrics = $this->secondaryMetrics(
-            $row,
-            $this->secondaryOvtLookup()
-        );
+        $ovtLookup = $this->secondaryOvtLookup();
+        $metrics = $this->secondaryMetrics($row, $ovtLookup);
+        $number = static fn ($value): float => (float) ($value ?: 0);
+        $dateKey = $this->normalizeDate($row->tanggal ?? null);
+        $ovt = static function ($name) use ($ovtLookup, $dateKey): float {
+            if (! $dateKey || ! $name) {
+                return 0;
+            }
+
+            return $ovtLookup[$dateKey.'|'.mb_strtoupper(trim((string) $name))] ?? 0;
+        };
+        $ovtDriver = $ovt($row->driver ?? null);
+        $ovtHelper = $ovt($row->helper ?? null);
+        $claimOvt = max($ovtDriver, $ovtHelper);
+
+        $totalClaim = $number($row->tkbm)
+            + $number($row->spsi)
+            + $number($row->parkir_liar_keamanan)
+            + $number($row->penyebrangan_pas_masuk)
+            + $number($row->rapid_antigen)
+            + $number($row->allowance)
+            + ($number($row->biaya_tagihan_hotel) > 300000 ? 300000 : $number($row->biaya_tagihan_hotel))
+            + $number($row->total_subsidi_bbm);
+
+        $statusDocFat = $row->status_dokument === 'DITERIMA'
+            ? 'DITERIMA FAT'
+            : (empty($row->status_dokument) ? 'BELUM NAIK' : 'N/A');
+
+        $lamaCekData = '';
+        if (! empty($row->jam_selesai) && ($row->admin_cross_cek ?? null) === 'OK' && ! empty($row->crosscek_date)) {
+            $start = $this->normalizeDate($row->jam_selesai);
+            $end = $this->normalizeDate($row->crosscek_date);
+            if ($start && $end) {
+                $lamaCekData = floor((strtotime($end) - strtotime($start)) / 86400).' Hari';
+            }
+        }
+
+        $editor = DB::table('operasional_catatan_update')
+            ->where('id_record', $id)
+            ->orderByRaw(LegacyDate::sql('tgl_cek_admin').' desc')
+            ->first(['nama_admin', 'tgl_cek_admin']);
+
+        $today = now()->toDateString();
+        $dailyQuery = DB::table('operasional_secondary_input');
+        LegacyDate::whereDate($dailyQuery, 'tanggal', $today);
+        $dailyRows = $dailyQuery->get([
+            'id_key', 'tanggal', 'status', 'tarif_unit', 'total_tarif', 'total_biaya_operasional', 'add_cost_long_route',
+            'tkbm', 'spsi', 'parkir_liar_keamanan', 'penyebrangan_pas_masuk', 'rapid_antigen', 'allowance',
+            'total_subsidi_bbm', 'subsidi_hotel', 'selisih_tagihan_hotel', 'parkir_resmi', 'tol', 'kirim_dokumen',
+            'tarif_gs', 'atk', 'biaya_lainnya', 'tarif_sewa_unit_vendor', 'total_non_klaim_bbm',
+        ]);
+        $dailyMetrics = $dailyRows->map(fn ($r) => $this->secondaryMetrics($r, $ovtLookup));
 
         return Inertia::render('ProfitUnit/OperationDetail', [
             'title' => 'Detail Profit Secondary',
@@ -456,24 +516,86 @@ class ProfitUnitController extends Controller
             'backUrl' => $this->tableBackUrl('profit-unit.secondary.table'),
             'detail' => [
                 'id_key' => $row->id_key,
-                'tahun' => $row->tahun,
-                'bulan' => $row->bulan,
-                'tanggal' => $row->tanggal,
-                'crosscek_date' => $row->crosscek_date,
-                'project' => $row->project,
-                'posisi_project' => $row->posisi_project,
-                'add_data' => $row->add_data,
-                'area' => $row->area,
-                'nopol' => $row->nopol,
-                'tipe' => $row->tipe_unit,
-                'driver' => $row->driver,
-                'tarif' => $metrics['tagihan'],
-                'biaya' => $metrics['cost'],
-                'profit' => $metrics['profit'],
-                'week' => $row->week ? 'W'.$row->week : '-',
-                'order_type' => $row->order_type,
+                'id_record' => $row->id_record,
+                'row_data' => $row->row_data,
                 'no_po' => $row->no_po,
                 'no_si' => $row->no_si,
+                'hari' => $row->hari,
+                'tanggal' => $row->tanggal,
+                'bulan' => $row->bulan,
+                'tahun' => $row->tahun,
+                'week' => $row->week ? 'W'.$row->week : '-',
+                'jam_mulai' => $row->jam_mulai,
+                'jam_selesai' => $row->jam_selesai,
+                'total_jam' => $row->total_jam,
+                'nopol' => $row->nopol,
+                'tipe_unit' => $row->tipe_unit,
+                'area' => $row->area,
+                'driver' => $row->driver,
+                'helper' => $row->helper,
+                'qty' => $row->qty,
+                'km_awal' => $row->km_awal,
+                'km_akhir' => $row->km_akhir,
+                'total_km' => $row->total_km,
+                'order_type' => $row->order_type,
+                'tarif_unit' => $row->tarif_unit,
+                'add_cost_long_route' => $row->add_cost_long_route,
+                'subsidi_bbm' => $row->subsidi_bbm,
+                'tkbm' => $row->tkbm,
+                'spsi' => $row->spsi,
+                'parkir_liar_keamanan' => $row->parkir_liar_keamanan,
+                'allowance' => $row->allowance,
+                'biaya_tagihan_hotel' => $row->biaya_tagihan_hotel,
+                'tarif_hotel' => $row->tarif_hotel,
+                'subsidi_hotel' => $row->subsidi_hotel,
+                'selisih_tagihan_hotel' => $row->selisih_tagihan_hotel,
+                'penyebrangan_pas_masuk' => $row->penyebrangan_pas_masuk,
+                'rapid_antigen' => $row->rapid_antigen,
+                'bbm' => $row->bbm,
+                'nominal_pengisian_bbm' => $row->nominal_pengisian_bbm,
+                'jenis_bbm' => $row->jenis_bbm,
+                'harga_perliter' => $row->harga_perliter,
+                'jumlah_liter' => $row->jumlah_liter,
+                'odo_isi_bbm' => $row->odo_isi_bbm,
+                'selisih_bbm' => $row->selisih_bbm,
+                'non_claim_bbm' => $row->non_claim_bbm,
+                'subsidi_bbm_2' => $row->subsidi_bbm_2,
+                'tambah_bbm' => $row->tambah_bbm,
+                'bbm_2' => $row->bbm_2,
+                'parkir_resmi' => $row->parkir_resmi,
+                'tol' => $row->tol,
+                'kirim_dokumen' => $row->kirim_dokumen,
+                'tarif_gs' => $row->tarif_gs,
+                'atk' => $row->atk,
+                'biaya_lainnya' => $row->biaya_lainnya,
+                'tarif_sewa_unit_vendor' => $row->tarif_sewa_unit_vendor,
+                'total_non_klaim_bbm' => $row->total_non_klaim_bbm,
+                'total_subsidi_bbm' => $row->total_subsidi_bbm,
+                'total_tarif' => $row->total_tarif,
+                'total_biaya_operasional' => $row->total_biaya_operasional,
+                'status' => $row->status,
+                'status_dokument' => $row->status_dokument,
+                'admin_cross_cek' => $row->admin_cross_cek,
+                'crosscek_date' => $row->crosscek_date,
+                'tagihan' => $metrics['tagihan'],
+                'profit' => $metrics['profit'],
+                'total_klaim' => $totalClaim,
+                'total_no_klaim' => $metrics['total_no_klaim'],
+                'nilai_ovt' => $metrics['nilai_ovt'],
+                'status_doc_fat' => $statusDocFat,
+                'lama_cek_data' => $lamaCekData,
+                'ovt_jam_driver' => $ovtDriver,
+                'ovt_jam_helper' => $ovtHelper,
+                'claim_total_ovt' => $claimOvt,
+                'editor' => optional($editor)->nama_admin ?? '-',
+                'edit_time' => optional($editor)->tgl_cek_admin ?? '-',
+            ],
+            'dailySummary' => [
+                'date_by_road' => $today,
+                'total_tarif_berjalan' => $dailyMetrics->sum('tagihan'),
+                'total_biaya_operational' => $dailyMetrics->sum('cost'),
+                'total_profit_hari_ini' => $dailyMetrics->sum('profit'),
+                'total_unit_jalan_hari_ini' => $dailyRows->where('status', 'JALAN')->count(),
             ],
         ]);
     }
