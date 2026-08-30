@@ -57,8 +57,11 @@ const ActivityChart = memo(function ActivityChart({ activeType, dataByYear = [],
 
     const activeYear = years.includes(selectedYear) ? selectedYear : years[0];
     const yearData = dataByYear.find((item) => Number(item.tahun) === Number(activeYear));
-    const monthLookup = new Map((yearData?.months || []).map((month) => [Number(month.bulan), Number(month.value || 0)]));
-    const chartData = MONTHS.map((name, index) => ({ name, month: index + 1, value: monthLookup.get(index + 1) || 0 }));
+    const monthLookup = {};
+    (yearData?.months || []).forEach((month) => {
+        monthLookup[Number(month.bulan)] = Number(month.value || 0);
+    });
+    const chartData = MONTHS.map((name, index) => ({ name, month: index + 1, value: monthLookup[index + 1] || 0 }));
     const total = chartData.reduce((sum, item) => sum + item.value, 0);
     const maxVal = Math.max(...chartData.map((item) => item.value), 1);
     const hasData = total > 0;
